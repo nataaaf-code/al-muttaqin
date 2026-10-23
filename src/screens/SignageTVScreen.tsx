@@ -245,14 +245,15 @@ function AnalogClockSVG({
         />
       ))}
 
-      {/* 5. Angka 1 - 12 Radial */}
+      {/* 5. Angka 1 - 12 Radial (Announce Weight 600, Swiss Precision Dial) */}
       {numbers.map(({ n, x, y }) => (
         <SvgText
           key={n}
           x={x}
           y={y + 9}
           fontSize="26"
-          fontWeight="800"
+          fontWeight="600"
+          letterSpacing="-0.3"
           fill="#2D3834"
           textAnchor="middle"
         >
@@ -740,15 +741,18 @@ const styles = StyleSheet.create({
   },
   mosqueTitle: {
     fontSize: 32,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#2D3834',
-    letterSpacing: -0.3,
+    letterSpacing: -0.5, // Headings 32px+: -0.015em
+    lineHeight: 38,
   },
   mosqueSubtitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '400',
     color: '#64748B',
     marginTop: 2,
+    letterSpacing: 0.2, // UI text 16px: +0.012em
+    lineHeight: 22,
   },
   sunriseRight: {
     flexDirection: 'row',
@@ -757,21 +761,24 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   sunriseLabel: {
-    fontSize: 27,
+    fontSize: 26,
     fontWeight: '500',
     color: '#8F9995',
+    letterSpacing: 0.4, // UI label: +0.015em
   },
   sunriseTimeNum: {
     fontSize: 38,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#2D3834',
+    letterSpacing: -0.6, // Headings 38px: -0.015em
     fontVariant: ['tabular-nums'],
   },
   sunriseTimeAmPm: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#8F9995',
     marginLeft: 6,
+    letterSpacing: 1.6, // ALL CAPS: +0.08em
   },
   exitTvBtn: {
     width: 44,
@@ -788,6 +795,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
+    cursor: 'pointer',
   },
 
   /* ================= ZONE 2: MIDDLE HERO SECTION ================= */
@@ -822,18 +830,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   jumuahTitle: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '600',
     color: '#3D403E',
+    letterSpacing: -0.3,
   },
   jumuahTimeGroup: {
     alignItems: 'flex-start',
   },
   jumuahTimeLabel: {
-    fontSize: 25,
+    fontSize: 24,
     fontWeight: '500',
     color: '#8F9492',
     marginBottom: 2,
+    letterSpacing: 0.4,
   },
   jumuahTimeRow: {
     flexDirection: 'row',
@@ -841,27 +851,31 @@ const styles = StyleSheet.create({
   },
   jumuahTimeAthanNum: {
     fontSize: 46,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#3D403E',
+    letterSpacing: -0.8, // -0.017em
     fontVariant: ['tabular-nums'],
   },
   jumuahTimeAthanAmPm: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#8F9492',
     marginLeft: 6,
+    letterSpacing: 1.6, // ALL CAPS: +0.08em
   },
   jumuahTimeIqamahNum: {
     fontSize: 50,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#3D403E',
+    letterSpacing: -1.0, // -0.02em
     fontVariant: ['tabular-nums'],
   },
   jumuahTimeIqamahAmPm: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#8F9492',
     marginLeft: 6,
+    letterSpacing: 1.6, // ALL CAPS: +0.08em
   },
 
   /* Center: Jam Analog + Kapsul + Tanggal */
@@ -926,8 +940,9 @@ const styles = StyleSheet.create({
   },
   heroPrayerNameText: {
     fontSize: 50,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
+    letterSpacing: -1.0, // Display 50px: -0.02em
   },
   heroPrayerTimeRow: {
     flexDirection: 'row',
@@ -937,14 +952,16 @@ const styles = StyleSheet.create({
   },
   heroPrayerTimeText: {
     fontSize: 44,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
+    letterSpacing: -0.8, // -0.018em
     fontVariant: ['tabular-nums'],
   },
   heroCountdownText: {
     fontSize: 46,
     fontWeight: '500',
     color: '#C8B55B',
+    letterSpacing: -0.8, // -0.017em
     fontVariant: ['tabular-nums'],
   },
 
@@ -955,16 +972,19 @@ const styles = StyleSheet.create({
     marginLeft: 32,
   },
   hijriDateText: {
-    fontSize: 33,
+    fontSize: 32,
     fontWeight: '600',
     color: '#3A4642',
-    lineHeight: 44,
+    letterSpacing: -0.5,
+    lineHeight: 42,
   },
   gregorianDateText: {
-    fontSize: 33,
+    fontSize: 32,
     fontWeight: '600',
     color: '#3A4642',
+    letterSpacing: -0.5,
     marginTop: 4,
+    lineHeight: 42,
   },
 
   /* Right: QR Code Column */
@@ -994,10 +1014,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   qrCaptionLine: {
-    fontSize: 21,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#4A5551',
-    lineHeight: 28,
+    letterSpacing: 0.3,
+    lineHeight: 26,
     textAlign: 'center',
   },
 
@@ -1062,9 +1083,10 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   floatingPillTitle: {
-    fontSize: 31,
+    fontSize: 30,
     fontWeight: '600',
     color: '#3D403E',
+    letterSpacing: -0.4,
   },
   prayerCardContent: {
     flex: 1,
@@ -1075,10 +1097,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   prayerLabelText: {
-    fontSize: 27,
+    fontSize: 26,
     fontWeight: '500',
     color: '#A2A6A4',
     marginBottom: 2,
+    letterSpacing: 0.5, // UI Label: +0.02em
   },
   prayerLabelTextActive: {
     color: '#5A5D5B',
@@ -1088,28 +1111,32 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   prayerAdhanTimeNum: {
-    fontSize: 48,
-    fontWeight: '700',
+    fontSize: 46,
+    fontWeight: '600',
     color: '#3D403E',
+    letterSpacing: -0.9, // Display -0.02em
     fontVariant: ['tabular-nums'],
   },
   prayerAdhanTimeAmPm: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#8F9492',
     marginLeft: 6,
+    letterSpacing: 1.6, // ALL CAPS: +0.08em
   },
   prayerIqamahTimeNum: {
-    fontSize: 66, // Hirarki Terbesar di Kartu Sholat (66px Bold)
-    fontWeight: '700',
+    fontSize: 64, // Dominant display kartu sholat
+    fontWeight: '600',
     color: '#3D403E',
+    letterSpacing: -1.3, // Display 64px: -0.02em
     fontVariant: ['tabular-nums'],
   },
   prayerIqamahTimeAmPm: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '600',
     color: '#8F9492',
     marginLeft: 8,
+    letterSpacing: 1.8, // ALL CAPS: +0.075em
   },
   prayerTimeNumActive: {
     color: '#E09B3E',

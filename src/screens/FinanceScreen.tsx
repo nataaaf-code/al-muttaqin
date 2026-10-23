@@ -436,9 +436,16 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>
-                  {txType === 'INCOME' ? '📥 Catat Pemasukan Kas' : '📤 Catat Pengeluaran Kas'}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons
+                    name={txType === 'INCOME' ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
+                    size={22}
+                    color={txType === 'INCOME' ? '#10B981' : '#EF4444'}
+                  />
+                  <Text style={styles.modalTitle}>
+                    {txType === 'INCOME' ? 'Catat Pemasukan Kas' : 'Catat Pengeluaran Kas'}
+                  </Text>
+                </View>
                 <Text style={styles.modalSub}>Perbarui mutasi dan saldo amanah</Text>
               </View>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalCloseBtn}>
