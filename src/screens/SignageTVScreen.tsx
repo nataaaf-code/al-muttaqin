@@ -14,6 +14,9 @@ import { useMushola } from '../store/useMusholaStore';
 import { getWibTime } from '../services/prayerService';
 import { formatDateIndo, getEstimatedHijriDate } from '../utils/formatters';
 
+// Aset Foto Latar Belakang Makkah
+const makkahAsset = require('../../assets/makkah.jpg');
+
 // Helper: Tambah menit ke format waktu "HH:mm" (24 jam)
 function addMinutesToTime(timeStr: string, addMins: number): string {
   if (!timeStr) return '--:--';
@@ -290,6 +293,12 @@ export function SignageTVScreen() {
   const { width: winW, height: winH } = useWindowDimensions();
   const { prayerData, setIsSignageMode } = useMushola();
 
+  // URI Foto Makkah untuk Web & Native
+  const makkahUri =
+    (typeof makkahAsset === 'string'
+      ? makkahAsset
+      : makkahAsset?.default || makkahAsset?.uri) || '/assets/makkah.jpg';
+
   // Live Timer State (WIB)
   const [nowDate, setNowDate] = useState(new Date());
   const [wibTime, setWibTime] = useState(getWibTime());
@@ -388,6 +397,44 @@ export function SignageTVScreen() {
 
   return (
     <View style={styles.viewportOuter}>
+      {/* ================= LAYER 0: FOTO BACKGROUND MAKKAH FULL SCREEN (DINAMIS 100% COVER) ================= */}
+      <View style={styles.fullscreenBgWrapper} pointerEvents="none">
+        {Platform.OS === 'web' ? (
+          React.createElement('img', {
+            src: makkahUri,
+            alt: 'Latar Makkah Fullscreen',
+            style: {
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              width: '100%',
+              height: '100%',
+              minWidth: '100%',
+              minHeight: '100%',
+              transform: 'translate(-50%, -50%) scale(1.10)',
+              objectFit: 'cover',
+              objectPosition: 'center center',
+              opacity: 0.38,
+              pointerEvents: 'none',
+            },
+          })
+        ) : (
+          <Image
+            source={require('../../assets/makkah.jpg')}
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                width: '100%',
+                height: '100%',
+                opacity: 0.38,
+                transform: [{ scale: 1.10 }],
+              },
+            ]}
+            resizeMode="cover"
+          />
+        )}
+      </View>
+
       {/* 1920x1080 Fixed Canvas dengan Auto-Scale Responsif */}
       <View
         style={[
@@ -397,15 +444,6 @@ export function SignageTVScreen() {
           },
         ]}
       >
-        {/* ================= LAYER 0: FOTO BACKGROUND MAKKAH ================= */}
-        <View style={styles.imageBackgroundLayer} pointerEvents="none">
-          <Image
-            source={require('../../assets/makkah.jpg')}
-            style={[StyleSheet.absoluteFill, { opacity: 0.38 }]}
-            resizeMode="cover"
-          />
-        </View>
-
         {/* ================= LAYER 0.5: SVG MOSQUE SKYLINE SILHOUETTE ================= */}
         <View style={styles.svgBackgroundLayer} pointerEvents="none">
           <Svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
@@ -680,26 +718,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    position: 'relative',
+  },
+  fullscreenBgWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+    zIndex: 0,
   },
   canvas1080p: {
     width: 1920,
     height: 1080,
-    backgroundColor: '#DBEAE5',
+    backgroundColor: 'transparent',
     position: 'relative',
     overflow: 'hidden',
     paddingTop: 28,
     paddingBottom: 32,
     paddingHorizontal: 34,
     justifyContent: 'space-between',
-  },
-  imageBackgroundLayer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: 'hidden',
-    zIndex: 0,
+    zIndex: 5,
   },
   svgBackgroundLayer: {
     position: 'absolute',
