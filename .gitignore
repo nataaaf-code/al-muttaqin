@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# public video duplicates
+public/makkah.mp4
+public/assets/*.mp4

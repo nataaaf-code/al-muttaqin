@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMushola } from '../store/useMusholaStore';
 import { getWibTime } from '../services/prayerService';
 import { formatDateIndo, getEstimatedHijriDate } from '../utils/formatters';
+
+// Aset Video Latar Belakang Makkah (Assets)
+let makkahVideoAsset: any = null;
+try {
+  makkahVideoAsset = require('../../assets/makkah.mp4');
+} catch {
+  makkahVideoAsset = null;
+}
 
 // Helper: Tambah menit ke format waktu "HH:mm" (24 jam)
 function addMinutesToTime(timeStr: string, addMins: number): string {
@@ -289,6 +297,31 @@ export function SignageTVScreen() {
   const { width: winW, height: winH } = useWindowDimensions();
   const { prayerData, setIsSignageMode } = useMushola();
 
+  // Video Background Ref & Auto-Play Handler
+  const videoRef = useRef<any>(null);
+  const videoUri =
+    (typeof makkahVideoAsset === 'string'
+      ? makkahVideoAsset
+      : makkahVideoAsset?.default || makkahVideoAsset?.uri) || '/assets/makkah.mp4';
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && videoRef.current) {
+      const v = videoRef.current;
+      v.muted = true;
+      v.defaultMuted = true;
+      const playPromise = v.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {});
+      }
+    }
+  }, []);
+
+  const handleScreenTouch = () => {
+    if (Platform.OS === 'web' && videoRef.current && videoRef.current.paused) {
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
   // Live Timer State (WIB)
   const [nowDate, setNowDate] = useState(new Date());
   const [wibTime, setWibTime] = useState(getWibTime());
@@ -386,7 +419,7 @@ export function SignageTVScreen() {
   ];
 
   return (
-    <View style={styles.viewportOuter}>
+    <View style={styles.viewportOuter} onTouchStart={handleScreenTouch}>
       {/* 1920x1080 Fixed Canvas dengan Auto-Scale Responsif */}
       <View
         style={[
@@ -396,42 +429,85 @@ export function SignageTVScreen() {
           },
         ]}
       >
-        {/* ================= LAYER 0: SVG MOSQUE SKYLINE SILHOUETTE ================= */}
+        {/* ================= LAYER 0: VIDEO BACKGROUND (MAKKAH.MP4) ================= */}
+        <View style={styles.videoBackgroundLayer} pointerEvents="none">
+          {Platform.OS === 'web' ? (
+            React.createElement(
+              'video',
+              {
+                ref: videoRef,
+                autoPlay: true,
+                loop: true,
+                muted: true,
+                playsInline: true,
+                style: {
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  opacity: 0.38,
+                  pointerEvents: 'none',
+                },
+              },
+              React.createElement('source', {
+                src: videoUri,
+                type: 'video/mp4',
+              }),
+              React.createElement('source', {
+                src: '/assets/makkah.mp4',
+                type: 'video/mp4',
+              }),
+              React.createElement('source', {
+                src: '/makkah.mp4',
+                type: 'video/mp4',
+              })
+            )
+          ) : (
+            <Image
+              source={require('../../assets/masjid-nabawi-bg.jpg')}
+              style={[StyleSheet.absoluteFill, { opacity: 0.3 }]}
+              resizeMode="cover"
+            />
+          )}
+        </View>
+
+        {/* ================= LAYER 0.5: SVG MOSQUE SKYLINE SILHOUETTE ================= */}
         <View style={styles.svgBackgroundLayer} pointerEvents="none">
           <Svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
-            {/* Langit Dasar Mint-Sage */}
-            <Rect width="1920" height="1080" fill="#DBEAE5" />
-
             {/* Kubah & Bulan Sabit Besar di Belakang Jam Analog */}
-            <Circle cx="595" cy="240" r="85" fill="#CBE0DA" opacity="0.55" />
+            <Circle cx="595" cy="240" r="85" fill="#CBE0DA" opacity="0.45" />
             <Path
               d="M570,110 A42,42 0 1,0 625,165 A34,34 0 1,1 570,110 Z"
               fill="#CBE0DA"
-              opacity="0.65"
+              opacity="0.55"
             />
 
             {/* Siluet Daun Palem Sudut Kiri & Kanan Atas */}
             <Path
               d="M-40,-20 Q120,40 180,180 Q100,120 -20,100 Z M-10,-40 Q160,20 230,120 Q140,80 30,30 Z"
               fill="#CBE0DA"
-              opacity="0.4"
+              opacity="0.35"
             />
             <Path
               d="M1960,-20 Q1800,40 1740,180 Q1820,120 1940,100 Z M1930,-40 Q1760,20 1690,120 Q1780,80 1890,30 Z"
               fill="#CBE0DA"
-              opacity="0.4"
+              opacity="0.35"
             />
 
             {/* Siluet Menara & Kubah Masjid Lapis Tengah */}
             <Path
               d="M0,640 L120,640 L120,520 Q160,450 200,520 L200,640 L260,640 Q380,460 500,640 L980,640 L980,430 L1015,380 L1050,430 L1050,640 L1370,640 L1385,360 L1405,310 L1425,360 L1440,640 L1650,640 Q1730,520 1810,640 L1920,640 L1920,1080 L0,1080 Z"
               fill="#C4DFD8"
+              opacity="0.45"
             />
 
             {/* Siluet Bangunan Depan Masjid */}
             <Path
               d="M0,720 Q180,680 360,720 L1560,720 Q1740,670 1920,720 L1920,1080 L0,1080 Z"
               fill="#BFD8D2"
+              opacity="0.4"
             />
           </Svg>
         </View>
@@ -682,6 +758,15 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     paddingHorizontal: 34,
     justifyContent: 'space-between',
+  },
+  videoBackgroundLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+    zIndex: 0,
   },
   svgBackgroundLayer: {
     position: 'absolute',
