@@ -1,0 +1,21 @@
+services:
+  al-muttaqin-app:
+    container_name: al-muttaqin-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: al-muttaqin-app:latest
+    restart: unless-stopped
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.al-muttaqin.rule=Host(`al-muttaqin.natsuko.ai.id`)"
+      - "traefik.http.routers.al-muttaqin.entrypoints=websecure"
+      - "traefik.http.routers.al-muttaqin.tls.certresolver=myresolver"
+      - "traefik.http.services.al-muttaqin.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true
