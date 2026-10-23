@@ -248,7 +248,7 @@ export function InventoryScreen() {
           <View style={styles.itemFooter}>
             {item.isAvailableForLoan ? (
               <View style={styles.loanBadgeAvailable}>
-                <Ionicons name="checkmark-circle-outline" size={13} color="#047857" />
+                <Ionicons name="checkmark-circle-outline" size={13} color="#EF8354" />
                 <Text style={styles.loanTextAvailable}>Bisa Dipinjam Warga (Hubungi Sie Sarpras)</Text>
               </View>
             ) : (
@@ -272,7 +272,7 @@ export function InventoryScreen() {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="cube" size={20} color="#047857" />
+                <Ionicons name="cube" size={20} color="#EF8354" />
                 <Text style={styles.modalTitle}>Tambah Aset Inventaris</Text>
               </View>
               <TouchableOpacity onPress={() => setIsAddModalOpen(false)}>
@@ -382,7 +382,7 @@ export function InventoryScreen() {
                 <Ionicons
                   name={isForLoan ? 'checkbox' : 'square-outline'}
                   size={20}
-                  color={isForLoan ? '#047857' : '#94A3B8'}
+                  color={isForLoan ? '#EF8354' : '#94A3B8'}
                 />
                 <Text style={styles.checkboxLabel}>
                   Bisa dipinjam oleh warga lingkungan untuk hajat/keperluan pribadi
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 8,
@@ -503,8 +503,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: '#047857',
-    borderColor: '#047857',
+    backgroundColor: '#EF8354',
+    borderColor: '#EF8354',
   },
   filterChipText: {
     fontSize: 12,
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
   },
   itemCategory: {
     fontSize: 11,
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '600',
     marginTop: 2,
   },
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
   },
   loanTextAvailable: {
     fontSize: 11,
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '600',
   },
   loanBadgeRestricted: {
@@ -764,8 +764,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   radioChipActive: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#047857',
+    backgroundColor: '#FDF1EB',
+    borderColor: '#EF8354',
   },
   radioChipText: {
     fontSize: 12,
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   radioChipTextActive: {
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '700',
   },
   checkboxRow: {
@@ -809,7 +809,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   modalSubmitBtn: {
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     paddingVertical: 9,
     paddingHorizontal: 20,
     borderRadius: 8,

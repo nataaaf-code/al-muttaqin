@@ -114,7 +114,7 @@ export function EventsScreen() {
         {/* Banner Sholat Jumat */}
         <View style={styles.fridayBanner}>
           <View style={styles.fridayBadge}>
-            <Ionicons name="sparkles" size={14} color="#047857" />
+            <Ionicons name="sparkles" size={14} color="#EF8354" />
             <Text style={styles.fridayBadgeText}>JADWAL SHOLAT JUMAT PEKAN INI</Text>
           </View>
           <Text style={styles.fridayDate}>{fridaySchedule.date}</Text>
@@ -148,7 +148,7 @@ export function EventsScreen() {
               onPress={() => setFridayModalVisible(true)}
               activeOpacity={0.8}
             >
-              <Ionicons name="create-outline" size={13} color="#047857" />
+              <Ionicons name="create-outline" size={13} color="#EF8354" />
               <Text style={styles.editFridayBtnText}>Edit Petugas Sholat Jumat</Text>
             </TouchableOpacity>
           )}
@@ -209,7 +209,7 @@ export function EventsScreen() {
           <View key={item.id} style={styles.eventCard}>
             <View style={styles.cardHeader}>
               <View style={styles.dateTag}>
-                <Ionicons name="calendar-outline" size={13} color="#047857" />
+                <Ionicons name="calendar-outline" size={13} color="#EF8354" />
                 <Text style={styles.dateTagText}>{formatDateIndo(item.date)}</Text>
               </View>
               <View style={styles.timeTag}>
@@ -228,7 +228,7 @@ export function EventsScreen() {
 
             {item.speakerOrOfficer ? (
               <View style={styles.speakerBox}>
-                <Ionicons name="mic-outline" size={14} color="#047857" />
+                <Ionicons name="mic-outline" size={14} color="#EF8354" />
                 <Text style={styles.speakerText}>Narasumber: {item.speakerOrOfficer}</Text>
               </View>
             ) : null}
@@ -418,11 +418,11 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   fridayBanner: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#BFC0C0',
     marginBottom: 18,
   },
   fridayBadge: {
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   fridayBadgeText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#047857',
+    color: '#EF8354',
     letterSpacing: 0.5,
   },
   fridayDate: {
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#BFC0C0',
     paddingVertical: 7,
     borderRadius: 8,
     marginTop: 10,
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   editFridayBtnText: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#047857',
+    color: '#EF8354',
   },
   readOnlyRoleBadge: {
     flexDirection: 'row',
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     color: '#1E293B',
   },
   addBtn: {
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 7,
@@ -542,8 +542,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: '#047857',
-    borderColor: '#047857',
+    backgroundColor: '#EF8354',
+    borderColor: '#EF8354',
   },
   filterChipText: {
     fontSize: 12,
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
   dateTagText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#047857',
+    color: '#EF8354',
   },
   timeTag: {
     flexDirection: 'row',
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     flex: 1,
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',

@@ -17,11 +17,11 @@ interface FinancialVisualizerProps {
 }
 
 const POCKET_COLORS = [
-  '#059669', // Emerald
+  '#EF8354', // Coral (Accent Utama)
+  '#4F5D75', // Payne's Gray
+  '#2D3142', // Gunmetal
+  '#7C3AED', // Violet
   '#0284C7', // Sky blue
-  '#D97706', // Amber
-  '#7C3AED', // Purple
-  '#EC4899', // Pink
 ];
 
 export function FinancialVisualizer({
@@ -184,18 +184,18 @@ const styles = StyleSheet.create({
   bigBalance: {
     fontSize: 26,
     fontWeight: '900',
-    color: '#064E3B',
+    color: '#2D3142',
     marginTop: 2,
   },
   quickQrisBtn: {
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 12,
-    shadowColor: '#047857',
+    shadowColor: '#EF8354',
     shadowOpacity: 0.25,
     shadowRadius: 6,
   },
@@ -235,8 +235,8 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   legendChipSelected: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#059669',
+    backgroundColor: '#FDF1EB',
+    borderColor: '#EF8354',
   },
   legendDot: {
     width: 8,
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   },
   boldGreen: {
     fontWeight: '800',
-    color: '#047857',
+    color: '#EF8354',
   },
   donateAction: {
     paddingVertical: 2,

@@ -72,7 +72,7 @@ export function getRolePermissions(role: UserRole): RolePermissions {
         isReadOnly: false,
         roleTitle: '👑 Super User (System Admin)',
         roleDescription: 'Hak akses tertinggi: Akses modul khusus Manajemen Pengguna, DKM, kas, sarpras, agenda, dan konfigurasi TV.',
-        roleBadgeColor: '#7C3AED',
+        roleBadgeColor: '#EF8354',
         roleIcon: 'shield-half',
       };
     case 'ADMIN':
@@ -89,7 +89,7 @@ export function getRolePermissions(role: UserRole): RolePermissions {
         isReadOnly: false,
         roleTitle: 'Ketua DKM (Admin)',
         roleDescription: 'Akses penuh ke seluruh pembukuan, jadwal kajian, inventaris, data jamaah, dan konfigurasi TV.',
-        roleBadgeColor: '#059669',
+        roleBadgeColor: '#2D3142',
         roleIcon: 'shield-checkmark',
       };
     case 'BENDAHARA':
@@ -107,7 +107,7 @@ export function getRolePermissions(role: UserRole): RolePermissions {
         isReadOnly: false,
         roleTitle: 'Bendahara Keuangan DKM',
         roleDescription: 'Mengelola transaksi kas pemasukan & pengeluaran DKM, alokasi kantong kas, dan laporan warta Jumat.',
-        roleBadgeColor: '#0D9488',
+        roleBadgeColor: '#4F5D75',
         roleIcon: 'wallet',
       };
     case 'DKM':
@@ -125,7 +125,7 @@ export function getRolePermissions(role: UserRole): RolePermissions {
         isReadOnly: false,
         roleTitle: 'Pengurus DKM & Dakwah',
         roleDescription: 'Mengatur kalender kajian, petugas sholat Jumat, warta TV digital, dan sensus warga jamaah.',
-        roleBadgeColor: '#D97706',
+        roleBadgeColor: '#4F5D75',
         roleIcon: 'business',
       };
     case 'BENDAHARA_SUB':
@@ -142,7 +142,7 @@ export function getRolePermissions(role: UserRole): RolePermissions {
         isReadOnly: false,
         roleTitle: 'Bendahara Sub-Organisasi',
         roleDescription: 'Mencatat mutasi kas unit (RISMA/Taklim/TPA). Terisolasi dari kas pusat.',
-        roleBadgeColor: '#0284C7',
+        roleBadgeColor: '#4F5D75',
         roleIcon: 'card',
       };
     case 'PENGURUS_SEKSI':
@@ -160,7 +160,7 @@ export function getRolePermissions(role: UserRole): RolePermissions {
         isReadOnly: false,
         roleTitle: 'Seksi Sarpras & Logistik',
         roleDescription: 'Mengelola inventaris aset, kondisi alat musholla, dan peminjaman fasilitas warga.',
-        roleBadgeColor: '#6366F1',
+        roleBadgeColor: '#2D3142',
         roleIcon: 'cube',
       };
     case 'JAMAAH':
@@ -177,7 +177,7 @@ export function getRolePermissions(role: UserRole): RolePermissions {
         isReadOnly: true,
         roleTitle: 'Warga / Jamaah Terdaftar',
         roleDescription: 'Warga terdaftar Musholla Al Muttaqin. Akses data agenda kajian, transparansi kas detail, dan profil warga.',
-        roleBadgeColor: '#0284C7',
+        roleBadgeColor: '#4F5D75',
         roleIcon: 'people',
       };
     case 'TAMU':
@@ -195,7 +195,7 @@ export function getRolePermissions(role: UserRole): RolePermissions {
         isReadOnly: true,
         roleTitle: 'Tamu / Pengunjung Publik',
         roleDescription: 'Akses publik: Jadwal sholat live, Mode Smart TV Signage, warta ringkas, dan infaq QRIS. Masuk dengan Google untuk akses warga & DKM.',
-        roleBadgeColor: '#64748B',
+        roleBadgeColor: '#BFC0C0',
         roleIcon: 'globe-outline',
       };
   }

@@ -129,7 +129,7 @@ export function OnboardingModal() {
           {/* Header Onboarding */}
           <View style={styles.header}>
             <View style={styles.badgeTop}>
-              <Ionicons name="sparkles" size={16} color="#0D3723" />
+              <Ionicons name="sparkles" size={16} color="#EF8354" />
               <Text style={styles.badgeTopText}>Pendaftaran Jamaah Baru</Text>
             </View>
             <Text style={styles.title}>Lengkapi Data Diri Jamaah</Text>
@@ -139,7 +139,7 @@ export function OnboardingModal() {
 
             {currentUser?.email && (
               <View style={styles.emailPill}>
-                <Ionicons name="mail-outline" size={14} color="#0D3723" />
+                <Ionicons name="mail-outline" size={14} color="#4F5D75" />
                 <Text style={styles.emailPillText}>{currentUser.email}</Text>
               </View>
             )}
@@ -234,9 +234,9 @@ export function OnboardingModal() {
 
             {/* Preview Alamat Terformat */}
             <View style={styles.addressPreviewBox}>
-              <Ionicons name="location" size={16} color="#047857" />
+              <Ionicons name="location" size={16} color="#EF8354" />
               <Text style={styles.addressPreviewText}>
-                Format Alamat: <Text style={{ fontWeight: '800', color: '#064E3B' }}>{blokRumah}{nomorBlok ? nomorBlok : ''} No.{noRumah || '...'}</Text>
+                Format Alamat: <Text style={{ fontWeight: '800', color: '#2D3142' }}>{blokRumah}{nomorBlok ? nomorBlok : ''} No.{noRumah || '...'}</Text>
               </Text>
             </View>
 
@@ -263,7 +263,7 @@ export function OnboardingModal() {
                   <Ionicons
                     name="home"
                     size={16}
-                    color={statusWarga === 'Tetap' ? '#0D3723' : '#64748B'}
+                    color={statusWarga === 'Tetap' ? '#EF8354' : '#4F5D75'}
                   />
                   <Text
                     style={[
@@ -282,7 +282,7 @@ export function OnboardingModal() {
                   <Ionicons
                     name="business"
                     size={16}
-                    color={statusWarga === 'Kontrak' ? '#0D3723' : '#64748B'}
+                    color={statusWarga === 'Kontrak' ? '#EF8354' : '#4F5D75'}
                   />
                   <Text
                     style={[
@@ -416,13 +416,13 @@ const styles = StyleSheet.create({
   badgeTopText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0D3723',
+    color: '#EF8354',
     letterSpacing: 0.3,
   },
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#0D3723',
+    color: '#2D3142',
     textAlign: 'center',
   },
   subTitle: {
@@ -524,8 +524,8 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
   },
   chipActive: {
-    backgroundColor: '#0D3723',
-    borderColor: '#0D3723',
+    backgroundColor: '#EF8354',
+    borderColor: '#EF8354',
   },
   chipText: {
     fontSize: 13,
@@ -545,8 +545,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   jobChipActive: {
-    backgroundColor: '#0D3723',
-    borderColor: '#0D3723',
+    backgroundColor: '#EF8354',
+    borderColor: '#EF8354',
   },
   jobChipText: {
     fontSize: 12,
@@ -574,8 +574,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   statusBtnActive: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#10B981',
+    backgroundColor: '#FDF1EB',
+    borderColor: '#EF8354',
   },
   statusBtnText: {
     fontSize: 13,
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   statusBtnTextActive: {
-    color: '#0D3723',
+    color: '#EF8354',
   },
   textArea: {
     height: 72,
@@ -593,9 +593,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#BFC0C0',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
   },
   addressPreviewText: {
     fontSize: 12,
-    color: '#064E3B',
+    color: '#2D3142',
   },
   footer: {
     paddingHorizontal: 24,
@@ -616,11 +616,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0D3723',
+    backgroundColor: '#EF8354',
     borderRadius: 14,
     paddingVertical: 14,
     gap: 8,
-    shadowColor: '#0D3723',
+    shadowColor: '#EF8354',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,

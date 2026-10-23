@@ -314,11 +314,11 @@ export function PrayerTimeline({ schedules, nextPrayer, onOpenSignage }: PrayerT
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#064E3B',
+    backgroundColor: '#2D3142',
     borderRadius: 20,
     padding: 16,
     marginBottom: 18,
-    shadowColor: '#000',
+    shadowColor: '#2D3142',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -391,12 +391,12 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#EF8354',
   },
   nextTitle: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#A7F3D0',
+    color: '#BFC0C0',
     letterSpacing: 0.5,
   },
   nextName: {
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   },
   nextTime: {
     fontSize: 13,
-    color: '#FBBF24',
+    color: '#EF8354',
     fontWeight: '700',
   },
   rightActions: {
@@ -417,16 +417,16 @@ const styles = StyleSheet.create({
   countdownPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    backgroundColor: '#EF8354',
     borderWidth: 1,
-    borderColor: '#F59E0B',
+    borderColor: '#EF8354',
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 20,
     gap: 5,
   },
   countdownText: {
-    color: '#FDE68A',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -452,8 +452,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   nodeCardNext: {
-    backgroundColor: '#F59E0B',
-    borderColor: '#FBBF24',
+    backgroundColor: '#EF8354',
+    borderColor: '#EF8354',
     transform: [{ scale: 1.04 }],
   },
   nodeCardPassed: {
@@ -480,19 +480,19 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   iconBubbleNext: {
-    backgroundColor: '#78350F',
+    backgroundColor: '#FFFFFF',
   },
   iconBubblePassed: {
-    backgroundColor: '#334155',
+    backgroundColor: '#1E212D',
   },
   nodeName: {
     fontSize: 11,
-    color: '#D1FAE5',
+    color: '#BFC0C0',
     fontWeight: '600',
     marginBottom: 2,
   },
   nodeNameNext: {
-    color: '#78350F',
+    color: '#FFFFFF',
     fontWeight: '800',
   },
   nodeTime: {
@@ -501,18 +501,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   nodeTimeNext: {
-    color: '#78350F',
+    color: '#FFFFFF',
     fontWeight: '900',
   },
   nextBadge: {
-    backgroundColor: '#78350F',
+    backgroundColor: '#2D3142',
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
     marginTop: 4,
   },
   nextBadgeText: {
-    color: '#FEF3C7',
+    color: '#FFFFFF',
     fontSize: 8,
     fontWeight: '800',
   },

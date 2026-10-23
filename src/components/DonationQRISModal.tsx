@@ -112,7 +112,7 @@ export function DonationQRISModal({
           <View style={styles.modalHeader}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Ionicons name="qr-code" size={20} color="#047857" />
+                <Ionicons name="qr-code" size={20} color="#EF8354" />
               </View>
               <View>
                 <Text style={styles.headerTitle}>Kotak Infaq Digital QRIS</Text>
@@ -128,7 +128,7 @@ export function DonationQRISModal({
             {isSuccess ? (
               <View style={styles.successContainer}>
                 <View style={styles.successIconBubble}>
-                  <Ionicons name="checkmark-circle" size={56} color="#059669" />
+                  <Ionicons name="checkmark-circle" size={56} color="#EF8354" />
                 </View>
                 <Text style={styles.successHeading}>Alhamdulillah, Infaq Tercatat!</Text>
                 <Text style={styles.successDesc}>
@@ -156,7 +156,7 @@ export function DonationQRISModal({
               <View style={styles.mainView}>
                 {/* Notice Banner: Bebas Nominal */}
                 <View style={styles.noticeBanner}>
-                  <Ionicons name="information-circle" size={18} color="#047857" />
+                  <Ionicons name="information-circle" size={18} color="#EF8354" />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.noticeTitle}>Bebas Masukkan Nominal</Text>
                     <Text style={styles.noticeText}>
@@ -188,7 +188,7 @@ export function DonationQRISModal({
                       <Ionicons
                         name={copiedFeedback ? 'checkmark' : 'copy-outline'}
                         size={12}
-                        color={copiedFeedback ? '#059669' : '#047857'}
+                        color={copiedFeedback ? '#EF8354' : '#EF8354'}
                       />
                       <Text
                         style={[styles.copyChipText, copiedFeedback && styles.copyChipTextSuccess]}
@@ -260,7 +260,7 @@ export function DonationQRISModal({
                 {/* Contact Persons DKM Section */}
                 <View style={styles.contactSection}>
                   <View style={styles.contactHeaderRow}>
-                    <Ionicons name="chatbubbles-outline" size={16} color="#047857" />
+                    <Ionicons name="chatbubbles-outline" size={16} color="#EF8354" />
                     <Text style={styles.contactHeading}>Kontak Pengurus DKM (Konfirmasi Infaq)</Text>
                   </View>
                   <Text style={styles.contactSub}>
@@ -273,7 +273,7 @@ export function DonationQRISModal({
                     <View style={styles.personCard}>
                       <View style={styles.personInfo}>
                         <View style={styles.avatarCircle}>
-                          <Ionicons name="person" size={16} color="#047857" />
+                          <Ionicons name="person" size={16} color="#EF8354" />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.personName}>Ustadz Astriyo</Text>
@@ -292,7 +292,7 @@ export function DonationQRISModal({
                           style={styles.callBtn}
                           onPress={() => handleCall('6285777900383')}
                         >
-                          <Ionicons name="call-outline" size={14} color="#047857" />
+                          <Ionicons name="call-outline" size={14} color="#EF8354" />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -301,7 +301,7 @@ export function DonationQRISModal({
                     <View style={styles.personCard}>
                       <View style={styles.personInfo}>
                         <View style={styles.avatarCircle}>
-                          <Ionicons name="person" size={16} color="#047857" />
+                          <Ionicons name="person" size={16} color="#EF8354" />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.personName}>Ustadz Dicky</Text>
@@ -320,7 +320,7 @@ export function DonationQRISModal({
                           style={styles.callBtn}
                           onPress={() => handleCall('628174958342')}
                         >
-                          <Ionicons name="call-outline" size={14} color="#047857" />
+                          <Ionicons name="call-outline" size={14} color="#EF8354" />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -334,11 +334,11 @@ export function DonationQRISModal({
                       style={styles.toggleLogFormBtn}
                       onPress={() => setShowLogForm(true)}
                     >
-                      <Ionicons name="receipt-outline" size={15} color="#047857" />
+                      <Ionicons name="receipt-outline" size={15} color="#EF8354" />
                       <Text style={styles.toggleLogFormBtnText}>
                         Sudah Transfer? Catat ke Buku Kas Mushola
                       </Text>
-                      <Ionicons name="chevron-down" size={14} color="#047857" />
+                      <Ionicons name="chevron-down" size={14} color="#EF8354" />
                     </TouchableOpacity>
                   ) : (
                     <View style={styles.logFormBox}>
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   },
   headerSub: {
     fontSize: 12,
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '600',
     marginTop: 1,
   },
@@ -484,9 +484,9 @@ const styles = StyleSheet.create({
   noticeBanner: {
     flexDirection: 'row',
     gap: 10,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#BFC0C0',
     borderRadius: 14,
     padding: 12,
     alignItems: 'flex-start',
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   },
   noticeText: {
     fontSize: 12,
-    color: '#047857',
+    color: '#EF8354',
     lineHeight: 17,
   },
   merchantCard: {
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
@@ -575,11 +575,11 @@ const styles = StyleSheet.create({
   },
   copyChipText: {
     fontSize: 11,
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '600',
   },
   copyChipTextSuccess: {
-    color: '#059669',
+    color: '#EF8354',
   },
   qrisPosterFrame: {
     backgroundColor: '#FFFFFF',
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     alignItems: 'center',
-    shadowColor: '#047857',
+    shadowColor: '#EF8354',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
   },
   qrisScanCaption: {
     fontSize: 10.5,
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '600',
     textAlign: 'center',
     marginTop: 8,
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
   },
   boldGreen: {
     fontWeight: '700',
-    color: '#047857',
+    color: '#EF8354',
   },
   contactSection: {
     backgroundColor: '#F0FDF4',
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
   },
   contactSub: {
     fontSize: 11,
-    color: '#047857',
+    color: '#EF8354',
     marginBottom: 10,
   },
   contactCardsGrid: {
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -752,7 +752,7 @@ const styles = StyleSheet.create({
   callBtn: {
     padding: 6,
     borderRadius: 8,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
   },
   logSectionWrapper: {
     marginTop: 2,
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
   toggleLogFormBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#047857',
+    color: '#EF8354',
   },
   logFormBox: {
     backgroundColor: '#F8FAFC',
@@ -816,8 +816,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   pocketPillActive: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#059669',
+    backgroundColor: '#FDF1EB',
+    borderColor: '#EF8354',
   },
   pocketPillText: {
     fontSize: 11,
@@ -825,7 +825,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   pocketPillTextActive: {
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '700',
   },
   inputBox: {
@@ -840,7 +840,7 @@ const styles = StyleSheet.create({
   rpText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#047857',
+    color: '#EF8354',
     marginRight: 6,
   },
   textInputBox: {
@@ -861,7 +861,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     paddingVertical: 10,
     borderRadius: 10,
     marginTop: 6,
@@ -895,7 +895,7 @@ const styles = StyleSheet.create({
   blessingBanner: {
     backgroundColor: '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#BFC0C0',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
   arabicBlessing: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#047857',
+    color: '#EF8354',
     marginBottom: 6,
   },
   blessingDesc: {
@@ -916,7 +916,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   primaryActionBtn: {
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,

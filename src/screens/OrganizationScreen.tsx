@@ -30,7 +30,7 @@ const ALL_ROLES: RoleCardInfo[] = [
     role: 'SUPER_ADMIN',
     title: 'Ketua DKM (Super Admin)',
     badge: 'Akses Master',
-    badgeColor: '#059669',
+    badgeColor: '#EF8354',
     badgeBg: '#DCFCE7',
     icon: 'shield-checkmark',
     description: 'Akses otoritas tertinggi tanpa batasan ke seluruh pembukuan, pengaturan organisasi, dan tata kelola mushola.',
@@ -140,7 +140,7 @@ export function OrganizationScreen() {
 
         <View style={styles.metaGrid}>
           <View style={styles.metaBox}>
-            <Ionicons name="person-circle-outline" size={20} color="#047857" />
+            <Ionicons name="person-circle-outline" size={20} color="#EF8354" />
             <View style={{ marginLeft: 8 }}>
               <Text style={styles.metaLabel}>Ketua / Penanggung Jawab</Text>
               <Text style={styles.metaValue}>{selectedOrg.leaderName}</Text>
@@ -167,7 +167,7 @@ export function OrganizationScreen() {
             <Ionicons name="wallet-outline" size={20} color="#7C3AED" />
             <View style={{ marginLeft: 8 }}>
               <Text style={styles.metaLabel}>Total Dana Dikelola</Text>
-              <Text style={[styles.metaValue, { color: '#047857' }]}>
+              <Text style={[styles.metaValue, { color: '#EF8354' }]}>
                 {formatRupiah(orgTotalBalance)}
               </Text>
             </View>
@@ -180,7 +180,7 @@ export function OrganizationScreen() {
             <Text style={styles.pocketSubTitle}>Kantong Kas Unit Ini:</Text>
             {orgPockets.map((p) => (
               <View key={p.id} style={styles.pocketRow}>
-                <Ionicons name="cash-outline" size={16} color="#047857" />
+                <Ionicons name="cash-outline" size={16} color="#EF8354" />
                 <Text style={styles.pocketRowName}>{p.name}</Text>
                 <Text style={styles.pocketRowBalance}>{formatRupiah(p.balance)}</Text>
               </View>
@@ -192,7 +192,7 @@ export function OrganizationScreen() {
       {/* DKM Key Contact Persons */}
       <View style={styles.contactCard}>
         <View style={styles.contactHeader}>
-          <Ionicons name="people" size={20} color="#047857" />
+          <Ionicons name="people" size={20} color="#EF8354" />
           <Text style={styles.contactTitle}>Kontak Layanan Pengurus DKM</Text>
         </View>
         <Text style={styles.contactDesc}>
@@ -203,7 +203,7 @@ export function OrganizationScreen() {
           {MUSHOLA_INFO.contacts.map((c, idx) => (
             <View key={idx} style={styles.personRow}>
               <View style={styles.personIcon}>
-                <Ionicons name="person" size={16} color="#047857" />
+                <Ionicons name="person" size={16} color="#EF8354" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.personNameText}>{c.name}</Text>
@@ -228,7 +228,7 @@ export function OrganizationScreen() {
       {/* Role-Based Access Control Info (Interactive Switcher) */}
       <View style={styles.rbacCard}>
         <View style={styles.rbacHeader}>
-          <Ionicons name="shield-checkmark" size={22} color="#047857" />
+          <Ionicons name="shield-checkmark" size={22} color="#EF8354" />
           <View style={{ flex: 1, marginLeft: 8 }}>
             <Text style={styles.rbacTitle}>Matriks & Pengalihan Hak Akses (RBAC)</Text>
             <Text style={styles.rbacDesc}>
@@ -265,7 +265,7 @@ export function OrganizationScreen() {
 
                   {isActive && (
                     <View style={styles.activeCheckBadge}>
-                      <Ionicons name="checkmark-circle" size={14} color="#047857" />
+                      <Ionicons name="checkmark-circle" size={14} color="#EF8354" />
                       <Text style={styles.activeCheckText}>Aktif</Text>
                     </View>
                   )}
@@ -276,7 +276,7 @@ export function OrganizationScreen() {
                 <View style={styles.permsWrap}>
                   {r.permissionsText.map((p, idx) => (
                     <View key={idx} style={styles.permChip}>
-                      <Ionicons name="checkmark" size={11} color="#047857" />
+                      <Ionicons name="checkmark" size={11} color="#EF8354" />
                       <Text style={styles.permChipText}>{p}</Text>
                     </View>
                   ))}
@@ -409,11 +409,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   pocketSubSection: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     borderRadius: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#BFC0C0',
   },
   pocketSubTitle: {
     fontSize: 12,
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   pocketRowBalance: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#047857',
+    color: '#EF8354',
   },
   contactCard: {
     backgroundColor: '#FFFFFF',
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -546,8 +546,8 @@ const styles = StyleSheet.create({
   },
   roleCardActive: {
     backgroundColor: '#F0FDF4',
-    borderColor: '#059669',
-    shadowColor: '#059669',
+    borderColor: '#EF8354',
+    shadowColor: '#EF8354',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   roleActionHintActive: {
-    color: '#059669',
+    color: '#EF8354',
     fontWeight: '700',
   },
 });

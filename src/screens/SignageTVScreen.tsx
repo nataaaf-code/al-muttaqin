@@ -33,26 +33,26 @@ function SunriseIcon() {
     <Svg width="48" height="48" viewBox="0 0 48 48" fill="none">
       <Path
         d="M24 6V12M11 13L14.5 16.5M37 13L33.5 16.5M5 26H11M37 26H43"
-        stroke="#F3AC3C"
+        stroke="#EF8354"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <Path
         d="M13 26C13 19.9249 17.9249 15 24 15C30.0751 15 35 19.9249 35 26"
-        stroke="#F3AC3C"
+        stroke="#EF8354"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <Path
         d="M24 19L24 23M21 21L24 18L27 21"
-        stroke="#F3AC3C"
+        stroke="#EF8354"
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <Path
         d="M6 32H42M14 38C17 36 20 40 24 38C28 36 31 40 34 38"
-        stroke="#F3AC3C"
+        stroke="#EF8354"
         strokeWidth="3"
         strokeLinecap="round"
       />
@@ -63,7 +63,7 @@ function SunriseIcon() {
 function SunFullIcon({ size = 38 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 38 38" fill="none">
-      <Circle cx="19" cy="19" r="8" fill="#F3AC3C" />
+      <Circle cx="19" cy="19" r="8" fill="#EF8354" />
       {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, idx) => {
         const rad = (angle * Math.PI) / 180;
         const x1 = 19 + Math.sin(rad) * 11;
@@ -74,7 +74,7 @@ function SunFullIcon({ size = 38 }: { size?: number }) {
           <Path
             key={idx}
             d={`M${x1} ${y1} L${x2} ${y2}`}
-            stroke="#F3AC3C"
+            stroke="#EF8354"
             strokeWidth="3"
             strokeLinecap="round"
           />
@@ -87,8 +87,8 @@ function SunFullIcon({ size = 38 }: { size?: number }) {
 function FajrIcon() {
   return (
     <Svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-      <Circle cx="20" cy="18" r="8" fill="#F3AC3C" />
-      <Path d="M20 5V8M9 9L11.5 11.5M31 9L28.5 11.5M6 18H9M31 18H34" stroke="#F3AC3C" strokeWidth="2.5" strokeLinecap="round" />
+      <Circle cx="20" cy="18" r="8" fill="#EF8354" />
+      <Path d="M20 5V8M9 9L11.5 11.5M31 9L28.5 11.5M6 18H9M31 18H34" stroke="#EF8354" strokeWidth="2.5" strokeLinecap="round" />
       <Path
         d="M17 32C15.3431 32 14 30.6569 14 29C14 27.65 14.88 26.5 16.1 26.15C16.4 23.8 18.4 22 20.8 22C22.6 22 24.2 23 25 24.5C25.5 24.2 26.2 24 27 24C28.7 24 30 25.3 30 27C30.7 27.2 31.2 27.8 31.2 28.5C31.2 29.3 30.6 30 29.8 30L17 32Z"
         fill="#F5E9D4"
@@ -102,8 +102,8 @@ function FajrIcon() {
 function AsrIcon() {
   return (
     <Svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-      <Circle cx="23" cy="18" r="8" fill="#F3AC3C" />
-      <Path d="M23 5V8M12 9L14.5 11.5M34 9L31.5 11.5M9 18H12M34 18H37" stroke="#F3AC3C" strokeWidth="2.5" strokeLinecap="round" />
+      <Circle cx="23" cy="18" r="8" fill="#EF8354" />
+      <Path d="M23 5V8M12 9L14.5 11.5M34 9L31.5 11.5M9 18H12M34 18H37" stroke="#EF8354" strokeWidth="2.5" strokeLinecap="round" />
       <Path
         d="M11 31C9.5 31 8.2 29.8 8.2 28.3C8.2 27 9.1 26 10.3 25.6C10.7 23.5 12.5 21.9 14.7 21.9C16.4 21.9 17.8 22.8 18.6 24.2C19.1 23.9 19.7 23.7 20.4 23.7C21.9 23.7 23.1 24.9 23.1 26.4C23.8 26.6 24.3 27.2 24.3 27.9C24.3 28.7 23.7 29.3 22.9 29.3L11 31Z"
         fill="#F5E9D4"
@@ -119,9 +119,9 @@ function MaghribCardIcon() {
     <Svg width="42" height="42" viewBox="0 0 42 42" fill="none">
       <Path
         d="M24 10C24 16.6274 18.6274 22 12 22C11.3 22 10.6 21.9 10 21.8C11.8 25.4 15.6 28 20 28C26.0751 28 31 23.0751 31 17C31 12.6 28.4 8.8 24.8 7C24.9 8 24 10 24 10Z"
-        fill="#F3AC3C"
+        fill="#EF8354"
       />
-      <Path d="M27 9L28 11.5L30.5 12.5L28 13.5L27 16L26 13.5L23.5 12.5L26 11.5Z" fill="#F3AC3C" />
+      <Path d="M27 9L28 11.5L30.5 12.5L28 13.5L27 16L26 13.5L23.5 12.5L26 11.5Z" fill="#EF8354" />
       <Path
         d="M12 32C10.3 32 9 30.7 9 29C9 27.7 9.9 26.6 11.1 26.2C11.4 23.9 13.4 22.1 15.8 22.1C17.6 22.1 19.2 23.1 20 24.6C20.5 24.3 21.2 24.1 22 24.1C23.7 24.1 25 25.4 25 27.1C25.7 27.3 26.2 27.9 26.2 28.6C26.2 29.4 25.6 30.1 24.8 30.1L12 32Z"
         fill="#F5E9D4"
@@ -137,24 +137,24 @@ function MaghribHeroIcon() {
     <Svg width="54" height="54" viewBox="0 0 54 54" fill="none">
       <Path
         d="M32 10C32 18.8 24.8 26 16 26C14.8 26 13.7 25.8 12.7 25.5C15.3 30.5 20.7 34 27 34C35.8 34 43 26.8 43 18C43 11.7 39.5 6.3 34.5 3.7C34.8 5.7 32 10 32 10Z"
-        stroke="#C8B55B"
+        stroke="#EF8354"
         strokeWidth="3.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <Path
         d="M38 7L39 10L42 11L39 12L38 15L37 12L34 11L37 10Z"
-        fill="#C8B55B"
+        fill="#EF8354"
       />
       <Path
         d="M10 40C14 38 18 42 22 40C26 38 30 42 34 40C38 38 42 42 46 40"
-        stroke="#C8B55B"
+        stroke="#EF8354"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <Path
         d="M14 46C18 44 22 48 26 46C30 44 34 48 38 46"
-        stroke="#C8B55B"
+        stroke="#EF8354"
         strokeWidth="2.5"
         strokeLinecap="round"
       />
@@ -167,10 +167,10 @@ function IshaIcon() {
     <Svg width="42" height="42" viewBox="0 0 42 42" fill="none">
       <Path
         d="M26 10C26 17.732 19.732 24 12 24C11 24 10 23.8 9.1 23.5C11.5 28.5 16.7 32 23 32C31.2843 32 38 25.2843 38 17C38 10.7 34.5 5.5 29.5 3.1C29.8 5.3 26 10 26 10Z"
-        fill="#F3AC3C"
+        fill="#EF8354"
       />
-      <Path d="M16 9L17 11L19 11.5L17 12L16 14L15 12L13 11.5L15 11Z" fill="#F3AC3C" />
-      <Path d="M33 28L34 30L36 30.5L34 31L33 33L32 31L30 30.5L32 30Z" fill="#F3AC3C" />
+      <Path d="M16 9L17 11L19 11.5L17 12L16 14L15 12L13 11.5L15 11Z" fill="#EF8354" />
+      <Path d="M33 28L34 30L36 30.5L34 31L33 33L32 31L30 30.5L32 30Z" fill="#EF8354" />
     </Svg>
   );
 }
@@ -207,7 +207,7 @@ function AnalogClockSVG({
       y1,
       x2,
       y2,
-      stroke: isHour ? '#264B3C' : '#A2B5AD',
+      stroke: isHour ? '#2D3142' : '#BFC0C0',
       strokeWidth: isHour ? 3 : 1.5,
     });
   }
@@ -228,11 +228,11 @@ function AnalogClockSVG({
       {/* 1. Latar Putih Dial Jam */}
       <Circle cx="178" cy="178" r="177" fill="#FFFFFF" />
 
-      {/* 2. Cincin Luar Bezel Hijau Tua Tebal 22px (#264B3C) */}
-      <Circle cx="178" cy="178" r="167" stroke="#264B3C" strokeWidth="22" fill="none" />
+      {/* 2. Cincin Luar Bezel Hijau Tua Tebal 22px (#2D3142) */}
+      <Circle cx="178" cy="178" r="167" stroke="#2D3142" strokeWidth="22" fill="none" />
 
-      {/* 3. Cincin Bevel Bagian Dalam (#DCE6E2, Tebal 2.5px) */}
-      <Circle cx="178" cy="178" r="153" stroke="#DCE6E2" strokeWidth="2.5" fill="none" />
+      {/* 3. Cincin Bevel Bagian Dalam (#BFC0C0, Tebal 2.5px) */}
+      <Circle cx="178" cy="178" r="153" stroke="#BFC0C0" strokeWidth="2.5" fill="none" />
 
       {/* 4. 60 Garis Tikit Menit & Jam */}
       {ticks.map((t) => (
@@ -266,24 +266,24 @@ function AnalogClockSVG({
 
       {/* 6. Jarum Jam (Panjang: 82px, Tebal: 10px, Hijau Bezel) */}
       <G transform={`translate(178, 178) rotate(${hourAngle})`}>
-        <Line x1="0" y1="0" x2="0" y2="-82" stroke="#264B3C" strokeWidth="10" strokeLinecap="round" />
+        <Line x1="0" y1="0" x2="0" y2="-82" stroke="#2D3142" strokeWidth="10" strokeLinecap="round" />
         <Line x1="0" y1="-10" x2="0" y2="-64" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" />
       </G>
 
       {/* 7. Jarum Menit (Panjang: 118px, Tebal: 8px, Hijau Bezel) */}
       <G transform={`translate(178, 178) rotate(${minuteAngle})`}>
-        <Line x1="0" y1="0" x2="0" y2="-118" stroke="#264B3C" strokeWidth="8" strokeLinecap="round" />
+        <Line x1="0" y1="0" x2="0" y2="-118" stroke="#2D3142" strokeWidth="8" strokeLinecap="round" />
         <Line x1="0" y1="-10" x2="0" y2="-98" stroke="#FFFFFF" strokeWidth="1.2" strokeLinecap="round" />
       </G>
 
-      {/* 8. Jarum Detik (Panjang Maju 126px, Ekor Mundur 26px, Warna #9CB4AC) */}
+      {/* 8. Jarum Detik (Panjang Maju 126px, Ekor Mundur 26px, Warna #EF8354) */}
       <G transform={`translate(178, 178) rotate(${secondAngle})`}>
-        <Line x1="0" y1="26" x2="0" y2="-126" stroke="#9CB4AC" strokeWidth="2.5" strokeLinecap="round" />
-        <Circle cx="0" cy="16" r="4.5" fill="#9CB4AC" />
+        <Line x1="0" y1="26" x2="0" y2="-126" stroke="#EF8354" strokeWidth="2.5" strokeLinecap="round" />
+        <Circle cx="0" cy="16" r="4.5" fill="#EF8354" />
       </G>
 
       {/* 9. Poros Tengah (Center Pin) */}
-      <Circle cx="178" cy="178" r="8" fill="#264B3C" />
+      <Circle cx="178" cy="178" r="8" fill="#2D3142" />
       <Circle cx="178" cy="178" r="3" fill="#FFFFFF" />
     </Svg>
   );
@@ -951,7 +951,7 @@ const styles = StyleSheet.create({
   nextPrayerPill: {
     width: 860,
     height: 286,
-    backgroundColor: '#0D3723',
+    backgroundColor: '#2D3142',
     borderTopRightRadius: 72,
     borderBottomRightRadius: 72,
     borderTopLeftRadius: 0,
@@ -1006,7 +1006,7 @@ const styles = StyleSheet.create({
   heroCountdownText: {
     fontSize: 46,
     fontWeight: '500',
-    color: '#C8B55B',
+    color: '#EF8354',
     letterSpacing: -0.8, // -0.017em
     fontVariant: ['tabular-nums'],
   },
@@ -1098,8 +1098,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   prayerCardActive: {
-    borderColor: '#E5B96F',
-    shadowColor: '#E5B96F',
+    borderColor: '#EF8354',
+    shadowColor: '#EF8354',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.55,
     shadowRadius: 20,
@@ -1185,9 +1185,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1.8, // ALL CAPS: +0.075em
   },
   prayerTimeNumActive: {
-    color: '#E09B3E',
+    color: '#EF8354',
   },
   prayerTimeAmPmActive: {
-    color: '#E09B3E',
+    color: '#EF8354',
   },
 });

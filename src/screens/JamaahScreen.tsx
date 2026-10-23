@@ -180,7 +180,7 @@ export function JamaahScreen() {
       {/* RBAC Notice Perlindungan Privasi */}
       {!permissions.canManageJamaah ? (
         <View style={styles.privacyNoticeBox}>
-          <Ionicons name="shield-checkmark" size={20} color="#059669" />
+          <Ionicons name="shield-checkmark" size={20} color="#EF8354" />
           <View style={{ marginLeft: 10, flex: 1 }}>
             <Text style={styles.privacyNoticeTitle}>Perlindungan Privasi Warga Aktif</Text>
             <Text style={styles.privacyNoticeText}>
@@ -190,7 +190,7 @@ export function JamaahScreen() {
         </View>
       ) : (
         <View style={styles.adminAccessBadge}>
-          <Ionicons name="lock-open-outline" size={16} color="#047857" />
+          <Ionicons name="lock-open-outline" size={16} color="#EF8354" />
           <Text style={styles.adminAccessBadgeText}>
             Akses Penuh Pengurus: Menampilkan nomor kontak lengkap dan catatan khusus takmir untuk distribusi santunan.
           </Text>
@@ -277,7 +277,7 @@ export function JamaahScreen() {
               </View>
             ) : (
               <View style={styles.badgeGeneral}>
-                <Ionicons name="checkmark-circle" size={11} color="#059669" />
+                <Ionicons name="checkmark-circle" size={11} color="#EF8354" />
                 <Text style={styles.textGeneral}>Warga Terdaftar</Text>
               </View>
             )}
@@ -299,7 +299,7 @@ export function JamaahScreen() {
                   style={styles.inlineWaBtn}
                   onPress={() => openWhatsApp(item.phone, item.headOfFamily)}
                 >
-                  <Ionicons name="logo-whatsapp" size={12} color="#059669" />
+                  <Ionicons name="logo-whatsapp" size={12} color="#EF8354" />
                   <Text style={styles.inlineWaText}>Chat</Text>
                 </TouchableOpacity>
               )}
@@ -319,7 +319,7 @@ export function JamaahScreen() {
       {/* Kotak Saran & Aspirasi Jamaah */}
       <View style={styles.suggestionBox}>
         <View style={styles.suggestionHeader}>
-          <Ionicons name="chatbubbles-outline" size={22} color="#047857" />
+          <Ionicons name="chatbubbles-outline" size={22} color="#EF8354" />
           <View style={{ marginLeft: 8 }}>
             <Text style={styles.suggestionTitle}>Kotak Saran & Aspirasi Jamaah</Text>
             <Text style={styles.suggestionDesc}>
@@ -374,7 +374,7 @@ export function JamaahScreen() {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="person-add" size={20} color="#047857" />
+                <Ionicons name="person-add" size={20} color="#EF8354" />
                 <Text style={styles.modalTitle}>Tambah Data Warga Jamaah</Text>
               </View>
               <TouchableOpacity onPress={() => setIsAddModalOpen(false)}>
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 8,
@@ -539,9 +539,9 @@ const styles = StyleSheet.create({
   privacyNoticeBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#BFC0C0',
     borderRadius: 12,
     padding: 14,
     marginBottom: 14,
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
   },
   privacyNoticeText: {
     fontSize: 11,
-    color: '#047857',
+    color: '#EF8354',
     lineHeight: 16,
   },
   adminAccessBadge: {
@@ -604,8 +604,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: '#047857',
-    borderColor: '#047857',
+    backgroundColor: '#EF8354',
+    borderColor: '#EF8354',
   },
   filterChipText: {
     fontSize: 12,
@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
   },
   inlineWaText: {
     fontSize: 10,
-    color: '#059669',
+    color: '#EF8354',
     fontWeight: '700',
   },
   notesBox: {
@@ -780,7 +780,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sendBtn: {
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -799,7 +799,7 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#047857',
+    borderLeftColor: '#EF8354',
   },
   sugTop: {
     flexDirection: 'row',
@@ -889,8 +889,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   radioChipActive: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#047857',
+    backgroundColor: '#FDF1EB',
+    borderColor: '#EF8354',
   },
   radioChipText: {
     fontSize: 12,
@@ -898,7 +898,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   radioChipTextActive: {
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '700',
   },
   modalFooter: {
@@ -922,7 +922,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   modalSubmitBtn: {
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     paddingVertical: 9,
     paddingHorizontal: 20,
     borderRadius: 8,

@@ -134,7 +134,7 @@ export function DashboardScreen({ onNavigateTab }: DashboardProps) {
           <View style={styles.guestBannerCard}>
             <View style={styles.guestBannerLeft}>
               <View style={styles.guestBannerIcon}>
-                <Ionicons name="sparkles" size={18} color="#047857" />
+                <Ionicons name="sparkles" size={18} color="#EF8354" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.guestBannerTitle}>Assalamu'alaikum, Jamaah!</Text>
@@ -154,7 +154,7 @@ export function DashboardScreen({ onNavigateTab }: DashboardProps) {
           </View>
         ) : (
           <View style={styles.welcomeUserBar}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
+            <Ionicons name="checkmark-circle" size={16} color="#EF8354" />
             <Text style={styles.welcomeUserText}>
               Ahlan wa Sahlan, <Text style={{ fontWeight: '700' }}>{currentUser?.name || 'Warga'}</Text>{' '}
               {currentUser?.blokRumah ? `(${currentUser.blokRumah} No. ${currentUser?.noRumah || '-'})` : ''}
@@ -197,7 +197,7 @@ export function DashboardScreen({ onNavigateTab }: DashboardProps) {
           <View style={styles.officerCluster}>
             <View style={styles.officerBadge}>
               <View style={[styles.officerAvatar, { backgroundColor: '#ECFDF5' }]}>
-                <Ionicons name="mic" size={15} color="#047857" />
+                <Ionicons name="mic" size={15} color="#4F5D75" />
               </View>
               <View>
                 <Text style={styles.officerRole}>Khotib</Text>
@@ -206,8 +206,8 @@ export function DashboardScreen({ onNavigateTab }: DashboardProps) {
             </View>
 
             <View style={styles.officerBadge}>
-              <View style={[styles.officerAvatar, { backgroundColor: '#EFF6FF' }]}>
-                <Ionicons name="man" size={15} color="#0284C7" />
+              <View style={[styles.officerAvatar, { backgroundColor: '#ECEEF2' }]}>
+                <Ionicons name="man" size={15} color="#4F5D75" />
               </View>
               <View>
                 <Text style={styles.officerRole}>Imam</Text>
@@ -216,8 +216,8 @@ export function DashboardScreen({ onNavigateTab }: DashboardProps) {
             </View>
 
             <View style={styles.officerBadge}>
-              <View style={[styles.officerAvatar, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="volume-high" size={15} color="#D97706" />
+              <View style={[styles.officerAvatar, { backgroundColor: '#FDF1EB' }]}>
+                <Ionicons name="volume-high" size={15} color="#EF8354" />
               </View>
               <View>
                 <Text style={styles.officerRole}>Muadzin</Text>
@@ -257,7 +257,7 @@ export function DashboardScreen({ onNavigateTab }: DashboardProps) {
                     <Ionicons
                       name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
                       size={18}
-                      color={isBookmarked ? '#047857' : '#94A3B8'}
+                      color={isBookmarked ? '#EF8354' : '#BFC0C0'}
                     />
                   </TouchableOpacity>
                 </View>
@@ -266,19 +266,19 @@ export function DashboardScreen({ onNavigateTab }: DashboardProps) {
 
                 {event.speakerOrOfficer ? (
                   <View style={styles.eventSpeakerRow}>
-                    <Ionicons name="person-outline" size={13} color="#047857" />
+                    <Ionicons name="person-outline" size={13} color="#4F5D75" />
                     <Text style={styles.eventSpeakerText}>{event.speakerOrOfficer}</Text>
                   </View>
                 ) : null}
 
                 <View style={styles.eventCardFooter}>
                   <View style={styles.eventTimeChip}>
-                    <Ionicons name="time-outline" size={12} color="#64748B" />
+                    <Ionicons name="time-outline" size={12} color="#4F5D75" />
                     <Text style={styles.eventTimeText}>{event.timeStart} WIB</Text>
                   </View>
 
                   <View style={styles.eventLocationChip}>
-                    <Ionicons name="location-outline" size={12} color="#64748B" />
+                    <Ionicons name="location-outline" size={12} color="#4F5D75" />
                     <Text style={styles.eventLocationText} numberOfLines={1}>
                       {event.location}
                     </Text>
@@ -293,7 +293,7 @@ export function DashboardScreen({ onNavigateTab }: DashboardProps) {
         <View style={styles.musholaProfileCard}>
           <View style={styles.musholaProfileHeader}>
             <View style={styles.profileIconWrap}>
-              <Ionicons name="location" size={20} color="#047857" />
+              <Ionicons name="location" size={20} color="#EF8354" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.profileCardTitle}>{MUSHOLA_INFO.name}</Text>
@@ -396,12 +396,12 @@ const styles = StyleSheet.create({
     paddingBottom: 90, // Leave space for floating dock
   },
   archHeroContainer: {
-    backgroundColor: '#047857',
+    backgroundColor: '#2D3142',
     borderRadius: 24,
     overflow: 'hidden',
     position: 'relative',
     marginBottom: 16,
-    shadowColor: '#047857',
+    shadowColor: '#2D3142',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
     height: 56,
   },
   bismillahArabic: {
-    color: '#A7F3D0',
+    color: '#EF8354',
     fontSize: 14,
     fontFamily: Platform.select({ web: 'serif', default: 'normal' }),
     marginBottom: 2,
@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   locationSubtitle: {
-    color: '#D1FAE5',
+    color: '#BFC0C0',
     fontSize: 12,
     marginTop: 2,
   },
@@ -475,9 +475,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: '#EF8354',
     borderRadius: 20,
     paddingVertical: 7,
     paddingHorizontal: 14,
@@ -520,7 +518,7 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#BFC0C0',
   },
   fridayTopRow: {
     flexDirection: 'row',
@@ -536,33 +534,33 @@ const styles = StyleSheet.create({
   fridayTagText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#D97706',
+    color: '#EF8354',
     letterSpacing: 0.5,
   },
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 8,
   },
   shareBtnText: {
     fontSize: 11,
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '700',
   },
   fridayThemeTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1E293B',
+    color: '#2D3142',
     marginBottom: 2,
     lineHeight: 22,
   },
   fridayDateLabel: {
     fontSize: 12,
-    color: '#64748B',
+    color: '#4F5D75',
     marginBottom: 14,
   },
   officerCluster: {
@@ -589,14 +587,14 @@ const styles = StyleSheet.create({
   },
   officerRole: {
     fontSize: 10,
-    color: '#64748B',
+    color: '#4F5D75',
     textTransform: 'uppercase',
     fontWeight: '600',
   },
   officerName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#2D3142',
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -607,15 +605,15 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E293B',
+    color: '#2D3142',
   },
   sectionSub: {
     fontSize: 12,
-    color: '#64748B',
+    color: '#4F5D75',
   },
   viewMoreLink: {
     fontSize: 13,
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '700',
   },
   eventGrid: {
@@ -626,7 +624,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#BFC0C0',
   },
   eventCardHeader: {
     flexDirection: 'row',
@@ -635,7 +633,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   eventBadgeCategory: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     borderRadius: 6,
     paddingVertical: 3,
     paddingHorizontal: 8,
@@ -643,7 +641,7 @@ const styles = StyleSheet.create({
   eventBadgeCategoryText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#047857',
+    color: '#EF8354',
   },
   bookmarkBtn: {
     padding: 4,
@@ -651,7 +649,7 @@ const styles = StyleSheet.create({
   eventCardTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#1E293B',
+    color: '#2D3142',
     marginBottom: 4,
   },
   eventSpeakerRow: {
@@ -750,7 +748,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -758,12 +756,12 @@ const styles = StyleSheet.create({
   profileCardTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#2D3142',
     marginBottom: 4,
   },
   profileCardAddress: {
     fontSize: 12,
-    color: '#475569',
+    color: '#4F5D75',
     lineHeight: 18,
   },
   contactDivider: {
@@ -774,7 +772,7 @@ const styles = StyleSheet.create({
   contactSectionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#065F46',
+    color: '#2D3142',
     marginBottom: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -790,13 +788,13 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#BFC0C0',
   },
   contactAvatar: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -804,11 +802,11 @@ const styles = StyleSheet.create({
   contactPersonName: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#2D3142',
   },
   contactPersonPhone: {
     fontSize: 12,
-    color: '#64748B',
+    color: '#4F5D75',
     fontWeight: '500',
   },
   chatWaBtn: {
@@ -831,13 +829,13 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#BFC0C0',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: 12,
-    shadowColor: '#047857',
+    shadowColor: '#2D3142',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -854,18 +852,18 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   guestBannerTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#064E3B',
+    color: '#2D3142',
   },
   guestBannerDesc: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#4F5D75',
     marginTop: 2,
     lineHeight: 16,
   },
@@ -873,7 +871,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 10,
@@ -884,13 +882,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   welcomeUserBar: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#BFC0C0',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

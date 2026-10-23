@@ -60,8 +60,8 @@ const ROLE_OPTIONS: RoleModalOption[] = [
     role: 'SUPER_ADMIN',
     title: '👑 Super User / System Admin',
     badge: 'Super Admin',
-    color: '#7C3AED',
-    bgColor: '#EDE9FE',
+    color: '#EF8354',
+    bgColor: '#FDF1EB',
     icon: 'shield-half',
     desc: 'Hak akses tertinggi khusus Super User (fahriadjie99@gmail.com): Akses penuh + Modul Manajemen Pengguna.',
   },
@@ -69,8 +69,8 @@ const ROLE_OPTIONS: RoleModalOption[] = [
     role: 'ADMIN',
     title: 'Ketua DKM (Admin)',
     badge: 'Admin',
-    color: '#059669',
-    bgColor: '#DCFCE7',
+    color: '#2D3142',
+    bgColor: '#E8EBF0',
     icon: 'shield-checkmark',
     desc: 'Akses penuh tanpa batasan ke seluruh modul sistem.',
   },
@@ -78,8 +78,8 @@ const ROLE_OPTIONS: RoleModalOption[] = [
     role: 'DKM',
     title: 'Pengurus DKM & Dakwah',
     badge: 'DKM',
-    color: '#D97706',
-    bgColor: '#FEF3C7',
+    color: '#4F5D75',
+    bgColor: '#ECEEF2',
     icon: 'business',
     desc: 'Mengatur kalender kajian, warta TV, petugas Jumat, dan sensus warga.',
   },
@@ -87,8 +87,8 @@ const ROLE_OPTIONS: RoleModalOption[] = [
     role: 'BENDAHARA',
     title: 'Bendahara Keuangan',
     badge: 'Kas DKM',
-    color: '#0D9488',
-    bgColor: '#CCFBF1',
+    color: '#4F5D75',
+    bgColor: '#ECEEF2',
     icon: 'wallet',
     desc: 'Mencatat pemasukan/pengeluaran DKM, alokasi kantong kas, & laporan.',
   },
@@ -96,8 +96,8 @@ const ROLE_OPTIONS: RoleModalOption[] = [
     role: 'JAMAAH',
     title: 'Jamaah / Warga Terdaftar',
     badge: 'Warga',
-    color: '#0284C7',
-    bgColor: '#E0F2FE',
+    color: '#4F5D75',
+    bgColor: '#F5F6F7',
     icon: 'people',
     desc: 'Warga perumahan terdaftar: transparansi kas, agenda warga, sensus.',
   },
@@ -105,8 +105,8 @@ const ROLE_OPTIONS: RoleModalOption[] = [
     role: 'PENGURUS_SEKSI',
     title: 'Seksi Sarpras & Marbot',
     badge: 'Sarpras',
-    color: '#6366F1',
-    bgColor: '#EEF2FF',
+    color: '#2D3142',
+    bgColor: '#E8EBF0',
     icon: 'cube',
     desc: 'Pencatatan aset inventaris, kondisi barang, & peminjaman fasilitas.',
   },
@@ -114,8 +114,8 @@ const ROLE_OPTIONS: RoleModalOption[] = [
     role: 'TAMU',
     title: 'Tamu Publik (Belum Login)',
     badge: 'Publik',
-    color: '#64748B',
-    bgColor: '#F1F5F9',
+    color: '#BFC0C0',
+    bgColor: '#F5F6F7',
     icon: 'globe-outline',
     desc: 'Hanya melihat jadwal sholat live, Mode Smart TV, dan warta umum.',
   },
@@ -221,7 +221,7 @@ function MainNavigator() {
         <View style={styles.gatekeeperContainer}>
           <View style={styles.gatekeeperCard}>
             <View style={styles.gatekeeperIconWrap}>
-              <Ionicons name="lock-closed" size={32} color="#047857" />
+              <Ionicons name="lock-closed" size={32} color="#EF8354" />
             </View>
             <Text style={styles.gatekeeperTitle}>Fitur Khusus Warga & Pengurus</Text>
             <Text style={styles.gatekeeperDesc}>
@@ -318,20 +318,20 @@ function MainNavigator() {
                       <Ionicons
                         name={tab.iconName}
                         size={18}
-                        color={isActive ? '#047857' : isLocked ? '#94A3B8' : '#64748B'}
+                        color={isActive ? '#EF8354' : isLocked ? '#BFC0C0' : '#4F5D75'}
                       />
                     </View>
                     <Text
                       style={[
                         styles.sidebarNavLabel,
                         isActive && styles.sidebarNavLabelActive,
-                        isLocked && { color: '#94A3B8' },
+                        isLocked && { color: '#BFC0C0' },
                       ]}
                     >
                       {tab.label}
                     </Text>
                     {isLocked ? (
-                      <Ionicons name="lock-closed" size={13} color="#94A3B8" />
+                      <Ionicons name="lock-closed" size={13} color="#BFC0C0" />
                     ) : isActive ? (
                       <View style={styles.activeDotIndicator} />
                     ) : null}
@@ -379,7 +379,7 @@ function MainNavigator() {
                       onPress={() => setIsRoleModalOpen(true)}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="swap-horizontal" size={13} color="#047857" />
+                      <Ionicons name="swap-horizontal" size={13} color="#4F5D75" />
                       <Text style={styles.userActionRoleText}>Ganti Peran</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -446,7 +446,7 @@ function MainNavigator() {
                     onPress={openLoginModal}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="logo-google" size={15} color="#047857" />
+                    <Ionicons name="logo-google" size={15} color="#EF8354" />
                     <Text style={styles.desktopHeaderLoginText}>Masuk Akun Google</Text>
                   </TouchableOpacity>
                 )}
@@ -523,7 +523,7 @@ function MainNavigator() {
                   onPress={() => setGlobalQrisVisible(true)}
                   accessibilityLabel="Infaq QRIS"
                 >
-                  <Ionicons name="qr-code" size={16} color="#047857" />
+                  <Ionicons name="qr-code" size={16} color="#EF8354" />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -531,7 +531,7 @@ function MainNavigator() {
                   onPress={() => setIsSignageMode(true)}
                   accessibilityLabel="Mode TV"
                 >
-                  <Ionicons name="tv-outline" size={16} color="#047857" />
+                  <Ionicons name="tv-outline" size={16} color="#2D3142" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -577,14 +577,14 @@ function MainNavigator() {
                       <Ionicons
                         name={tab.iconName}
                         size={19}
-                        color={isActive ? '#047857' : isLocked ? '#94A3B8' : '#64748B'}
+                        color={isActive ? '#EF8354' : isLocked ? '#BFC0C0' : '#4F5D75'}
                       />
                     </View>
                     <Text
                       style={[
                         styles.bottomTabLabel,
                         isActive && styles.bottomTabLabelActive,
-                        isLocked && { color: '#94A3B8' },
+                        isLocked && { color: '#BFC0C0' },
                       ]}
                       numberOfLines={1}
                     >
@@ -734,20 +734,20 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#064E3B',
+    color: '#2D3142',
     letterSpacing: 0.5,
   },
   brandSubtitle: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#4F5D75',
   },
   sidebarPrayerPill: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#FDF1EB',
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#DCFCE7',
+    borderColor: '#BFC0C0',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -761,11 +761,11 @@ const styles = StyleSheet.create({
   sidebarPrayerName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#166534',
+    color: '#2D3142',
   },
   sidebarPrayerCountdown: {
     fontSize: 11,
-    color: '#D97706',
+    color: '#EF8354',
     fontWeight: '700',
   },
   sidebarNav: {
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   sidebarNavItemActive: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
   },
   navIconBox: {
     width: 28,
@@ -792,26 +792,26 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   navIconBoxActive: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: '#FDE3D7',
   },
   sidebarNavLabel: {
     fontSize: 13,
-    color: '#475569',
+    color: '#4F5D75',
     fontWeight: '600',
     flex: 1,
   },
   sidebarNavLabelActive: {
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '800',
   },
   activeDotIndicator: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
   },
   sidebarTvBtn: {
-    backgroundColor: '#047857',
+    backgroundColor: '#2D3142',
     borderRadius: 10,
     paddingVertical: 11,
     flexDirection: 'row',
@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#064E3B',
+    backgroundColor: '#2D3142',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -887,7 +887,7 @@ const styles = StyleSheet.create({
   userActionRoleText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#047857',
+    color: '#4F5D75',
   },
   userActionLogoutBtn: {
     flexDirection: 'row',
@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     paddingVertical: 7,
     borderRadius: 8,
     marginTop: 6,
@@ -944,7 +944,7 @@ const styles = StyleSheet.create({
   desktopTopNav: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#BFC0C0',
     paddingHorizontal: 24,
     paddingVertical: 14,
     flexDirection: 'row',
@@ -959,7 +959,7 @@ const styles = StyleSheet.create({
   pageTitleHeader: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#1E293B',
+    color: '#2D3142',
   },
   guestBadgePill: {
     flexDirection: 'row',
@@ -972,7 +972,7 @@ const styles = StyleSheet.create({
   },
   guestBadgeText: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#4F5D75',
     fontWeight: '600',
   },
   desktopTopRight: {
@@ -986,7 +986,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#BFC0C0',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 10,
@@ -998,15 +998,15 @@ const styles = StyleSheet.create({
   },
   desktopRolePillText: {
     fontSize: 12,
-    color: '#334155',
+    color: '#2D3142',
   },
   desktopHeaderLoginBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#EF8354',
     paddingVertical: 7,
     paddingHorizontal: 14,
     borderRadius: 10,
@@ -1014,10 +1014,10 @@ const styles = StyleSheet.create({
   desktopHeaderLoginText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#047857',
+    color: '#EF8354',
   },
   desktopInfaqBtn: {
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -1039,7 +1039,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mobileHeader: {
-    backgroundColor: '#064E3B',
+    backgroundColor: '#2D3142',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -1098,7 +1098,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   mobileLoginPillText: {
-    color: '#047857',
+    color: '#EF8354',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -1168,13 +1168,13 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#BFC0C0',
   },
   gatekeeperIconWrap: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -1182,13 +1182,13 @@ const styles = StyleSheet.create({
   gatekeeperTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#2D3142',
     textAlign: 'center',
     marginBottom: 8,
   },
   gatekeeperDesc: {
     fontSize: 13,
-    color: '#64748B',
+    color: '#4F5D75',
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 20,
@@ -1198,7 +1198,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -1214,7 +1214,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   gatekeeperBackBtnText: {
-    color: '#64748B',
+    color: '#4F5D75',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -1222,7 +1222,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#BFC0C0',
     paddingVertical: 4,
     paddingBottom: 6,
   },
@@ -1237,16 +1237,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   bottomIconWrapperActive: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
   },
   bottomTabLabel: {
     fontSize: 9.5,
-    color: '#64748B',
+    color: '#4F5D75',
     marginTop: 1,
     fontWeight: '600',
   },
   bottomTabLabelActive: {
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '800',
   },
   roleModalOverlay: {
@@ -1294,8 +1294,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   roleOptionCardSelected: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#059669',
+    backgroundColor: '#FDF1EB',
+    borderColor: '#EF8354',
   },
   roleOptionTop: {
     flexDirection: 'row',

@@ -180,7 +180,7 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
           <Ionicons
             name="receipt-outline"
             size={16}
-            color={activeSubTab === 'TRANSAKSI' ? '#047857' : '#64748B'}
+            color={activeSubTab === 'TRANSAKSI' ? '#EF8354' : '#64748B'}
           />
           <Text
             style={[styles.tabButtonText, activeSubTab === 'TRANSAKSI' && styles.tabButtonTextActive]}
@@ -196,7 +196,7 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
           <Ionicons
             name="megaphone-outline"
             size={16}
-            color={activeSubTab === 'LAPORAN_JUMAT' ? '#047857' : '#64748B'}
+            color={activeSubTab === 'LAPORAN_JUMAT' ? '#EF8354' : '#64748B'}
           />
           <Text
             style={[
@@ -404,7 +404,7 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
           <View style={styles.wartaCard}>
             <View style={styles.wartaTop}>
               <View style={styles.wartaIconCircle}>
-                <Ionicons name="document-text" size={24} color="#047857" />
+                <Ionicons name="document-text" size={24} color="#EF8354" />
               </View>
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={styles.wartaTitle}>Teks Warta Kas Sholat Jumat</Text>
@@ -544,7 +544,7 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
               <TouchableOpacity
                 style={[
                   styles.btnSave,
-                  { backgroundColor: txType === 'INCOME' ? '#047857' : '#DC2626' },
+                  { backgroundColor: txType === 'INCOME' ? '#EF8354' : '#DC2626' },
                 ]}
                 onPress={handleSaveTransaction}
               >
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabButtonActive: {
-    borderBottomColor: '#047857',
+    borderBottomColor: '#EF8354',
   },
   tabButtonText: {
     fontSize: 13,
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   tabButtonTextActive: {
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '800',
   },
   scrollView: {
@@ -618,8 +618,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   pocketPillActive: {
-    backgroundColor: '#047857',
-    borderColor: '#047857',
+    backgroundColor: '#EF8354',
+    borderColor: '#EF8354',
   },
   pocketPillText: {
     fontSize: 12,
@@ -631,7 +631,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   heroBalanceCard: {
-    backgroundColor: '#064E3B',
+    backgroundColor: '#2D3142',
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   heroBalanceLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#A7F3D0',
+    color: '#BFC0C0',
     letterSpacing: 0.5,
   },
   heroBalanceAmount: {
@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   incomeActionBtn: {
-    backgroundColor: '#059669',
+    backgroundColor: '#EF8354',
   },
   expenseActionBtn: {
     backgroundColor: '#DC2626',
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   typeBtnTextActive: {
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '800',
   },
   ledgerHeader: {
@@ -809,7 +809,7 @@ const styles = StyleSheet.create({
   },
   txCategoryTag: {
     fontSize: 11,
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '700',
   },
   dotSeparator: {
@@ -859,7 +859,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -887,7 +887,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({ web: 'monospace', default: 'normal' }),
   },
   copyWartaBtn: {
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     borderRadius: 12,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -956,8 +956,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   pocketOptionActive: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#059669',
+    backgroundColor: '#FDF1EB',
+    borderColor: '#EF8354',
   },
   pocketOptionText: {
     fontSize: 11,
@@ -965,7 +965,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   pocketOptionTextActive: {
-    color: '#059669',
+    color: '#EF8354',
     fontWeight: '800',
   },
   inputField: {
@@ -981,9 +981,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#BFC0C0',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -991,7 +991,7 @@ const styles = StyleSheet.create({
   amountDisplayVal: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#047857',
+    color: '#EF8354',
   },
   resetAmountText: {
     fontSize: 12,
@@ -1015,7 +1015,7 @@ const styles = StyleSheet.create({
   adderChipText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#047857',
+    color: '#EF8354',
   },
   modalActions: {
     flexDirection: 'row',

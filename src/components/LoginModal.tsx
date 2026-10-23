@@ -104,7 +104,7 @@ export function LoginModal({ visible, onClose }: LoginModalProps) {
                 />
               </View>
               <Text style={styles.securityNote}>
-                <Ionicons name="shield-checkmark-outline" size={13} color="#059669" /> Terenkripsi aman via Google Identity Services (OAuth 2.0)
+                <Ionicons name="shield-checkmark-outline" size={13} color="#EF8354" /> Terenkripsi aman via Google Identity Services (OAuth 2.0)
               </Text>
 
               <View style={styles.oauthHintBox}>
@@ -156,8 +156,8 @@ export function LoginModal({ visible, onClose }: LoginModalProps) {
                   disabled={loading}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.demoIconWrap, { backgroundColor: '#DCFCE7' }]}>
-                    <Ionicons name="shield-checkmark" size={18} color="#059669" />
+                  <View style={[styles.demoIconWrap, { backgroundColor: '#ECEEF2' }]}>
+                    <Ionicons name="shield-checkmark" size={18} color="#2D3142" />
                   </View>
                   <View style={styles.demoInfo}>
                     <Text style={styles.demoRole}>Ketua DKM (Admin)</Text>
@@ -218,7 +218,7 @@ export function LoginModal({ visible, onClose }: LoginModalProps) {
 
             {loading && (
               <View style={styles.loadingOverlay}>
-                <ActivityIndicator size="small" color="#047857" />
+                <ActivityIndicator size="small" color="#EF8354" />
                 <Text style={styles.loadingOverlayText}>Memproses autentikasi...</Text>
               </View>
             )}
@@ -289,12 +289,12 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#064E3B',
+    color: '#2D3142',
     letterSpacing: 0.6,
   },
   brandSubtitle: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#4F5D75',
     marginTop: 1,
   },
   closeBtn: {
@@ -444,16 +444,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   demoAdmin: {
-    borderColor: '#A7F3D0',
+    borderColor: '#BFC0C0',
   },
   demoBendahara: {
-    borderColor: '#99F6E4',
+    borderColor: '#BFC0C0',
   },
   demoDkm: {
-    borderColor: '#FDE68A',
+    borderColor: '#BFC0C0',
   },
   demoJamaah: {
-    borderColor: '#BAE6FD',
+    borderColor: '#BFC0C0',
   },
   demoIconWrap: {
     width: 36,
@@ -483,12 +483,12 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 16,
     padding: 10,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     borderRadius: 8,
   },
   loadingOverlayText: {
     fontSize: 12,
-    color: '#047857',
+    color: '#EF8354',
     fontWeight: '600',
   },
   footer: {

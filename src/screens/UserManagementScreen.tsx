@@ -337,7 +337,7 @@ export function UserManagementScreen() {
 
       {/* KPI Summary Cards */}
       <View style={styles.statsGrid}>
-        <View style={[styles.statCard, { borderLeftColor: '#059669' }]}>
+        <View style={[styles.statCard, { borderLeftColor: '#EF8354' }]}>
           <Text style={styles.statLabel}>Total Terdaftar</Text>
           <Text style={styles.statNumber}>{stats?.total ?? users.length}</Text>
           <Text style={styles.statSub}>Akun Terintegrasi</Text>
@@ -454,7 +454,7 @@ export function UserManagementScreen() {
       {/* User Cards List */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#047857" />
+          <ActivityIndicator size="large" color="#EF8354" />
           <Text style={styles.loadingText}>Memuat database pengguna...</Text>
         </View>
       ) : filteredUsers.length === 0 ? (
@@ -513,7 +513,7 @@ export function UserManagementScreen() {
                 <View style={styles.userInfoGrid}>
                   {/* Alamat Lengkap: Blok H7 No. 31 */}
                   <View style={styles.infoItem}>
-                    <Ionicons name="location-outline" size={14} color="#047857" />
+                    <Ionicons name="location-outline" size={14} color="#4F5D75" />
                     <Text style={styles.infoLabel}>Alamat:</Text>
                     <Text style={styles.infoValueHighlight}>
                       {item.blokRumah ? `${item.blokRumah}${item.nomorBlok || ''} No.${item.noRumah || '-'}` : 'Belum diisi'}
@@ -574,7 +574,7 @@ export function UserManagementScreen() {
                     onPress={() => handleOpenEditModal(item)}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="create-outline" size={14} color="#047857" />
+                    <Ionicons name="create-outline" size={14} color="#EF8354" />
                     <Text style={styles.actionBtnEditText}>Edit Detail</Text>
                   </TouchableOpacity>
 
@@ -620,7 +620,7 @@ export function UserManagementScreen() {
           <View style={styles.roleModalCard}>
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="shield-checkmark" size={20} color="#047857" />
+                <Ionicons name="shield-checkmark" size={20} color="#EF8354" />
                 <Text style={styles.modalTitle}>Ubah Peran Pengguna</Text>
               </View>
               <TouchableOpacity onPress={() => setRoleModalVisible(false)}>
@@ -670,7 +670,7 @@ export function UserManagementScreen() {
           <View style={styles.userFormModal}>
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name={editingUser ? 'create' : 'person-add'} size={20} color="#047857" />
+                <Ionicons name={editingUser ? 'create' : 'person-add'} size={20} color="#EF8354" />
                 <Text style={styles.modalTitle}>{editingUser ? 'Edit Data Pengguna' : 'Tambah Pengguna Baru'}</Text>
               </View>
               <TouchableOpacity onPress={() => setUserModalVisible(false)}>
@@ -786,9 +786,9 @@ export function UserManagementScreen() {
 
               {/* Live Preview Alamat */}
               <View style={styles.liveAddressPreview}>
-                <Ionicons name="location" size={16} color="#064E3B" />
+                <Ionicons name="location" size={16} color="#EF8354" />
                 <Text style={styles.liveAddressText}>
-                  Format Alamat: <Text style={{ fontWeight: '800', color: '#064E3B' }}>{formBlok}{formNomorBlok ? formNomorBlok : ''} No.{formNoRumah || '...'}</Text>
+                  Format Alamat: <Text style={{ fontWeight: '800', color: '#2D3142' }}>{formBlok}{formNomorBlok ? formNomorBlok : ''} No.{formNoRumah || '...'}</Text>
                 </Text>
               </View>
 
@@ -874,11 +874,11 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   headerHero: {
-    backgroundColor: '#064E3B',
+    backgroundColor: '#2D3142',
     borderRadius: 20,
     padding: 24,
     marginBottom: 20,
-    shadowColor: '#064E3B',
+    shadowColor: '#2D3142',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 14,
@@ -896,15 +896,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    backgroundColor: 'rgba(239, 131, 84, 0.2)',
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#FBBF24',
+    borderColor: '#EF8354',
   },
   headerBadgeText: {
-    color: '#FDE68A',
+    color: '#EF8354',
     fontSize: 10.5,
     fontWeight: '800',
     letterSpacing: 0.8,
@@ -919,7 +919,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   superEmailText: {
-    color: '#D1FAE5',
+    color: '#BFC0C0',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -931,7 +931,7 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     fontSize: 13,
-    color: '#D1FAE5',
+    color: '#BFC0C0',
     lineHeight: 19,
   },
   statsGrid: {
@@ -1008,7 +1008,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 12,
@@ -1032,7 +1032,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
   },
   filterChipText: {
     fontSize: 11.5,
@@ -1245,12 +1245,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 8,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
   },
   actionBtnEditText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#047857',
+    color: '#EF8354',
   },
   actionBtnRole: {
     flexDirection: 'row',
@@ -1429,8 +1429,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   blockChipActive: {
-    backgroundColor: '#047857',
-    borderColor: '#047857',
+    backgroundColor: '#EF8354',
+    borderColor: '#EF8354',
   },
   blockChipText: {
     fontSize: 11,
@@ -1448,16 +1448,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FDF1EB',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: '#BFC0C0',
     borderRadius: 8,
     padding: 10,
     marginBottom: 12,
   },
   liveAddressText: {
     fontSize: 12,
-    color: '#064E3B',
+    color: '#2D3142',
   },
   modalFooter: {
     flexDirection: 'row',
@@ -1485,7 +1485,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: '#047857',
+    backgroundColor: '#EF8354',
   },
   saveModalBtnText: {
     fontSize: 12,
