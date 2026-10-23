@@ -101,6 +101,13 @@ export function LoginModal({ visible, onClose }: LoginModalProps) {
               <Text style={styles.securityNote}>
                 <Ionicons name="shield-checkmark-outline" size={13} color="#059669" /> Terenkripsi aman via Google Identity Services (OAuth 2.0)
               </Text>
+
+              <View style={styles.oauthHintBox}>
+                <Ionicons name="information-circle-outline" size={15} color="#0369A1" />
+                <Text style={styles.oauthHintText}>
+                  Tips: Jika muncul <Text style={{ fontWeight: '700' }}>Error 401: invalid_client</Text>, pastikan domain <Text style={{ fontWeight: '700' }}>https://al-muttaqin.natsuko.ai.id</Text> sudah ditambahkan di Authorized JavaScript Origins pada Google Cloud Console.
+                </Text>
+              </View>
             </View>
 
             {/* Divider */}
@@ -330,6 +337,23 @@ const styles = StyleSheet.create({
     color: '#059669',
     marginTop: 10,
     fontWeight: '500',
+  },
+  oauthHintBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 10,
+    gap: 6,
+  },
+  oauthHintText: {
+    flex: 1,
+    fontSize: 10.5,
+    color: '#0369A1',
+    lineHeight: 15,
   },
   dividerRow: {
     flexDirection: 'row',
