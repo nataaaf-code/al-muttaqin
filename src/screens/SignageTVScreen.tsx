@@ -489,9 +489,9 @@ export function SignageTVScreen() {
           <View style={styles.brandLeft}>
             <View style={styles.mosqueAvatarCircle}>
               <Image
-                source={require('../../assets/masjid-nabawi-bg.jpg')}
+                source={require('../../assets/logo.png')}
                 style={styles.mosqueAvatarImg}
-                resizeMode="cover"
+                resizeMode="contain"
               />
             </View>
             <View style={{ marginLeft: 22 }}>
@@ -768,18 +768,22 @@ const styles = StyleSheet.create({
     width: 104,
     height: 104,
     borderRadius: 52,
+    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
     elevation: 8,
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 2,
   },
   mosqueAvatarImg: {
-    width: 104,
-    height: 104,
+    width: 98,
+    height: 98,
   },
   mosqueTitle: {
     fontSize: 32,

@@ -8,6 +8,7 @@ import {
   Platform,
   Alert,
   Linking,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMushola } from '../store/useMusholaStore';
@@ -85,12 +86,21 @@ export function DashboardScreen({ onNavigateTab }: DashboardProps) {
 
           <View style={styles.heroContent}>
             <View style={styles.heroTopRow}>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={styles.bismillahArabic}>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</Text>
-                <Text style={styles.musholaTitle}>{MUSHOLA_INFO.name}</Text>
-                <Text style={styles.locationSubtitle} numberOfLines={2}>
-                  {MUSHOLA_INFO.shortAddress}
-                </Text>
+              <View style={styles.heroIdentityWrap}>
+                <View style={styles.heroLogoCircle}>
+                  <Image
+                    source={require('../../assets/logo.png')}
+                    style={styles.heroLogoImg}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.bismillahArabic}>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</Text>
+                  <Text style={styles.musholaTitle}>{MUSHOLA_INFO.name}</Text>
+                  <Text style={styles.locationSubtitle} numberOfLines={2}>
+                    {MUSHOLA_INFO.shortAddress}
+                  </Text>
+                </View>
               </View>
 
               <TouchableOpacity
@@ -412,10 +422,37 @@ const styles = StyleSheet.create({
   heroTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 16,
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
+  },
+  heroIdentityWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 260,
+    gap: 14,
+  },
+  heroLogoCircle: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  heroLogoImg: {
+    width: 56,
+    height: 56,
   },
   bismillahArabic: {
     color: '#A7F3D0',

@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GoogleLoginButton } from './GoogleLoginButton';
@@ -59,7 +60,11 @@ export function LoginModal({ visible, onClose }: LoginModalProps) {
           <View style={styles.header}>
             <View style={styles.headerBrand}>
               <View style={styles.brandBadge}>
-                <Ionicons name="moon" size={20} color="#FBBF24" />
+                <Image
+                  source={require('../../assets/logo.png')}
+                  style={styles.modalLogoImg}
+                  resizeMode="contain"
+                />
               </View>
               <View style={{ marginLeft: 12 }}>
                 <Text style={styles.brandTitle}>E-MUSHOLA AL MUTTAQIN</Text>
@@ -267,12 +272,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   brandBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#064E3B',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  modalLogoImg: {
+    width: 40,
+    height: 40,
   },
   brandTitle: {
     fontSize: 13,

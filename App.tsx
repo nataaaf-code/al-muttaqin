@@ -278,7 +278,11 @@ function MainNavigator() {
             {/* Mushola Brand Branding Header */}
             <View style={styles.sidebarBrand}>
               <View style={styles.brandIconBox}>
-                <Ionicons name="moon" size={22} color="#FBBF24" />
+                <Image
+                  source={require('./assets/logo.png')}
+                  style={styles.sidebarLogoImg}
+                  resizeMode="contain"
+                />
               </View>
               <View style={{ marginLeft: 12 }}>
                 <Text style={styles.brandTitle}>E-MUSHOLA</Text>
@@ -473,7 +477,13 @@ function MainNavigator() {
           {!isWebWide && (
             <View style={styles.mobileHeader}>
               <View style={styles.mobileBrandRow}>
-                <Ionicons name="moon" size={18} color="#FBBF24" />
+                <View style={styles.mobileLogoBox}>
+                  <Image
+                    source={require('./assets/logo.png')}
+                    style={styles.mobileLogoImg}
+                    resizeMode="contain"
+                  />
+                </View>
                 <Text style={styles.mobileBrandTitle}>Musholla Al Muttaqin</Text>
               </View>
 
@@ -707,12 +717,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   brandIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#064E3B',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  sidebarLogoImg: {
+    width: 40,
+    height: 40,
   },
   brandTitle: {
     fontSize: 17,
@@ -1032,7 +1049,20 @@ const styles = StyleSheet.create({
   mobileBrandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+  },
+  mobileLogoBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  mobileLogoImg: {
+    width: 26,
+    height: 26,
   },
   mobileBrandTitle: {
     color: '#FFFFFF',
