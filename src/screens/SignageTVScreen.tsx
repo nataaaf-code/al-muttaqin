@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,14 +13,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMushola } from '../store/useMusholaStore';
 import { getWibTime } from '../services/prayerService';
 import { formatDateIndo, getEstimatedHijriDate } from '../utils/formatters';
-
-// Aset Video Latar Belakang Makkah (Assets)
-let makkahVideoAsset: any = null;
-try {
-  makkahVideoAsset = require('../../assets/makkah.mp4');
-} catch {
-  makkahVideoAsset = null;
-}
 
 // Helper: Tambah menit ke format waktu "HH:mm" (24 jam)
 function addMinutesToTime(timeStr: string, addMins: number): string {
@@ -297,31 +289,6 @@ export function SignageTVScreen() {
   const { width: winW, height: winH } = useWindowDimensions();
   const { prayerData, setIsSignageMode } = useMushola();
 
-  // Video Background Ref & Auto-Play Handler
-  const videoRef = useRef<any>(null);
-  const videoUri =
-    (typeof makkahVideoAsset === 'string'
-      ? makkahVideoAsset
-      : makkahVideoAsset?.default || makkahVideoAsset?.uri) || '/assets/makkah.mp4';
-
-  useEffect(() => {
-    if (Platform.OS === 'web' && videoRef.current) {
-      const v = videoRef.current;
-      v.muted = true;
-      v.defaultMuted = true;
-      const playPromise = v.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {});
-      }
-    }
-  }, []);
-
-  const handleScreenTouch = () => {
-    if (Platform.OS === 'web' && videoRef.current && videoRef.current.paused) {
-      videoRef.current.play().catch(() => {});
-    }
-  };
-
   // Live Timer State (WIB)
   const [nowDate, setNowDate] = useState(new Date());
   const [wibTime, setWibTime] = useState(getWibTime());
@@ -419,7 +386,7 @@ export function SignageTVScreen() {
   ];
 
   return (
-    <View style={styles.viewportOuter} onTouchStart={handleScreenTouch}>
+    <View style={styles.viewportOuter}>
       {/* 1920x1080 Fixed Canvas dengan Auto-Scale Responsif */}
       <View
         style={[
@@ -429,48 +396,13 @@ export function SignageTVScreen() {
           },
         ]}
       >
-        {/* ================= LAYER 0: VIDEO BACKGROUND (MAKKAH.MP4) ================= */}
-        <View style={styles.videoBackgroundLayer} pointerEvents="none">
-          {Platform.OS === 'web' ? (
-            React.createElement(
-              'video',
-              {
-                ref: videoRef,
-                autoPlay: true,
-                loop: true,
-                muted: true,
-                playsInline: true,
-                style: {
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  opacity: 0.38,
-                  pointerEvents: 'none',
-                },
-              },
-              React.createElement('source', {
-                src: videoUri,
-                type: 'video/mp4',
-              }),
-              React.createElement('source', {
-                src: '/assets/makkah.mp4',
-                type: 'video/mp4',
-              }),
-              React.createElement('source', {
-                src: '/makkah.mp4',
-                type: 'video/mp4',
-              })
-            )
-          ) : (
-            <Image
-              source={require('../../assets/masjid-nabawi-bg.jpg')}
-              style={[StyleSheet.absoluteFill, { opacity: 0.3 }]}
-              resizeMode="cover"
-            />
-          )}
+        {/* ================= LAYER 0: FOTO BACKGROUND MAKKAH ================= */}
+        <View style={styles.imageBackgroundLayer} pointerEvents="none">
+          <Image
+            source={require('../../assets/makkah.jpg')}
+            style={[StyleSheet.absoluteFill, { opacity: 0.38 }]}
+            resizeMode="cover"
+          />
         </View>
 
         {/* ================= LAYER 0.5: SVG MOSQUE SKYLINE SILHOUETTE ================= */}
@@ -759,7 +691,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 34,
     justifyContent: 'space-between',
   },
-  videoBackgroundLayer: {
+  imageBackgroundLayer: {
     position: 'absolute',
     top: 0,
     left: 0,

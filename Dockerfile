@@ -19,11 +19,6 @@ RUN rm -rf /usr/share/nginx/html/*
 # Salin hasil build dari Stage 1
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Pastikan aset video makkah.mp4 langsung tersedia di direktori web publik
-RUN mkdir -p /usr/share/nginx/html/assets
-COPY assets/makkah.mp4 /usr/share/nginx/html/assets/makkah.mp4
-COPY assets/makkah.mp4 /usr/share/nginx/html/makkah.mp4
-
 # Salin konfigurasi Nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
