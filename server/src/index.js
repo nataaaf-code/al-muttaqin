@@ -8,6 +8,7 @@ import eventsRoutes from './routes/events.js';
 import inventoryRoutes from './routes/inventory.js';
 import organizationRoutes from './routes/organization.js';
 import publicRoutes from './routes/public.js';
+import usersRoutes from './routes/users.js';
 
 // Inisialisasi Database SQLite & Seeding
 initDatabase();
@@ -47,6 +48,7 @@ app.use('/api/events', eventsRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/organization', organizationRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/users', usersRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

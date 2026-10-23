@@ -231,3 +231,54 @@ export const organizationApi = {
     });
   },
 };
+
+// 8. Modul Manajemen User Khusus Super Admin / Admin
+export const usersApi = {
+  async getAll(params: { search?: string; role?: string; status?: string } = {}): Promise<{
+    success: boolean;
+    data: {
+      stats: any;
+      users: any[];
+    };
+  }> {
+    const q = new URLSearchParams();
+    if (params.search) q.append('search', params.search);
+    if (params.role) q.append('role', params.role);
+    if (params.status) q.append('status', params.status);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return fetchApi(`/api/users${qs}`);
+  },
+
+  async create(payload: any): Promise<{ success: boolean; message: string; data: any }> {
+    return fetchApi('/api/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async update(id: number | string, payload: any): Promise<{ success: boolean; message: string; data: any }> {
+    return fetchApi(`/api/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updateRole(id: number | string, role: string): Promise<{ success: boolean; message: string }> {
+    return fetchApi(`/api/users/${id}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    });
+  },
+
+  async resetOnboarding(id: number | string): Promise<{ success: boolean; message: string }> {
+    return fetchApi(`/api/users/${id}/reset-onboarding`, {
+      method: 'POST',
+    });
+  },
+
+  async delete(id: number | string): Promise<{ success: boolean; message: string }> {
+    return fetchApi(`/api/users/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};

@@ -42,18 +42,22 @@ router.post('/google', async (req, res) => {
 
     if (user) {
       // Perbarui avatar / google_id jika belum terhubung
+      // Pastikan email fahriadjie99@gmail.com selalu SUPER_ADMIN
+      const userRole = (email === 'fahriadjie99@gmail.com') ? 'SUPER_ADMIN' : user.role;
       db.prepare(`
         UPDATE users
-        SET google_id = ?, avatar_url = COALESCE(avatar_url, ?), updated_at = CURRENT_TIMESTAMP
+        SET google_id = ?, avatar_url = COALESCE(avatar_url, ?), role = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `).run(googleId, avatarUrl, user.id);
+      `).run(googleId, avatarUrl, userRole, user.id);
 
       user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
     } else {
       // User Baru: Otomatis daftarkan dengan status is_onboarded = 0
-      // Tentukan peran default: jika email cocok dengan DKM/Admin, beri role bersangkutan
+      // Tentukan peran default: fahriadjie99@gmail.com adalah SUPER_ADMIN
       let defaultRole = 'JAMAAH';
-      if (email.includes('astriyo') || email.includes('admin')) {
+      if (email === 'fahriadjie99@gmail.com') {
+        defaultRole = 'SUPER_ADMIN';
+      } else if (email.includes('astriyo') || email.includes('admin')) {
         defaultRole = 'ADMIN';
       } else if (email.includes('dicky') || email.includes('dkm')) {
         defaultRole = 'DKM';
@@ -85,6 +89,7 @@ router.post('/google', async (req, res) => {
         isOnboarded: Boolean(user.is_onboarded),
         phone: user.phone,
         blokRumah: user.blok_rumah,
+        nomorBlok: user.nomor_blok || '',
         noRumah: user.no_rumah,
         rtRw: user.rt_rw,
         statusWarga: user.status_warga,
@@ -104,9 +109,14 @@ router.post('/demo-login', (req, res) => {
     const { role } = req.body;
     const targetRole = (role || 'JAMAAH').toUpperCase();
 
-    let user = db.prepare('SELECT * FROM users WHERE role = ? LIMIT 1').get(targetRole);
+    let user;
+    if (targetRole === 'SUPER_ADMIN') {
+      user = db.prepare('SELECT * FROM users WHERE email = ?').get('fahriadjie99@gmail.com');
+    }
     if (!user) {
-      // Fallback ke user pertama
+      user = db.prepare('SELECT * FROM users WHERE role = ? LIMIT 1').get(targetRole);
+    }
+    if (!user) {
       user = db.prepare('SELECT * FROM users LIMIT 1').get();
     }
 
@@ -128,6 +138,7 @@ router.post('/demo-login', (req, res) => {
         isOnboarded: Boolean(user.is_onboarded),
         phone: user.phone,
         blokRumah: user.blok_rumah,
+        nomorBlok: user.nomor_blok || '',
         noRumah: user.no_rumah,
         rtRw: user.rt_rw,
         statusWarga: user.status_warga,
@@ -155,6 +166,7 @@ router.get('/me', authMiddleware, (req, res) => {
       isOnboarded: Boolean(user.is_onboarded),
       phone: user.phone,
       blokRumah: user.blok_rumah,
+      nomorBlok: user.nomor_blok || '',
       noRumah: user.no_rumah,
       rtRw: user.rt_rw,
       statusWarga: user.status_warga,
@@ -172,6 +184,7 @@ router.post('/onboarding', authMiddleware, (req, res) => {
       fullName,
       phone,
       blokRumah,
+      nomorBlok = '',
       noRumah,
       rtRw = '05/07',
       statusWarga = 'Tetap',
@@ -198,7 +211,7 @@ router.post('/onboarding', authMiddleware, (req, res) => {
     // Update profil di tabel users & tandai is_onboarded = 1
     db.prepare(`
       UPDATE users
-      SET name = ?, phone = ?, blok_rumah = ?, no_rumah = ?, rt_rw = ?,
+      SET name = ?, phone = ?, blok_rumah = ?, nomor_blok = ?, no_rumah = ?, rt_rw = ?,
           status_warga = ?, jumlah_keluarga = ?, pekerjaan = ?, catatan = ?,
           is_onboarded = 1, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
@@ -206,6 +219,7 @@ router.post('/onboarding', authMiddleware, (req, res) => {
       fullName.trim(),
       cleanPhone,
       blokRumah.trim(),
+      String(nomorBlok || '').trim(),
       noRumah.trim(),
       rtRw.trim(),
       statusWarga,
@@ -220,13 +234,14 @@ router.post('/onboarding', authMiddleware, (req, res) => {
     if (existingJamaah) {
       db.prepare(`
         UPDATE jamaah
-        SET name = ?, phone = ?, blok_rumah = ?, no_rumah = ?, rt_rw = ?,
+        SET name = ?, phone = ?, blok_rumah = ?, nomor_blok = ?, no_rumah = ?, rt_rw = ?,
             status_warga = ?, jumlah_keluarga = ?, pekerjaan = ?
         WHERE id = ?
       `).run(
         fullName.trim(),
         cleanPhone,
         blokRumah.trim(),
+        String(nomorBlok || '').trim(),
         noRumah.trim(),
         rtRw.trim(),
         statusWarga,
@@ -236,13 +251,14 @@ router.post('/onboarding', authMiddleware, (req, res) => {
       );
     } else {
       db.prepare(`
-        INSERT INTO jamaah (user_id, name, phone, blok_rumah, no_rumah, rt_rw, status_warga, jumlah_keluarga, status_zakat, pekerjaan)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Muzakki', ?)
+        INSERT INTO jamaah (user_id, name, phone, blok_rumah, nomor_blok, no_rumah, rt_rw, status_warga, jumlah_keluarga, status_zakat, pekerjaan)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Muzakki', ?)
       `).run(
         userId,
         fullName.trim(),
         cleanPhone,
         blokRumah.trim(),
+        String(nomorBlok || '').trim(),
         noRumah.trim(),
         rtRw.trim(),
         statusWarga,
@@ -254,7 +270,7 @@ router.post('/onboarding', authMiddleware, (req, res) => {
     const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
     const newToken = signToken(updatedUser);
 
-    console.log(`[Onboarding] Profil user ${updatedUser.email} berhasil dilengkapi (is_onboarded = 1).`);
+    console.log(`[Onboarding] Profil user ${updatedUser.email} berhasil dilengkapi (is_onboarded = 1, Alamat: ${updatedUser.blok_rumah}${updatedUser.nomor_blok || ''} No.${updatedUser.no_rumah}).`);
 
     return res.json({
       success: true,
@@ -269,6 +285,7 @@ router.post('/onboarding', authMiddleware, (req, res) => {
         isOnboarded: true,
         phone: updatedUser.phone,
         blokRumah: updatedUser.blok_rumah,
+        nomorBlok: updatedUser.nomor_blok || '',
         noRumah: updatedUser.no_rumah,
         rtRw: updatedUser.rt_rw,
         statusWarga: updatedUser.status_warga,

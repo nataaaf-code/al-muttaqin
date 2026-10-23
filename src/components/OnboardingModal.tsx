@@ -21,6 +21,7 @@ export function OnboardingModal() {
   const [fullName, setFullName] = useState(currentUser?.name || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
   const [blokRumah, setBlokRumah] = useState(currentUser?.blokRumah || 'Blok H');
+  const [nomorBlok, setNomorBlok] = useState(currentUser?.nomorBlok || '7');
   const [noRumah, setNoRumah] = useState(currentUser?.noRumah || '');
   const [rtRw, setRtRw] = useState(currentUser?.rtRw || '05/07');
   const [statusWarga, setStatusWarga] = useState<'Tetap' | 'Kontrak'>(
@@ -39,6 +40,7 @@ export function OnboardingModal() {
       if (currentUser.name && !fullName) setFullName(currentUser.name);
       if (currentUser.phone && !phone) setPhone(currentUser.phone);
       if (currentUser.blokRumah) setBlokRumah(currentUser.blokRumah);
+      if (currentUser.nomorBlok) setNomorBlok(currentUser.nomorBlok);
       if (currentUser.noRumah) setNoRumah(currentUser.noRumah);
       if (currentUser.rtRw) setRtRw(currentUser.rtRw);
       if (currentUser.statusWarga) setStatusWarga(currentUser.statusWarga as any);
@@ -94,6 +96,7 @@ export function OnboardingModal() {
         fullName: fullName.trim(),
         phone: phone.trim(),
         blokRumah: blokRumah.trim(),
+        nomorBlok: nomorBlok.trim(),
         noRumah: noRumah.trim(),
         rtRw: rtRw.trim(),
         statusWarga,
@@ -179,10 +182,10 @@ export function OnboardingModal() {
               <Text style={styles.hint}>Tersimpan di database sebagai: {phone || '62...'}</Text>
             </View>
 
-            {/* 3. Blok Rumah */}
+            {/* 3. Blok & Nomor Blok Rumah */}
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>
-                Blok Rumah (Mutiara Puri Harmoni) <Text style={styles.req}>*</Text>
+                Pilihan Blok Rumah (Mutiara Puri Harmoni) <Text style={styles.req}>*</Text>
               </Text>
               <View style={styles.chipsRow}>
                 {availableBlocks.map((b) => {
@@ -200,9 +203,22 @@ export function OnboardingModal() {
               </View>
             </View>
 
-            {/* 4. Nomor Rumah & RT/RW */}
+            {/* Nomor Blok & Nomor Rumah */}
             <View style={styles.twoColsRow}>
               <View style={[styles.fieldGroup, { flex: 1 }]}>
+                <Text style={styles.label}>
+                  Nomor Blok (Contoh: 7) <Text style={styles.req}>*</Text>
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  value={nomorBlok}
+                  onChangeText={setNomorBlok}
+                  placeholder="Contoh: 7"
+                  placeholderTextColor="#94A3B8"
+                />
+              </View>
+
+              <View style={[styles.fieldGroup, { flex: 1, marginLeft: 12 }]}>
                 <Text style={styles.label}>
                   Nomor Rumah <Text style={styles.req}>*</Text>
                 </Text>
@@ -210,21 +226,30 @@ export function OnboardingModal() {
                   style={styles.input}
                   value={noRumah}
                   onChangeText={setNoRumah}
-                  placeholder="No. 12"
+                  placeholder="Contoh: 31"
                   placeholderTextColor="#94A3B8"
                 />
               </View>
+            </View>
 
-              <View style={[styles.fieldGroup, { flex: 1, marginLeft: 12 }]}>
-                <Text style={styles.label}>RT / RW</Text>
-                <TextInput
-                  style={styles.input}
-                  value={rtRw}
-                  onChangeText={setRtRw}
-                  placeholder="05/07"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
+            {/* Preview Alamat Terformat */}
+            <View style={styles.addressPreviewBox}>
+              <Ionicons name="location" size={16} color="#047857" />
+              <Text style={styles.addressPreviewText}>
+                Format Alamat: <Text style={{ fontWeight: '800', color: '#064E3B' }}>{blokRumah}{nomorBlok ? nomorBlok : ''} No.{noRumah || '...'}</Text>
+              </Text>
+            </View>
+
+            {/* 4. RT / RW */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>RT / RW (Default 05/07)</Text>
+              <TextInput
+                style={styles.input}
+                value={rtRw}
+                onChangeText={setRtRw}
+                placeholder="05/07"
+                placeholderTextColor="#94A3B8"
+              />
             </View>
 
             {/* 5. Status Kependudukan */}
@@ -563,6 +588,22 @@ const styles = StyleSheet.create({
   textArea: {
     height: 72,
     textAlignVertical: 'top',
+  },
+  addressPreviewBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  addressPreviewText: {
+    fontSize: 12,
+    color: '#064E3B',
   },
   footer: {
     paddingHorizontal: 24,

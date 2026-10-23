@@ -20,6 +20,7 @@ export interface UserProfile {
   isOnboarded: boolean;
   phone?: string;
   blokRumah?: string;
+  nomorBlok?: string;
   noRumah?: string;
   rtRw?: string;
   statusWarga?: string;
@@ -31,12 +32,47 @@ export interface OnboardingFormData {
   fullName: string;
   phone: string;
   blokRumah: string;
+  nomorBlok: string;
   noRumah: string;
   rtRw: string;
   statusWarga: string;
   jumlahKeluarga: number;
   pekerjaan: string;
   catatan?: string;
+}
+
+export interface UserManagementStats {
+  total: number;
+  superAdmin: number;
+  admin: number;
+  dkm: number;
+  bendahara: number;
+  sarpras: number;
+  jamaah: number;
+  pendingOnboarding: number;
+  completedOnboarding: number;
+}
+
+export interface UserManagementItem {
+  id: number;
+  googleId?: string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
+  role: UserRole;
+  isOnboarded: boolean;
+  phone?: string;
+  blokRumah?: string;
+  nomorBlok?: string;
+  noRumah?: string;
+  fullAddress?: string;
+  rtRw?: string;
+  statusWarga?: string;
+  jumlahKeluarga?: number;
+  pekerjaan?: string;
+  catatan?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SubOrganization {

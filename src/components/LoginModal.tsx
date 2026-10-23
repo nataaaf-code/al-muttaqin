@@ -125,6 +125,27 @@ export function LoginModal({ visible, onClose }: LoginModalProps) {
 
               <View style={styles.demoGrid}>
                 <TouchableOpacity
+                  style={[styles.demoCard, styles.demoSuperAdmin]}
+                  onPress={() => handleDemoLogin('SUPER_ADMIN')}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.demoIconWrap, { backgroundColor: '#EDE9FE' }]}>
+                    <Ionicons name="shield-half" size={18} color="#7C3AED" />
+                  </View>
+                  <View style={styles.demoInfo}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.demoRole, { color: '#7C3AED', fontWeight: '800' }]}>👑 Super User (System)</Text>
+                      <View style={styles.superBadgePill}>
+                        <Text style={styles.superBadgePillText}>AKSES PENUH</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.demoName}>Fahri Adjie (fahriadjie99@gmail.com)</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#7C3AED" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
                   style={[styles.demoCard, styles.demoAdmin]}
                   onPress={() => handleDemoLogin('ADMIN')}
                   disabled={loading}
@@ -392,6 +413,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
+  },
+  demoSuperAdmin: {
+    borderColor: '#C4B5FD',
+    backgroundColor: '#FAF5FF',
+    borderWidth: 1.5,
+  },
+  superBadgePill: {
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  superBadgePillText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   demoAdmin: {
     borderColor: '#A7F3D0',

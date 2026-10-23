@@ -20,12 +20,13 @@ import { EventsScreen } from './src/screens/EventsScreen';
 import { JamaahScreen } from './src/screens/JamaahScreen';
 import { InventoryScreen } from './src/screens/InventoryScreen';
 import { SignageTVScreen } from './src/screens/SignageTVScreen';
+import { UserManagementScreen } from './src/screens/UserManagementScreen';
 import { DonationQRISModal } from './src/components/DonationQRISModal';
 import { LoginModal } from './src/components/LoginModal';
 import { OnboardingModal } from './src/components/OnboardingModal';
 import { UserRole } from './src/types';
 
-type TabKey = 'dashboard' | 'finance' | 'organization' | 'events' | 'jamaah' | 'inventory';
+type TabKey = 'dashboard' | 'finance' | 'organization' | 'events' | 'jamaah' | 'inventory' | 'users';
 
 interface TabItem {
   key: TabKey;
@@ -55,6 +56,15 @@ interface RoleModalOption {
 }
 
 const ROLE_OPTIONS: RoleModalOption[] = [
+  {
+    role: 'SUPER_ADMIN',
+    title: '👑 Super User / System Admin',
+    badge: 'Super Admin',
+    color: '#7C3AED',
+    bgColor: '#EDE9FE',
+    icon: 'shield-half',
+    desc: 'Hak akses tertinggi khusus Super User (fahriadjie99@gmail.com): Akses penuh + Modul Manajemen Pengguna.',
+  },
   {
     role: 'ADMIN',
     title: 'Ketua DKM (Admin)',
@@ -111,29 +121,51 @@ const ROLE_OPTIONS: RoleModalOption[] = [
   },
 ];
 
-function getVisibleTabsForRole(role: UserRole, isLoggedIn: boolean): TabItem[] {
+function getVisibleTabsForRole(role: UserRole, isLoggedIn: boolean, isSuperUser: boolean = false): TabItem[] {
+  let baseTabs: TabItem[] = [];
   if (!isLoggedIn || role === 'TAMU') {
     // Pengunjung belum login melihat Ringkasan publik, plus tab lain dengan lock jika diinginkan
-    return ALL_TABS;
+    baseTabs = ALL_TABS;
+  } else {
+    switch (role) {
+      case 'JAMAAH':
+        baseTabs = ALL_TABS.filter((t) => ['dashboard', 'finance', 'events', 'jamaah'].includes(t.key));
+        break;
+      case 'BENDAHARA':
+      case 'BENDAHARA_DKM':
+      case 'BENDAHARA_SUB':
+        baseTabs = ALL_TABS.filter((t) => ['dashboard', 'finance', 'events', 'jamaah'].includes(t.key));
+        break;
+      case 'DKM':
+      case 'SEKRETARIS':
+        baseTabs = ALL_TABS.filter((t) => ['dashboard', 'organization', 'events', 'jamaah', 'inventory', 'finance'].includes(t.key));
+        break;
+      case 'PENGURUS_SEKSI':
+      case 'MARBOT':
+        baseTabs = ALL_TABS.filter((t) => ['dashboard', 'inventory', 'events'].includes(t.key));
+        break;
+      case 'ADMIN':
+      case 'SUPER_ADMIN':
+      default:
+        baseTabs = ALL_TABS;
+        break;
+    }
   }
-  switch (role) {
-    case 'JAMAAH':
-      return ALL_TABS.filter((t) => ['dashboard', 'finance', 'events', 'jamaah'].includes(t.key));
-    case 'BENDAHARA':
-    case 'BENDAHARA_DKM':
-    case 'BENDAHARA_SUB':
-      return ALL_TABS.filter((t) => ['dashboard', 'finance', 'events', 'jamaah'].includes(t.key));
-    case 'DKM':
-    case 'SEKRETARIS':
-      return ALL_TABS.filter((t) => ['dashboard', 'organization', 'events', 'jamaah', 'inventory', 'finance'].includes(t.key));
-    case 'PENGURUS_SEKSI':
-    case 'MARBOT':
-      return ALL_TABS.filter((t) => ['dashboard', 'inventory', 'events'].includes(t.key));
-    case 'ADMIN':
-    case 'SUPER_ADMIN':
-    default:
-      return ALL_TABS;
+
+  // Khusus Super User (fahriadjie99@gmail.com / SUPER_ADMIN) sediakan Tab Manajemen User
+  if (isSuperUser) {
+    return [
+      ...baseTabs,
+      {
+        key: 'users',
+        label: 'Kelola User',
+        iconName: 'shield-checkmark-outline',
+        isPublic: false,
+      },
+    ];
   }
+
+  return baseTabs;
 }
 
 function MainNavigator() {
@@ -168,7 +200,12 @@ function MainNavigator() {
     return <SignageTVScreen />;
   }
 
-  const visibleTabs = getVisibleTabsForRole(currentRole, isLoggedIn);
+  const isSuperUser =
+    currentUser?.email === 'fahriadjie99@gmail.com' ||
+    currentRole === 'SUPER_ADMIN' ||
+    currentUser?.role === 'SUPER_ADMIN';
+
+  const visibleTabs = getVisibleTabsForRole(currentRole, isLoggedIn, isSuperUser);
 
   const handleTabPress = (tabKey: TabKey) => {
     if (!isLoggedIn && tabKey !== 'dashboard') {
@@ -223,6 +260,8 @@ function MainNavigator() {
         return <JamaahScreen />;
       case 'inventory':
         return <InventoryScreen />;
+      case 'users':
+        return <UserManagementScreen />;
       default:
         return <DashboardScreen onNavigateTab={(t) => handleTabPress(t as TabKey)} />;
     }
@@ -447,7 +486,9 @@ function MainNavigator() {
                   >
                     <Ionicons name={permissions.roleIcon as any} size={13} color="#FFFFFF" />
                     <Text style={styles.mobileRolePillText} numberOfLines={1}>
-                      {currentRole === 'ADMIN' || currentRole === 'SUPER_ADMIN'
+                      {currentRole === 'SUPER_ADMIN'
+                        ? '👑 Super User'
+                        : currentRole === 'ADMIN'
                         ? 'DKM'
                         : currentRole === 'BENDAHARA' || currentRole === 'BENDAHARA_DKM'
                         ? 'Bendahara'

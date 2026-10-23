@@ -58,7 +58,6 @@ export interface RolePermissions {
 
 export function getRolePermissions(role: UserRole): RolePermissions {
   switch (role) {
-    case 'ADMIN':
     case 'SUPER_ADMIN':
       return {
         canAddTransaction: true,
@@ -71,8 +70,25 @@ export function getRolePermissions(role: UserRole): RolePermissions {
         canViewFinancialReports: true,
         canManageSubOrgs: true,
         isReadOnly: false,
-        roleTitle: 'Ketua DKM (Super Admin)',
-        roleDescription: 'Akses penuh tanpa batasan ke seluruh pembukuan, jadwal kajian, inventaris, data jamaah, dan konfigurasi TV.',
+        roleTitle: '👑 Super User (System Admin)',
+        roleDescription: 'Hak akses tertinggi: Akses modul khusus Manajemen Pengguna, DKM, kas, sarpras, agenda, dan konfigurasi TV.',
+        roleBadgeColor: '#7C3AED',
+        roleIcon: 'shield-half',
+      };
+    case 'ADMIN':
+      return {
+        canAddTransaction: true,
+        canManagePockets: true,
+        canAddEvent: true,
+        canEditFridaySchedule: true,
+        canManageInventory: true,
+        canManageJamaah: true,
+        canEditSignage: true,
+        canViewFinancialReports: true,
+        canManageSubOrgs: true,
+        isReadOnly: false,
+        roleTitle: 'Ketua DKM (Admin)',
+        roleDescription: 'Akses penuh ke seluruh pembukuan, jadwal kajian, inventaris, data jamaah, dan konfigurasi TV.',
         roleBadgeColor: '#059669',
         roleIcon: 'shield-checkmark',
       };
