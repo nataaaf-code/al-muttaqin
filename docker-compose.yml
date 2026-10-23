@@ -1,4 +1,22 @@
 services:
+  al-muttaqin-api:
+    container_name: al-muttaqin-api
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: al-muttaqin-api:latest
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=4000
+      - DB_PATH=/app/data/mushola.db
+      - GOOGLE_CLIENT_ID=619642670845-e7tvthu3ro4aip2fcdm80788486sc3vq.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=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
+      - JWT_SECRET=al-muttaqin-secret-key-2026-banten-rajeg-musholla-jwt-auth
+    networks:
+      - internal_net
+
   al-muttaqin-app:
     container_name: al-muttaqin-app
     build:
@@ -6,7 +24,10 @@ services:
       dockerfile: Dockerfile
     image: al-muttaqin-app:latest
     restart: unless-stopped
+    depends_on:
+      - al-muttaqin-api
     networks:
+      - internal_net
       - proxy
     labels:
       - "traefik.enable=true"
@@ -17,5 +38,7 @@ services:
       - "traefik.http.services.al-muttaqin.loadbalancer.server.port=80"
 
 networks:
+  internal_net:
+    driver: bridge
   proxy:
     external: true

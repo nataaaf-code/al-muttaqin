@@ -23,7 +23,16 @@ interface DashboardProps {
 }
 
 export function DashboardScreen({ onNavigateTab }: DashboardProps) {
-  const { prayerData, pockets, events, fridaySchedule, setIsSignageMode } = useMushola();
+  const {
+    prayerData,
+    pockets,
+    events,
+    fridaySchedule,
+    setIsSignageMode,
+    isLoggedIn,
+    currentUser,
+    openLoginModal,
+  } = useMushola();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [qrisModalVisible, setQrisModalVisible] = useState(false);
   const [selectedPocketForDonation, setSelectedPocketForDonation] = useState('pocket-operasional');
@@ -109,6 +118,39 @@ export function DashboardScreen({ onNavigateTab }: DashboardProps) {
             </View>
           </View>
         </View>
+
+        {/* Guest Onboarding Banner / Welcome Logged In User */}
+        {!isLoggedIn ? (
+          <View style={styles.guestBannerCard}>
+            <View style={styles.guestBannerLeft}>
+              <View style={styles.guestBannerIcon}>
+                <Ionicons name="sparkles" size={18} color="#047857" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.guestBannerTitle}>Assalamu'alaikum, Jamaah!</Text>
+                <Text style={styles.guestBannerDesc}>
+                  Masuk dengan akun Google untuk akses pendataan warga, pembukuan kas lengkap, dan agenda kepengurusan DKM.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.guestBannerBtn}
+              onPress={openLoginModal}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="logo-google" size={14} color="#FFFFFF" />
+              <Text style={styles.guestBannerBtnText}>Masuk Google</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.welcomeUserBar}>
+            <Ionicons name="checkmark-circle" size={16} color="#059669" />
+            <Text style={styles.welcomeUserText}>
+              Ahlan wa Sahlan, <Text style={{ fontWeight: '700' }}>{currentUser?.name || 'Warga'}</Text>{' '}
+              {currentUser?.blokRumah ? `(${currentUser.blokRumah} No. ${currentUser?.noRumah || '-'})` : ''}
+            </Text>
+          </View>
+        )}
 
         {/* Interactive Prayer Times Celestial Rail */}
         <PrayerTimeline
@@ -745,5 +787,79 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
+  },
+  guestBannerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
+    shadowColor: '#047857',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  guestBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 240,
+    gap: 12,
+  },
+  guestBannerIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#064E3B',
+  },
+  guestBannerDesc: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  guestBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#047857',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  guestBannerBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  welcomeUserBar: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  welcomeUserText: {
+    fontSize: 12,
+    color: '#064E3B',
   },
 });

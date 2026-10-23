@@ -1,10 +1,43 @@
 export type UserRole =
+  | 'TAMU'              // Pengunjung publik / Belum login
+  | 'JAMAAH'            // Warga / Jamaah umum
+  | 'DKM'               // Pengurus DKM
+  | 'BENDAHARA'         // Pengelola Keuangan
+  | 'MARBOT'            // Marbot & Sie Ibadah
+  | 'ADMIN'             // Administrator sistem
   | 'SUPER_ADMIN'       // Ketua DKM
   | 'BENDAHARA_DKM'     // Bendahara Utama
-  | 'BENDAHARA_SUB'     // Bendahara Sub-Organisasi (RISMA / Majelis Taklim)
+  | 'BENDAHARA_SUB'     // Bendahara Sub-Organisasi
   | 'SEKRETARIS'        // Pengelola Jadwal & Warta
-  | 'PENGURUS_SEKSI'    // Sarpras, Dakwah, Humas
-  | 'JAMAAH';           // Warga / Jamaah umum
+  | 'PENGURUS_SEKSI';   // Sarpras, Dakwah, Humas
+
+export interface UserProfile {
+  id: number | string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
+  role: UserRole;
+  isOnboarded: boolean;
+  phone?: string;
+  blokRumah?: string;
+  noRumah?: string;
+  rtRw?: string;
+  statusWarga?: string;
+  jumlahKeluarga?: number;
+  pekerjaan?: string;
+}
+
+export interface OnboardingFormData {
+  fullName: string;
+  phone: string;
+  blokRumah: string;
+  noRumah: string;
+  rtRw: string;
+  statusWarga: string;
+  jumlahKeluarga: number;
+  pekerjaan: string;
+  catatan?: string;
+}
 
 export interface SubOrganization {
   id: string;

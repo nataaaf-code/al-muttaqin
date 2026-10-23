@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
   ScrollView,
   Modal,
+  Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,8 @@ import { JamaahScreen } from './src/screens/JamaahScreen';
 import { InventoryScreen } from './src/screens/InventoryScreen';
 import { SignageTVScreen } from './src/screens/SignageTVScreen';
 import { DonationQRISModal } from './src/components/DonationQRISModal';
+import { LoginModal } from './src/components/LoginModal';
+import { OnboardingModal } from './src/components/OnboardingModal';
 import { UserRole } from './src/types';
 
 type TabKey = 'dashboard' | 'finance' | 'organization' | 'events' | 'jamaah' | 'inventory';
@@ -29,15 +32,16 @@ interface TabItem {
   label: string;
   iconName: keyof typeof Ionicons.glyphMap;
   badgeCount?: number;
+  isPublic?: boolean;
 }
 
-const TABS: TabItem[] = [
-  { key: 'dashboard', label: 'Ringkasan', iconName: 'home-outline' },
-  { key: 'finance', label: 'Keuangan', iconName: 'wallet-outline' },
-  { key: 'organization', label: 'Organisasi', iconName: 'people-outline' },
-  { key: 'events', label: 'Kegiatan', iconName: 'calendar-outline' },
-  { key: 'jamaah', label: 'Warga', iconName: 'id-card-outline' },
-  { key: 'inventory', label: 'Sarpras', iconName: 'cube-outline' },
+const ALL_TABS: TabItem[] = [
+  { key: 'dashboard', label: 'Ringkasan', iconName: 'home-outline', isPublic: true },
+  { key: 'finance', label: 'Keuangan', iconName: 'wallet-outline', isPublic: false },
+  { key: 'organization', label: 'Organisasi', iconName: 'people-outline', isPublic: false },
+  { key: 'events', label: 'Kegiatan', iconName: 'calendar-outline', isPublic: false },
+  { key: 'jamaah', label: 'Warga', iconName: 'id-card-outline', isPublic: false },
+  { key: 'inventory', label: 'Sarpras', iconName: 'cube-outline', isPublic: false },
 ];
 
 interface RoleModalOption {
@@ -52,17 +56,26 @@ interface RoleModalOption {
 
 const ROLE_OPTIONS: RoleModalOption[] = [
   {
-    role: 'SUPER_ADMIN',
-    title: 'Ketua DKM (Super Admin)',
-    badge: 'Master',
+    role: 'ADMIN',
+    title: 'Ketua DKM (Admin)',
+    badge: 'Admin',
     color: '#059669',
     bgColor: '#DCFCE7',
     icon: 'shield-checkmark',
     desc: 'Akses penuh tanpa batasan ke seluruh modul sistem.',
   },
   {
-    role: 'BENDAHARA_DKM',
-    title: 'Bendahara Utama DKM',
+    role: 'DKM',
+    title: 'Pengurus DKM & Dakwah',
+    badge: 'DKM',
+    color: '#D97706',
+    bgColor: '#FEF3C7',
+    icon: 'business',
+    desc: 'Mengatur kalender kajian, warta TV, petugas Jumat, dan sensus warga.',
+  },
+  {
+    role: 'BENDAHARA',
+    title: 'Bendahara Keuangan',
     badge: 'Kas DKM',
     color: '#0D9488',
     bgColor: '#CCFBF1',
@@ -70,42 +83,58 @@ const ROLE_OPTIONS: RoleModalOption[] = [
     desc: 'Mencatat pemasukan/pengeluaran DKM, alokasi kantong kas, & laporan.',
   },
   {
-    role: 'BENDAHARA_SUB',
-    title: 'Bendahara Sub-Organisasi',
-    badge: 'Otonom',
+    role: 'JAMAAH',
+    title: 'Jamaah / Warga Terdaftar',
+    badge: 'Warga',
     color: '#0284C7',
     bgColor: '#E0F2FE',
-    icon: 'card',
-    desc: 'Mencatat mutasi kas unit (RISMA/Taklim/TPA). Terisolasi dari kas pusat.',
-  },
-  {
-    role: 'SEKRETARIS',
-    title: 'Sekretaris & Sie Dakwah',
-    badge: 'Dakwah',
-    color: '#D97706',
-    bgColor: '#FEF3C7',
-    icon: 'document-text',
-    desc: 'Mengatur kalender kajian, petugas Jumat, warta TV, & data sensus.',
+    icon: 'people',
+    desc: 'Warga perumahan terdaftar: transparansi kas, agenda warga, sensus.',
   },
   {
     role: 'PENGURUS_SEKSI',
-    title: 'Seksi Sarpras & Logistik',
+    title: 'Seksi Sarpras & Marbot',
     badge: 'Sarpras',
     color: '#6366F1',
     bgColor: '#EEF2FF',
     icon: 'cube',
-    desc: 'Mengelola pencatatan inventaris aset, kondisi alat, & pinjam pakai.',
+    desc: 'Pencatatan aset inventaris, kondisi barang, & peminjaman fasilitas.',
   },
   {
-    role: 'JAMAAH',
-    title: 'Jamaah / Warga Umum',
-    badge: 'Warga',
-    color: '#475569',
+    role: 'TAMU',
+    title: 'Tamu Publik (Belum Login)',
+    badge: 'Publik',
+    color: '#64748B',
     bgColor: '#F1F5F9',
-    icon: 'people',
-    desc: 'Transparansi kas, jadwal sholat, agenda kajian, & infaq QRIS.',
+    icon: 'globe-outline',
+    desc: 'Hanya melihat jadwal sholat live, Mode Smart TV, dan warta umum.',
   },
 ];
+
+function getVisibleTabsForRole(role: UserRole, isLoggedIn: boolean): TabItem[] {
+  if (!isLoggedIn || role === 'TAMU') {
+    // Pengunjung belum login melihat Ringkasan publik, plus tab lain dengan lock jika diinginkan
+    return ALL_TABS;
+  }
+  switch (role) {
+    case 'JAMAAH':
+      return ALL_TABS.filter((t) => ['dashboard', 'finance', 'events', 'jamaah'].includes(t.key));
+    case 'BENDAHARA':
+    case 'BENDAHARA_DKM':
+    case 'BENDAHARA_SUB':
+      return ALL_TABS.filter((t) => ['dashboard', 'finance', 'events', 'jamaah'].includes(t.key));
+    case 'DKM':
+    case 'SEKRETARIS':
+      return ALL_TABS.filter((t) => ['dashboard', 'organization', 'events', 'jamaah', 'inventory', 'finance'].includes(t.key));
+    case 'PENGURUS_SEKSI':
+    case 'MARBOT':
+      return ALL_TABS.filter((t) => ['dashboard', 'inventory', 'events'].includes(t.key));
+    case 'ADMIN':
+    case 'SUPER_ADMIN':
+    default:
+      return ALL_TABS;
+  }
+}
 
 function MainNavigator() {
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
@@ -114,7 +143,21 @@ function MainNavigator() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const { width } = useWindowDimensions();
   const isWebWide = width >= 860;
-  const { isSignageMode, setIsSignageMode, currentRole, setCurrentRole, permissions, prayerData } = useMushola();
+
+  const {
+    isSignageMode,
+    setIsSignageMode,
+    currentRole,
+    setCurrentRole,
+    permissions,
+    prayerData,
+    currentUser,
+    isLoggedIn,
+    isAuthModalVisible,
+    openLoginModal,
+    closeLoginModal,
+    logout,
+  } = useMushola();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -125,10 +168,51 @@ function MainNavigator() {
     return <SignageTVScreen />;
   }
 
+  const visibleTabs = getVisibleTabsForRole(currentRole, isLoggedIn);
+
+  const handleTabPress = (tabKey: TabKey) => {
+    if (!isLoggedIn && tabKey !== 'dashboard') {
+      openLoginModal();
+      return;
+    }
+    setActiveTab(tabKey);
+  };
+
   const renderActiveScreen = () => {
+    if (!isLoggedIn && activeTab !== 'dashboard') {
+      return (
+        <View style={styles.gatekeeperContainer}>
+          <View style={styles.gatekeeperCard}>
+            <View style={styles.gatekeeperIconWrap}>
+              <Ionicons name="lock-closed" size={32} color="#047857" />
+            </View>
+            <Text style={styles.gatekeeperTitle}>Fitur Khusus Warga & Pengurus</Text>
+            <Text style={styles.gatekeeperDesc}>
+              Halaman ini memuat informasi internal Musholla Al Muttaqin (pembukuan kas detail, agenda pengurus, sensus jamaah & sarpras).
+              Silakan masuk dengan akun Google untuk melanjutkan.
+            </Text>
+            <TouchableOpacity
+              style={styles.gatekeeperLoginBtn}
+              onPress={openLoginModal}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="logo-google" size={18} color="#FFFFFF" />
+              <Text style={styles.gatekeeperLoginBtnText}>Masuk dengan Akun Google</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.gatekeeperBackBtn}
+              onPress={() => setActiveTab('dashboard')}
+            >
+              <Text style={styles.gatekeeperBackBtnText}>Kembali ke Ringkasan Publik</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardScreen onNavigateTab={(t) => setActiveTab(t as TabKey)} />;
+        return <DashboardScreen onNavigateTab={(t) => handleTabPress(t as TabKey)} />;
       case 'finance':
         return <FinanceScreen />;
       case 'organization':
@@ -140,7 +224,7 @@ function MainNavigator() {
       case 'inventory':
         return <InventoryScreen />;
       default:
-        return <DashboardScreen onNavigateTab={(t) => setActiveTab(t as TabKey)} />;
+        return <DashboardScreen onNavigateTab={(t) => handleTabPress(t as TabKey)} />;
     }
   };
 
@@ -176,36 +260,38 @@ function MainNavigator() {
 
             {/* Sidebar Navigation Items */}
             <ScrollView style={styles.sidebarNav}>
-              {TABS.map((tab) => {
+              {visibleTabs.map((tab) => {
                 const isActive = activeTab === tab.key;
+                const isLocked = !isLoggedIn && !tab.isPublic;
+
                 return (
                   <TouchableOpacity
                     key={tab.key}
                     style={[styles.sidebarNavItem, isActive && styles.sidebarNavItemActive]}
-                    onPress={() => setActiveTab(tab.key)}
+                    onPress={() => handleTabPress(tab.key)}
                     activeOpacity={0.7}
                   >
-                    <View
-                      style={[
-                        styles.navIconBox,
-                        isActive && styles.navIconBoxActive,
-                      ]}
-                    >
+                    <View style={[styles.navIconBox, isActive && styles.navIconBoxActive]}>
                       <Ionicons
                         name={tab.iconName}
                         size={18}
-                        color={isActive ? '#047857' : '#64748B'}
+                        color={isActive ? '#047857' : isLocked ? '#94A3B8' : '#64748B'}
                       />
                     </View>
                     <Text
                       style={[
                         styles.sidebarNavLabel,
                         isActive && styles.sidebarNavLabelActive,
+                        isLocked && { color: '#94A3B8' },
                       ]}
                     >
                       {tab.label}
                     </Text>
-                    {isActive && <View style={styles.activeDotIndicator} />}
+                    {isLocked ? (
+                      <Ionicons name="lock-closed" size={13} color="#94A3B8" />
+                    ) : isActive ? (
+                      <View style={styles.activeDotIndicator} />
+                    ) : null}
                   </TouchableOpacity>
                 );
               })}
@@ -221,24 +307,62 @@ function MainNavigator() {
               <Text style={styles.sidebarTvBtnText}>Mode Smart TV Signage</Text>
             </TouchableOpacity>
 
-            {/* Role Switcher Sandbox */}
+            {/* User Session or Login Prompt in Sidebar Footer */}
             <View style={styles.sidebarFooter}>
-              <View style={styles.roleContainer}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.roleLabel}>Peran Saat Ini:</Text>
-                  <Text style={styles.roleNameText} numberOfLines={1}>
-                    {permissions.roleTitle}
-                  </Text>
+              {isLoggedIn && currentUser ? (
+                <View style={styles.userProfileSidebar}>
+                  <View style={styles.userProfileRow}>
+                    <View style={styles.userAvatarCircle}>
+                      <Text style={styles.userAvatarInitials}>
+                        {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={styles.userNameText} numberOfLines={1}>
+                        {currentUser.name}
+                      </Text>
+                      <View style={styles.userRoleBadgeSmall}>
+                        <View style={[styles.roleDotSmall, { backgroundColor: permissions.roleBadgeColor }]} />
+                        <Text style={[styles.userRoleTextSmall, { color: permissions.roleBadgeColor }]}>
+                          {permissions.roleTitle}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.userActionsRow}>
+                    <TouchableOpacity
+                      style={styles.userActionRoleBtn}
+                      onPress={() => setIsRoleModalOpen(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="swap-horizontal" size={13} color="#047857" />
+                      <Text style={styles.userActionRoleText}>Ganti Peran</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.userActionLogoutBtn}
+                      onPress={logout}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="log-out-outline" size={13} color="#DC2626" />
+                      <Text style={styles.userActionLogoutText}>Keluar</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <TouchableOpacity
-                  style={styles.roleBadge}
-                  onPress={() => setIsRoleModalOpen(true)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="swap-horizontal" size={13} color="#047857" />
-                  <Text style={styles.roleBadgeText}>Ganti</Text>
-                </TouchableOpacity>
-              </View>
+              ) : (
+                <View style={styles.guestSidebarCard}>
+                  <Text style={styles.guestTitle}>Warga / Pengurus?</Text>
+                  <Text style={styles.guestDesc}>Masuk dengan Google untuk akses dashboard internal.</Text>
+                  <TouchableOpacity
+                    style={styles.guestLoginBtn}
+                    onPress={openLoginModal}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="logo-google" size={14} color="#FFFFFF" />
+                    <Text style={styles.guestLoginBtnText}>Masuk Akun Google</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
         )}
@@ -250,23 +374,39 @@ function MainNavigator() {
             <View style={styles.desktopTopNav}>
               <View style={styles.desktopTopLeft}>
                 <Text style={styles.pageTitleHeader}>
-                  {TABS.find((t) => t.key === activeTab)?.label}
+                  {ALL_TABS.find((t) => t.key === activeTab)?.label}
                 </Text>
+                {!isLoggedIn && (
+                  <View style={styles.guestBadgePill}>
+                    <Ionicons name="globe-outline" size={12} color="#64748B" />
+                    <Text style={styles.guestBadgeText}>Mode Tamu Publik</Text>
+                  </View>
+                )}
               </View>
 
               <View style={styles.desktopTopRight}>
-                {/* Desktop Role Pill Button */}
-                <TouchableOpacity
-                  style={styles.desktopRolePill}
-                  onPress={() => setIsRoleModalOpen(true)}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.roleDot, { backgroundColor: permissions.roleBadgeColor }]} />
-                  <Text style={styles.desktopRolePillText}>
-                    Peran: <Text style={{ fontWeight: '800', color: permissions.roleBadgeColor }}>{permissions.roleTitle}</Text>
-                  </Text>
-                  <Ionicons name="chevron-down" size={14} color="#64748B" />
-                </TouchableOpacity>
+                {isLoggedIn ? (
+                  <TouchableOpacity
+                    style={styles.desktopRolePill}
+                    onPress={() => setIsRoleModalOpen(true)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.roleDot, { backgroundColor: permissions.roleBadgeColor }]} />
+                    <Text style={styles.desktopRolePillText}>
+                      Peran: <Text style={{ fontWeight: '800', color: permissions.roleBadgeColor }}>{permissions.roleTitle}</Text>
+                    </Text>
+                    <Ionicons name="chevron-down" size={14} color="#64748B" />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.desktopHeaderLoginBtn}
+                    onPress={openLoginModal}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="logo-google" size={15} color="#047857" />
+                    <Text style={styles.desktopHeaderLoginText}>Masuk Akun Google</Text>
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity
                   style={styles.desktopInfaqBtn}
@@ -276,6 +416,16 @@ function MainNavigator() {
                   <Ionicons name="qr-code-outline" size={16} color="#FFFFFF" />
                   <Text style={styles.desktopInfaqBtnText}>Kotak Infaq QRIS</Text>
                 </TouchableOpacity>
+
+                {isLoggedIn && (
+                  <TouchableOpacity
+                    style={styles.desktopLogoutIconBtn}
+                    onPress={logout}
+                    accessibilityLabel="Keluar"
+                  >
+                    <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           )}
@@ -289,27 +439,33 @@ function MainNavigator() {
               </View>
 
               <View style={styles.mobileHeaderRight}>
-                {/* Mobile Role Switcher Pill */}
-                <TouchableOpacity
-                  style={styles.mobileRolePill}
-                  onPress={() => setIsRoleModalOpen(true)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name={permissions.roleIcon as any} size={13} color="#FFFFFF" />
-                  <Text style={styles.mobileRolePillText} numberOfLines={1}>
-                    {currentRole === 'SUPER_ADMIN'
-                      ? 'DKM'
-                      : currentRole === 'BENDAHARA_DKM'
-                      ? 'Bendahara'
-                      : currentRole === 'BENDAHARA_SUB'
-                      ? 'Sub-Kas'
-                      : currentRole === 'SEKRETARIS'
-                      ? 'Sekretaris'
-                      : currentRole === 'PENGURUS_SEKSI'
-                      ? 'Sarpras'
-                      : 'Warga'}
-                  </Text>
-                </TouchableOpacity>
+                {isLoggedIn ? (
+                  <TouchableOpacity
+                    style={styles.mobileRolePill}
+                    onPress={() => setIsRoleModalOpen(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name={permissions.roleIcon as any} size={13} color="#FFFFFF" />
+                    <Text style={styles.mobileRolePillText} numberOfLines={1}>
+                      {currentRole === 'ADMIN' || currentRole === 'SUPER_ADMIN'
+                        ? 'DKM'
+                        : currentRole === 'BENDAHARA' || currentRole === 'BENDAHARA_DKM'
+                        ? 'Bendahara'
+                        : currentRole === 'DKM' || currentRole === 'SEKRETARIS'
+                        ? 'Pengurus'
+                        : 'Warga'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.mobileLoginPill}
+                    onPress={openLoginModal}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="log-in-outline" size={14} color="#047857" />
+                    <Text style={styles.mobileLoginPillText}>Masuk</Text>
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity
                   style={styles.mobileInfaqCircle}
@@ -330,8 +486,8 @@ function MainNavigator() {
             </View>
           )}
 
-          {/* Active Role Simulation Notice Bar (when not Super Admin) */}
-          {currentRole !== 'SUPER_ADMIN' && (
+          {/* Active Role Simulation Notice Bar (when logged in and not Super Admin) */}
+          {isLoggedIn && currentRole !== 'ADMIN' && currentRole !== 'SUPER_ADMIN' && (
             <TouchableOpacity
               style={styles.roleSimulationBanner}
               onPress={() => setIsRoleModalOpen(true)}
@@ -340,11 +496,11 @@ function MainNavigator() {
               <View style={styles.roleSimLeft}>
                 <Ionicons name="shield-outline" size={15} color="#0369A1" />
                 <Text style={styles.roleSimText}>
-                  Simulasi Peran: <Text style={{ fontWeight: '700' }}>{permissions.roleTitle}</Text>
+                  Hak Akses: <Text style={{ fontWeight: '700' }}>{permissions.roleTitle}</Text>
                 </Text>
               </View>
               <View style={styles.roleSimRight}>
-                <Text style={styles.roleSimAction}>Ganti Peran →</Text>
+                <Text style={styles.roleSimAction}>Uji Peran Lain →</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -352,34 +508,32 @@ function MainNavigator() {
           {/* Screen Body */}
           <View style={styles.screenWrapper}>{renderActiveScreen()}</View>
 
-          {/* Mobile Bottom Navigation Bar (all 6 tabs) */}
+          {/* Mobile Bottom Navigation Bar */}
           {!isWebWide && (
             <View style={styles.bottomTabBar}>
-              {TABS.map((tab) => {
+              {visibleTabs.map((tab) => {
                 const isActive = activeTab === tab.key;
+                const isLocked = !isLoggedIn && !tab.isPublic;
+
                 return (
                   <TouchableOpacity
                     key={tab.key}
                     style={styles.bottomTabItem}
-                    onPress={() => setActiveTab(tab.key)}
+                    onPress={() => handleTabPress(tab.key)}
                     activeOpacity={0.7}
                   >
-                    <View
-                      style={[
-                        styles.bottomIconWrapper,
-                        isActive && styles.bottomIconWrapperActive,
-                      ]}
-                    >
+                    <View style={[styles.bottomIconWrapper, isActive && styles.bottomIconWrapperActive]}>
                       <Ionicons
                         name={tab.iconName}
                         size={19}
-                        color={isActive ? '#047857' : '#64748B'}
+                        color={isActive ? '#047857' : isLocked ? '#94A3B8' : '#64748B'}
                       />
                     </View>
                     <Text
                       style={[
                         styles.bottomTabLabel,
                         isActive && styles.bottomTabLabelActive,
+                        isLocked && { color: '#94A3B8' },
                       ]}
                       numberOfLines={1}
                     >
@@ -468,6 +622,12 @@ function MainNavigator() {
         visible={globalQrisVisible}
         onClose={() => setGlobalQrisVisible(false)}
       />
+
+      {/* Login with Google Modal */}
+      <LoginModal visible={isAuthModalVisible} onClose={closeLoginModal} />
+
+      {/* First-time Registration Onboarding Modal */}
+      <OnboardingModal />
     </SafeAreaView>
   );
 }
@@ -612,35 +772,112 @@ const styles = StyleSheet.create({
     borderColor: '#F1F5F9',
     paddingTop: 12,
   },
-  roleContainer: {
+  userProfileSidebar: {
+    gap: 10,
+  },
+  userProfileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
-  roleLabel: {
-    fontSize: 10,
-    color: '#94A3B8',
+  userAvatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#064E3B',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  roleNameText: {
+  userAvatarInitials: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  userNameText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#1E293B',
   },
-  roleBadge: {
+  userRoleBadgeSmall: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#ECFDF5',
-    paddingVertical: 5,
+    marginTop: 2,
+  },
+  roleDotSmall: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  userRoleTextSmall: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  userActionsRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  userActionRoleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  userActionRoleText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#047857',
+  },
+  userActionLogoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#FEF2F2',
+    paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
   },
-  roleBadgeText: {
+  userActionLogoutText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+  guestSidebarCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  guestTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  guestDesc: {
+    fontSize: 11,
+    color: '#64748B',
+    marginVertical: 4,
+    lineHeight: 15,
+  },
+  guestLoginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#047857',
+    paddingVertical: 7,
+    borderRadius: 8,
+    marginTop: 6,
+  },
+  guestLoginBtnText: {
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
-    color: '#047857',
   },
   contentArea: {
     flex: 1,
@@ -659,11 +896,26 @@ const styles = StyleSheet.create({
   desktopTopLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
   pageTitleHeader: {
     fontSize: 18,
     fontWeight: '900',
     color: '#1E293B',
+  },
+  guestBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  guestBadgeText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
   },
   desktopTopRight: {
     flexDirection: 'row',
@@ -690,6 +942,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#334155',
   },
+  desktopHeaderLoginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  desktopHeaderLoginText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#047857',
+  },
   desktopInfaqBtn: {
     backgroundColor: '#047857',
     flexDirection: 'row',
@@ -703,6 +971,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
+  },
+  desktopLogoutIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   mobileHeader: {
     backgroundColor: '#064E3B',
@@ -740,6 +1016,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
+  },
+  mobileLoginPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+  },
+  mobileLoginPillText: {
+    color: '#047857',
+    fontSize: 11,
+    fontWeight: '800',
   },
   mobileInfaqCircle: {
     backgroundColor: '#FFFFFF',
@@ -787,6 +1077,75 @@ const styles = StyleSheet.create({
   },
   screenWrapper: {
     flex: 1,
+  },
+  gatekeeperContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  gatekeeperCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    maxWidth: 440,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  gatekeeperIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  gatekeeperTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  gatekeeperDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  gatekeeperLoginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#047857',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    width: '100%',
+    marginBottom: 10,
+  },
+  gatekeeperLoginBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  gatekeeperBackBtn: {
+    paddingVertical: 8,
+  },
+  gatekeeperBackBtnText: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '600',
   },
   bottomTabBar: {
     flexDirection: 'row',
