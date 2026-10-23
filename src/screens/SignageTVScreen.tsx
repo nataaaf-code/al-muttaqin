@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
   Platform,
 } from 'react-native';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Line, G, Text as SvgText } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useMushola } from '../store/useMusholaStore';
 import { getWibTime } from '../services/prayerService';
@@ -172,6 +172,119 @@ function IshaIcon() {
   );
 }
 
+// Komponen Jam Analog Presisi 356px (SVG Murni) Sesuai Spesifikasi design.md
+function AnalogClockSVG({
+  hours,
+  minutes,
+  seconds,
+}: {
+  hours: number;
+  minutes: number;
+  seconds: number;
+}) {
+  const hourAngle = ((hours % 12) + minutes / 60 + seconds / 3600) * 30;
+  const minuteAngle = (minutes + seconds / 60) * 6;
+  const secondAngle = seconds * 6;
+
+  // 60 Titik/Garis Menit & Jam di Keliling Jam
+  const ticks = [];
+  for (let i = 0; i < 60; i++) {
+    const isHour = i % 5 === 0;
+    const angle = i * 6;
+    const rad = (angle * Math.PI) / 180;
+    const outerR = 150;
+    const innerR = isHour ? 138 : 144;
+    const x1 = 178 + outerR * Math.sin(rad);
+    const y1 = 178 - outerR * Math.cos(rad);
+    const x2 = 178 + innerR * Math.sin(rad);
+    const y2 = 178 - innerR * Math.cos(rad);
+    ticks.push({
+      key: i,
+      x1,
+      y1,
+      x2,
+      y2,
+      stroke: isHour ? '#264B3C' : '#A2B5AD',
+      strokeWidth: isHour ? 3 : 1.5,
+    });
+  }
+
+  // 12 Angka Jam (Radial Trigonometris r = 115)
+  const numbers = [];
+  for (let n = 1; n <= 12; n++) {
+    const angle = n * 30;
+    const rad = (angle * Math.PI) / 180;
+    const r = 115;
+    const x = 178 + r * Math.sin(rad);
+    const y = 178 - r * Math.cos(rad);
+    numbers.push({ n, x, y });
+  }
+
+  return (
+    <Svg width="356" height="356" viewBox="0 0 356 356" fill="none">
+      {/* 1. Latar Putih Dial Jam */}
+      <Circle cx="178" cy="178" r="177" fill="#FFFFFF" />
+
+      {/* 2. Cincin Luar Bezel Hijau Tua Tebal 22px (#264B3C) */}
+      <Circle cx="178" cy="178" r="167" stroke="#264B3C" strokeWidth="22" fill="none" />
+
+      {/* 3. Cincin Bevel Bagian Dalam (#DCE6E2, Tebal 2.5px) */}
+      <Circle cx="178" cy="178" r="153" stroke="#DCE6E2" strokeWidth="2.5" fill="none" />
+
+      {/* 4. 60 Garis Tikit Menit & Jam */}
+      {ticks.map((t) => (
+        <Line
+          key={t.key}
+          x1={t.x1}
+          y1={t.y1}
+          x2={t.x2}
+          y2={t.y2}
+          stroke={t.stroke}
+          strokeWidth={t.strokeWidth}
+          strokeLinecap="round"
+        />
+      ))}
+
+      {/* 5. Angka 1 - 12 Radial */}
+      {numbers.map(({ n, x, y }) => (
+        <SvgText
+          key={n}
+          x={x}
+          y={y + 9}
+          fontSize="26"
+          fontWeight="800"
+          fill="#2D3834"
+          textAnchor="middle"
+        >
+          {n}
+        </SvgText>
+      ))}
+
+      {/* 6. Jarum Jam (Panjang: 82px, Tebal: 10px, Hijau Bezel) */}
+      <G transform={`translate(178, 178) rotate(${hourAngle})`}>
+        <Line x1="0" y1="0" x2="0" y2="-82" stroke="#264B3C" strokeWidth="10" strokeLinecap="round" />
+        <Line x1="0" y1="-10" x2="0" y2="-64" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" />
+      </G>
+
+      {/* 7. Jarum Menit (Panjang: 118px, Tebal: 8px, Hijau Bezel) */}
+      <G transform={`translate(178, 178) rotate(${minuteAngle})`}>
+        <Line x1="0" y1="0" x2="0" y2="-118" stroke="#264B3C" strokeWidth="8" strokeLinecap="round" />
+        <Line x1="0" y1="-10" x2="0" y2="-98" stroke="#FFFFFF" strokeWidth="1.2" strokeLinecap="round" />
+      </G>
+
+      {/* 8. Jarum Detik (Panjang Maju 126px, Ekor Mundur 26px, Warna #9CB4AC) */}
+      <G transform={`translate(178, 178) rotate(${secondAngle})`}>
+        <Line x1="0" y1="26" x2="0" y2="-126" stroke="#9CB4AC" strokeWidth="2.5" strokeLinecap="round" />
+        <Circle cx="0" cy="16" r="4.5" fill="#9CB4AC" />
+      </G>
+
+      {/* 9. Poros Tengah (Center Pin) */}
+      <Circle cx="178" cy="178" r="8" fill="#264B3C" />
+      <Circle cx="178" cy="178" r="3" fill="#FFFFFF" />
+    </Svg>
+  );
+}
+
 export function SignageTVScreen() {
   const { width: winW, height: winH } = useWindowDimensions();
   const { prayerData, setIsSignageMode } = useMushola();
@@ -195,28 +308,6 @@ export function SignageTVScreen() {
   const liveHours = wibTime.hours;
   const liveMinutes = wibTime.minutes;
   const liveSeconds = wibTime.seconds;
-
-  // Sudut Rotasi Jarum Jam Analog Bergerak Setiap Detik
-  const hourAngle = ((liveHours % 12) + liveMinutes / 60 + liveSeconds / 3600) * 30;
-  const minuteAngle = (liveMinutes + liveSeconds / 60) * 6;
-  const secondAngle = liveSeconds * 6;
-
-  // Radial Clock Numbers 1 - 12 (Trigonometris)
-  const clockRadius = 122; // Jarak radial dari pusat lingkaran 356px
-  const clockNumbers = [
-    { n: 12, angle: 0 },
-    { n: 1, angle: 30 },
-    { n: 2, angle: 60 },
-    { n: 3, angle: 90 },
-    { n: 4, angle: 120 },
-    { n: 5, angle: 150 },
-    { n: 6, angle: 180 },
-    { n: 7, angle: 210 },
-    { n: 8, angle: 240 },
-    { n: 9, angle: 270 },
-    { n: 10, angle: 300 },
-    { n: 11, angle: 330 },
-  ];
 
   // ================= DATA AKTUAL MUSHOLA AL-MUTTAQIN =================
   const mosqueName = 'Musholla Al Muttaqin';
@@ -412,77 +503,13 @@ export function SignageTVScreen() {
           {/* Kolom Tengah: Jam Analog Real-Time + Kapsul Sholat Berikutnya + Tanggal */}
           <View style={styles.heroCenterWrapper}>
             <View style={styles.clockAndPillRow}>
-              {/* Jam Analog Berputar Nyata (356px) */}
+              {/* Jam Analog Berputar Nyata 356px (SVG Murni) */}
               <View style={styles.analogClockCircle}>
-                <View style={styles.analogClockInnerBevel}>
-                  {/* Angka Jam 1 - 12 */}
-                  {clockNumbers.map(({ n, angle }) => {
-                    const rad = (angle * Math.PI) / 180;
-                    const x = 156 + clockRadius * Math.sin(rad);
-                    const y = 156 - clockRadius * Math.cos(rad);
-                    return (
-                      <Text
-                        key={n}
-                        style={[
-                          styles.clockNumberText,
-                          {
-                            left: x - 20,
-                            top: y - 14,
-                          },
-                        ]}
-                      >
-                        {n}
-                      </Text>
-                    );
-                  })}
-
-                  {/* Jarum Jam */}
-                  <View
-                    style={[
-                      styles.clockHandHour,
-                      {
-                        transform: [
-                          { translateY: -41 },
-                          { rotate: `${hourAngle}deg` },
-                          { translateY: 41 },
-                        ],
-                      },
-                    ]}
-                  />
-
-                  {/* Jarum Menit */}
-                  <View
-                    style={[
-                      styles.clockHandMinute,
-                      {
-                        transform: [
-                          { translateY: -59 },
-                          { rotate: `${minuteAngle}deg` },
-                          { translateY: 59 },
-                        ],
-                      },
-                    ]}
-                  />
-
-                  {/* Jarum Detik (Berjalan Halus Setiap Detik) */}
-                  <View
-                    style={[
-                      styles.clockHandSecond,
-                      {
-                        transform: [
-                          { translateY: -62 },
-                          { rotate: `${secondAngle}deg` },
-                          { translateY: 62 },
-                        ],
-                      },
-                    ]}
-                  />
-
-                  {/* Poros Tengah Jam */}
-                  <View style={styles.clockCenterDot}>
-                    <View style={styles.clockCenterInnerDot} />
-                  </View>
-                </View>
+                <AnalogClockSVG
+                  hours={liveHours}
+                  minutes={liveMinutes}
+                  seconds={liveSeconds}
+                />
               </View>
 
               {/* Kapsul Hijau Zamrud Waktu Sholat Berikutnya (860px x 286px) */}
@@ -833,9 +860,6 @@ const styles = StyleSheet.create({
     width: 356,
     height: 356,
     borderRadius: 178,
-    borderWidth: 22,
-    borderColor: '#264B3C',
-    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.18,
@@ -844,78 +868,6 @@ const styles = StyleSheet.create({
     zIndex: 20,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  analogClockInnerBevel: {
-    width: 312,
-    height: 312,
-    borderRadius: 156,
-    borderWidth: 3,
-    borderColor: '#DCE6E2',
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clockNumberText: {
-    position: 'absolute',
-    width: 40,
-    height: 28,
-    textAlign: 'center',
-    fontSize: 25,
-    fontWeight: '700',
-    color: '#2D3834',
-  },
-  clockHandHour: {
-    position: 'absolute',
-    width: 10,
-    height: 82,
-    backgroundColor: '#264B3C',
-    borderRadius: 6,
-    top: '50%',
-    left: '50%',
-    marginLeft: -5,
-    marginTop: -82,
-  },
-  clockHandMinute: {
-    position: 'absolute',
-    width: 8,
-    height: 118,
-    backgroundColor: '#264B3C',
-    borderRadius: 4,
-    top: '50%',
-    left: '50%',
-    marginLeft: -4,
-    marginTop: -118,
-  },
-  clockHandSecond: {
-    position: 'absolute',
-    width: 2.5,
-    height: 124,
-    backgroundColor: '#9CB4AC',
-    borderRadius: 2,
-    top: '50%',
-    left: '50%',
-    marginLeft: -1.25,
-    marginTop: -124,
-  },
-  clockCenterDot: {
-    position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#264B3C',
-    top: '50%',
-    left: '50%',
-    marginLeft: -8,
-    marginTop: -8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 30,
-  },
-  clockCenterInnerDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
   },
 
   /* Kapsul Hijau Zamrud Sholat Berikutnya */
