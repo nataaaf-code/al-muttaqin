@@ -11,6 +11,9 @@ import {
   UserRole,
   UserProfile,
   OnboardingFormData,
+  TPAStaffMember,
+  TPAClassInfo,
+  TPAStructureSummary,
 } from '../types';
 import {
   INITIAL_SUB_ORGS,
@@ -21,6 +24,9 @@ import {
   INITIAL_INVENTORIES,
   INITIAL_JAMAAH,
   INITIAL_SIGNAGE_CONFIG,
+  TPA_STAFF_MEMBERS,
+  TPA_CLASSES,
+  TPA_STRUCTURE_SUMMARY,
 } from './mockData';
 import {
   fetchKemenagPrayerSchedule,
@@ -226,6 +232,13 @@ interface MusholaContextType {
   transactions: Transaction[];
   addTransaction: (newTx: Omit<Transaction, 'id'>) => Promise<void>;
   getTotalBalance: () => number;
+  getDKMBalance: () => number;
+  getTPABalance: () => number;
+
+  // TPA Otonom (Struktur & Kelas)
+  tpaStaff: TPAStaffMember[];
+  tpaClasses: TPAClassInfo[];
+  tpaSummary: TPAStructureSummary;
 
   // Kegiatan & Petugas
   events: EventItem[];
@@ -546,13 +559,23 @@ export function MusholaProvider({ children }: { children: ReactNode }) {
       })
     );
 
+    const isTpa =
+      newTx.subOrgId === 'org-tpa' ||
+      String(newTx.pocketId).includes('tpa') ||
+      String(newTx.category).toUpperCase().includes('SPP') ||
+      String(newTx.category).toUpperCase().includes('SANTRI') ||
+      String(newTx.category).toUpperCase().includes('TPA');
+
+    const targetPocket = pockets.find((p) => p.id === newTx.pocketId);
+
     try {
       await financeApi.create({
         title: newTx.title,
         type: newTx.type,
         amount: newTx.amount,
         category: newTx.category,
-        pocket: 'Kas Utama',
+        pocket: targetPocket?.name || (isTpa ? 'Kas SPP Santri & Infaq Pendidikan' : 'Kas Utama'),
+        sub_org: isTpa ? 'TPA' : 'DKM',
         date: newTx.date,
         notes: newTx.notes,
       });
@@ -652,6 +675,18 @@ export function MusholaProvider({ children }: { children: ReactNode }) {
     return pockets.reduce((sum, p) => sum + p.balance, 0);
   };
 
+  const getDKMBalance = () => {
+    return pockets
+      .filter((p) => p.subOrgId !== 'org-tpa')
+      .reduce((sum, p) => sum + p.balance, 0);
+  };
+
+  const getTPABalance = () => {
+    return pockets
+      .filter((p) => p.subOrgId === 'org-tpa')
+      .reduce((sum, p) => sum + p.balance, 0);
+  };
+
   const refreshPrayerSchedule = async () => {
     await loadPrayerSchedule(selectedCityId);
   };
@@ -679,6 +714,11 @@ export function MusholaProvider({ children }: { children: ReactNode }) {
         transactions,
         addTransaction,
         getTotalBalance,
+        getDKMBalance,
+        getTPABalance,
+        tpaStaff: TPA_STAFF_MEMBERS,
+        tpaClasses: TPA_CLASSES,
+        tpaSummary: TPA_STRUCTURE_SUMMARY,
         events,
         addEvent,
         fridaySchedule,

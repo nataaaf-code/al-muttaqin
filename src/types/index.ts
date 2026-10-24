@@ -87,12 +87,46 @@ export interface SubOrganization {
   color: string;
 }
 
+export interface TPAStaffMember {
+  id: string;
+  name: string;
+  role: string;
+  roleCategory: 'PEMBINA' | 'KEPALA_TPA' | 'SEKRETARIS' | 'BENDAHARA' | 'KURIKULUM' | 'PENGAJAR';
+  assignedClass?: string;
+  phone: string;
+  bio?: string;
+  orderIndex: number;
+}
+
+export interface TPAClassInfo {
+  id: string;
+  name: string;
+  level: string;
+  teacherName: string;
+  studentCount: number;
+  schedule: string;
+  curriculum: string;
+  room: string;
+}
+
+export interface TPAStructureSummary {
+  totalSantri: number;
+  santriPutra: number;
+  santriPutri: number;
+  totalTeachers: number;
+  activeClasses: number;
+  sppNominalPerSantri: number;
+  headmaster: string;
+  secretary: string;
+  treasurer: string;
+}
+
 export interface CashPocket {
   id: string;
   subOrgId: string; // Relasi ke Sub-organisasi
   name: string;
   balance: number;
-  category: 'OPERASIONAL' | 'SOSIAL_YATIM' | 'PEMBANGUNAN' | 'KEGIATAN' | 'ZAKAT';
+  category: 'OPERASIONAL' | 'SOSIAL_YATIM' | 'PEMBANGUNAN' | 'KEGIATAN' | 'ZAKAT' | 'TPA_SPP' | 'TPA_MODUL' | 'TPA_HONOR' | 'TPA_KEGIATAN';
   description: string;
   iconName: string;
 }

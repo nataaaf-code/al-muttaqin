@@ -14,13 +14,42 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMushola } from '../store/useMusholaStore';
 import { formatRupiah, formatShortDateIndo } from '../utils/formatters';
 import { TransactionType } from '../types';
+import { THEME } from '../theme/colors';
 
 const NOMINAL_ADDERS = [50000, 100000, 500000, 1000000, 5000000];
 
+const TPA_QUICK_CATEGORIES = [
+  'SPP Santri',
+  'Honor Guru Pengajar',
+  'Modul & Buku Iqro',
+  'Donasi Wisuda',
+  'Sarana TPA',
+];
+
+const DKM_QUICK_CATEGORIES = [
+  'Infak Jumat',
+  'Sedekah Subuh',
+  'Honor Khotib',
+  'Operasional & Listrik',
+  'Pembangunan & Renovasi',
+];
+
 export function FinanceScreen() {
-  const { pockets, transactions, addTransaction, getTotalBalance, currentRole, permissions } = useMushola();
+  const {
+    pockets,
+    transactions,
+    addTransaction,
+    getTotalBalance,
+    getDKMBalance,
+    getTPABalance,
+    currentRole,
+    permissions,
+  } = useMushola();
+
+  // Entitas Pemisah: DKM vs TPA Otonom vs SEMUA
+  const [entityFilter, setEntityFilter] = useState<'DKM' | 'TPA' | 'ALL'>('DKM');
   const [selectedPocketId, setSelectedPocketId] = useState<string>('ALL');
-  const [activeSubTab, setActiveSubTab] = useState<'TRANSAKSI' | 'LAPORAN_JUMAT'>('TRANSAKSI');
+  const [activeSubTab, setActiveSubTab] = useState<'TRANSAKSI' | 'LAPORAN'>('TRANSAKSI');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -28,33 +57,67 @@ export function FinanceScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [txType, setTxType] = useState<TransactionType>('INCOME');
 
-  // Kantong kas yang dapat dipilih berdasarkan otorisasi peran
+  // Filter kantong kas berdasarkan entitas aktif
+  const entityPockets = pockets.filter((p) => {
+    if (entityFilter === 'TPA') return p.subOrgId === 'org-tpa';
+    if (entityFilter === 'DKM') return p.subOrgId !== 'org-tpa';
+    return true; // ALL
+  });
+
+  // Kantong kas yang dapat dipilih di form input
   const availableFormPockets = pockets.filter((p) => {
     if (currentRole === 'BENDAHARA_SUB') {
       return p.subOrgId !== 'org-dkm';
     }
+    if (entityFilter === 'TPA') {
+      return p.subOrgId === 'org-tpa';
+    }
+    if (entityFilter === 'DKM') {
+      return p.subOrgId !== 'org-tpa';
+    }
     return true;
   });
 
-  const [formPocketId, setFormPocketId] = useState(availableFormPockets[0]?.id || pockets[0]?.id || '');
+  const defaultPocketId = availableFormPockets[0]?.id || pockets[0]?.id || '';
+  const [formPocketId, setFormPocketId] = useState(defaultPocketId);
   const [formTitle, setFormTitle] = useState('');
   const [formAmount, setFormAmount] = useState<number>(0);
   const [formCategory, setFormCategory] = useState('');
   const [formNotes, setFormNotes] = useState('');
   const [copiedSuccess, setCopiedSuccess] = useState(false);
 
+  // Filter transaksi berdasarkan entitas & kriteria
   const filteredTransactions = transactions.filter((t) => {
+    // 1. Filter entitas (DKM vs TPA)
+    if (entityFilter === 'TPA' && t.subOrgId !== 'org-tpa') return false;
+    if (entityFilter === 'DKM' && t.subOrgId === 'org-tpa') return false;
+
+    // 2. Filter pocket
     const matchPocket = selectedPocketId === 'ALL' || t.pocketId === selectedPocketId;
+
+    // 3. Filter tipe
     const matchType = typeFilter === 'ALL' || t.type === typeFilter;
+
+    // 4. Filter search query
     const matchSearch =
       t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (t.donorName && t.donorName.toLowerCase().includes(searchQuery.toLowerCase()));
+
     return matchPocket && matchType && matchSearch;
   });
 
   const selectedPocket = pockets.find((p) => p.id === selectedPocketId);
-  const displayBalance = selectedPocketId === 'ALL' ? getTotalBalance() : selectedPocket?.balance || 0;
+
+  // Hitung display saldo dinamis
+  const displayBalance =
+    selectedPocketId !== 'ALL'
+      ? selectedPocket?.balance || 0
+      : entityFilter === 'TPA'
+      ? getTPABalance()
+      : entityFilter === 'DKM'
+      ? getDKMBalance()
+      : getTotalBalance();
 
   const totalIncome = filteredTransactions
     .filter((t) => t.type === 'INCOME')
@@ -87,22 +150,24 @@ export function FinanceScreen() {
     }
 
     const targetPocket = pockets.find((p) => p.id === formPocketId);
-    const recorderName =
-      currentRole === 'SUPER_ADMIN'
-        ? 'Ketua DKM (Super Admin)'
-        : currentRole === 'BENDAHARA_DKM'
-        ? 'Bendahara Utama DKM'
-        : currentRole === 'BENDAHARA_SUB'
-        ? 'Bendahara Sub-Organisasi'
-        : 'Pengurus Mushola';
+    const isTargetTpa = targetPocket?.subOrgId === 'org-tpa';
+
+    let recorderName = 'Pengurus Mushola';
+    if (isTargetTpa) {
+      recorderName = 'Ustadzah Fitri Handayani (Bendahara TPA)';
+    } else if (currentRole === 'SUPER_ADMIN') {
+      recorderName = 'Ketua DKM (Super Admin)';
+    } else if (currentRole === 'BENDAHARA_DKM' || currentRole === 'BENDAHARA') {
+      recorderName = 'H. Rahmat Hidayat (Bendahara DKM)';
+    }
 
     addTransaction({
       pocketId: formPocketId,
-      subOrgId: targetPocket?.subOrgId || 'org-dkm',
+      subOrgId: targetPocket?.subOrgId || (isTargetTpa ? 'org-tpa' : 'org-dkm'),
       type: txType,
       amount: formAmount,
       title: formTitle.trim(),
-      category: formCategory.trim() || (txType === 'INCOME' ? 'Infak Kas' : 'Operasional'),
+      category: formCategory.trim() || (isTargetTpa ? (txType === 'INCOME' ? 'SPP Santri' : 'Honor Guru') : (txType === 'INCOME' ? 'Infak Kas' : 'Operasional')),
       date: new Date().toISOString().split('T')[0],
       recordedBy: recorderName,
       notes: formNotes.trim(),
@@ -124,13 +189,14 @@ export function FinanceScreen() {
     }
   };
 
+  // 1. Teks Laporan DKM Sholat Jumat
   const generateFridayReportText = () => {
     const operasional = pockets.find((p) => p.id === 'pocket-operasional');
     const pembangunan = pockets.find((p) => p.id === 'pocket-pembangunan');
     const yatim = pockets.find((p) => p.id === 'pocket-yatim');
 
     return `Assalamu'alaikum Warahmatullahi Wabarakatuh.
-Kaum muslimin jamaah sholat Jumat rahimakumullah, berikut kami laporkan posisi kas Musholla Al Muttaqin pekan ini:
+Kaum muslimin jamaah sholat Jumat rahimakumullah, berikut kami laporkan posisi kas utama Musholla Al Muttaqin pekan ini:
 Lokasi: Perumahan Mutiara Puri Harmoni Blok H, Sukamanah, Rajeg, Kab. Tangerang, Banten
 
 1. KAS OPERASIONAL DKM:
@@ -143,9 +209,9 @@ Lokasi: Perumahan Mutiara Puri Harmoni Blok H, Sukamanah, Rajeg, Kab. Tangerang,
 
 3. KAS SOSIAL YATIM & DHUAFA:
    • Saldo Saat Ini: ${formatRupiah(yatim?.balance || 0)}
-   • Penerima Manfaat: Anak yatim & dhuafa lingkungan sekitar
+   • Penerima Manfaat: 12 Anak yatim & dhuafa lingkungan sekitar
 
-TOTAL KAS GABUNGAN: ${formatRupiah(getTotalBalance())}
+TOTAL KAS DKM UTAMA: ${formatRupiah(getDKMBalance())}
 
 Infaq Digital QRIS Resmi (Bebas Nominal):
 Merchant: FAHRIAJI ANJASTRIVINATA (NMID: ID1026504038674)
@@ -158,8 +224,45 @@ Kontak Layanan DKM & Konfirmasi Infaq:
 Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah, dan wakaf yang disalurkan. Semoga menjadi amal jariyah yang berlipat ganda di sisi Allah SWT. Aamiin ya Rabbal 'Alamin.`;
   };
 
-  const handleCopyWarta = () => {
-    const text = generateFridayReportText();
+  // 2. Teks Laporan Kas Otonom TPA untuk Wali Santri
+  const generateTPAReportText = () => {
+    const tpaOperasional = pockets.find((p) => p.id === 'pocket-tpa-operasional');
+    const tpaSpp = pockets.find((p) => p.id === 'pocket-tpa-spp');
+    const tpaModul = pockets.find((p) => p.id === 'pocket-tpa-modul');
+    const tpaKegiatan = pockets.find((p) => p.id === 'pocket-tpa-kegiatan');
+
+    return `Assalamu'alaikum Warahmatullahi Wabarakatuh.
+Bapak/Ibu Wali Santri & Dewan Takmir yang kami hormati, berikut kami sampaikan Laporan Kas Otonom TPA / TPQ Nurul Ilmi Musholla Al-Muttaqin:
+Periode: Bulan Berjalan • 42 Santri Terdaftar
+
+1. KAS SPP SANTRI & INFAQ PENDIDIKAN:
+   • Saldo Saat Ini: ${formatRupiah(tpaSpp?.balance || 0)}
+   • Keterangan: Iuran bulanan 42 santri @Rp 35.000 & pendaftaran baru
+
+2. KAS OPERASIONAL & HONOR ASATIDZ TPA:
+   • Saldo Saat Ini: ${formatRupiah(tpaOperasional?.balance || 0)}
+   • Keterangan: Bisyarah 5 guru pengajar kelas Iqro 1-6 s.d Tahfidz
+
+3. KAS BUKU IQRO & MODUL SANTRI:
+   • Saldo Saat Ini: ${formatRupiah(tpaModul?.balance || 0)}
+   • Keterangan: Pengadaan buku metode Iqro 1-6 & buku prestasi santri
+
+4. KAS IMTIHAN & WISUDA KHOTMIL QUR'AN:
+   • Saldo Saat Ini: ${formatRupiah(tpaKegiatan?.balance || 0)}
+   • Keterangan: Tabungan wisuda santri, festival anak sholeh, & rihla
+
+TOTAL KAS OTONOM TPA: ${formatRupiah(getTPABalance())}
+
+Kontak Administrasi & Keuangan TPA:
+• Bendahara TPA: Ustadzah Fitri Handayani (0813-1122-3344)
+• Kepala Sekolah TPA: Ustadzah Maryam, S.Pd.I (0857-9900-1122)
+• Sekretaris Tata Usaha: Ustadzah Siti Aisyah (0812-9988-7766)
+
+Terima kasih atas kepercayaan seluruh wali santri. Semoga putra-putri kita menjadi generasi Qur'ani yang sholeh & sholehah. Aamiin.`;
+  };
+
+  const handleCopyReport = () => {
+    const text = entityFilter === 'TPA' ? generateTPAReportText() : generateFridayReportText();
     if (Platform.OS === 'web' && navigator?.clipboard) {
       navigator.clipboard.writeText(text);
       setCopiedSuccess(true);
@@ -171,7 +274,92 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
 
   return (
     <View style={styles.container}>
-      {/* Dynamic Segment Tabs */}
+      {/* 1. ENTITY SELECTOR BAR (DKM vs TPA OTONOM vs SEMUA) */}
+      <View style={styles.entitySelectorContainer}>
+        <View style={styles.entitySegmentWrap}>
+          <TouchableOpacity
+            style={[
+              styles.entitySegmentBtn,
+              entityFilter === 'DKM' && styles.entitySegmentBtnActive,
+            ]}
+            onPress={() => {
+              setEntityFilter('DKM');
+              setSelectedPocketId('ALL');
+            }}
+          >
+            <Ionicons
+              name="business-outline"
+              size={15}
+              color={entityFilter === 'DKM' ? THEME.white : THEME.paynesGray}
+            />
+            <Text
+              style={[
+                styles.entitySegmentText,
+                entityFilter === 'DKM' && styles.entitySegmentTextActive,
+              ]}
+            >
+              Kas DKM Musholla
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.entitySegmentBtn,
+              entityFilter === 'TPA' && styles.entitySegmentBtnActiveTpa,
+            ]}
+            onPress={() => {
+              setEntityFilter('TPA');
+              setSelectedPocketId('ALL');
+            }}
+          >
+            <Ionicons
+              name="school-outline"
+              size={15}
+              color={entityFilter === 'TPA' ? THEME.white : THEME.paynesGray}
+            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text
+                style={[
+                  styles.entitySegmentText,
+                  entityFilter === 'TPA' && styles.entitySegmentTextActive,
+                ]}
+              >
+                Kas Otonom TPA
+              </Text>
+              <View style={styles.tpaTinyBadge}>
+                <Text style={styles.tpaTinyBadgeText}>Mandiri</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.entitySegmentBtn,
+              entityFilter === 'ALL' && styles.entitySegmentBtnActive,
+            ]}
+            onPress={() => {
+              setEntityFilter('ALL');
+              setSelectedPocketId('ALL');
+            }}
+          >
+            <Ionicons
+              name="pie-chart-outline"
+              size={15}
+              color={entityFilter === 'ALL' ? THEME.white : THEME.paynesGray}
+            />
+            <Text
+              style={[
+                styles.entitySegmentText,
+                entityFilter === 'ALL' && styles.entitySegmentTextActive,
+              ]}
+            >
+              Semua Kas
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 2. SUB-TABS: BUKU KAS vs WARTA LAPORAN */}
       <View style={styles.tabHeader}>
         <TouchableOpacity
           style={[styles.tabButton, activeSubTab === 'TRANSAKSI' && styles.tabButtonActive]}
@@ -180,39 +368,73 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
           <Ionicons
             name="receipt-outline"
             size={16}
-            color={activeSubTab === 'TRANSAKSI' ? '#EF8354' : '#64748B'}
+            color={activeSubTab === 'TRANSAKSI' ? THEME.coral : THEME.paynesGray}
           />
           <Text
             style={[styles.tabButtonText, activeSubTab === 'TRANSAKSI' && styles.tabButtonTextActive]}
           >
-            Buku Kas & Transaksi
+            Buku Kas & Mutasi
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabButton, activeSubTab === 'LAPORAN_JUMAT' && styles.tabButtonActive]}
-          onPress={() => setActiveSubTab('LAPORAN_JUMAT')}
+          style={[styles.tabButton, activeSubTab === 'LAPORAN' && styles.tabButtonActive]}
+          onPress={() => setActiveSubTab('LAPORAN')}
         >
           <Ionicons
-            name="megaphone-outline"
+            name={entityFilter === 'TPA' ? 'school-outline' : 'megaphone-outline'}
             size={16}
-            color={activeSubTab === 'LAPORAN_JUMAT' ? '#EF8354' : '#64748B'}
+            color={activeSubTab === 'LAPORAN' ? THEME.coral : THEME.paynesGray}
           />
           <Text
-            style={[
-              styles.tabButtonText,
-              activeSubTab === 'LAPORAN_JUMAT' && styles.tabButtonTextActive,
-            ]}
+            style={[styles.tabButtonText, activeSubTab === 'LAPORAN' && styles.tabButtonTextActive]}
           >
-            Warta Kas Jumat
+            {entityFilter === 'TPA' ? 'Laporan Kas TPA' : 'Warta Kas Jumat'}
           </Text>
         </TouchableOpacity>
       </View>
 
       {activeSubTab === 'TRANSAKSI' ? (
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          {/* TPA BANNER EXPLANATION (IF TPA SELECTED) */}
+          {entityFilter === 'TPA' && (
+            <View style={styles.tpaFinanceNotice}>
+              <View style={styles.tpaNoticeTop}>
+                <Ionicons name="shield-checkmark" size={18} color={THEME.coral} />
+                <Text style={styles.tpaNoticeTitle}>Sistem Pembukuan Otonom TPA Nurul Ilmi</Text>
+              </View>
+              <Text style={styles.tpaNoticeDesc}>
+                Keuangan TPA dikelola terpisah penuh oleh Bendahara TPA (Ustadzah Fitri Handayani) untuk iuran SPP santri, bisyarah asatidz, pengadaan modul belajar, dan tabungan imtihan/wisuda.
+              </Text>
+            </View>
+          )}
+
+          {/* ALL ENTITIES BREAKDOWN CARD (IF ALL SELECTED) */}
+          {entityFilter === 'ALL' && (
+            <View style={styles.allBreakdownCard}>
+              <Text style={styles.allBreakdownTitle}>Perbandingan Saldo Kas Entitas Musholla:</Text>
+              <View style={styles.allBreakdownRow}>
+                <View style={styles.breakdownItem}>
+                  <Text style={styles.breakdownLabel}>🏛️ Kas DKM Musholla</Text>
+                  <Text style={styles.breakdownValue}>{formatRupiah(getDKMBalance())}</Text>
+                  <Text style={styles.breakdownSub}>Operasional, Pembangunan, Yatim</Text>
+                </View>
+
+                <View style={styles.breakdownItem}>
+                  <Text style={styles.breakdownLabel}>📖 Kas Otonom TPA</Text>
+                  <Text style={[styles.breakdownValue, { color: THEME.coral }]}>
+                    {formatRupiah(getTPABalance())}
+                  </Text>
+                  <Text style={styles.breakdownSub}>SPP Santri, Honor Guru, Modul</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
           {/* Pocket Filter Carousel */}
-          <Text style={styles.filterSectionTitle}>Kantong Kas Amanah:</Text>
+          <Text style={styles.filterSectionTitle}>
+            {entityFilter === 'TPA' ? 'Kantong Kas Otonom TPA:' : 'Kantong Kas Amanah:'}
+          </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pocketFilterRow}>
             <TouchableOpacity
               style={[
@@ -227,11 +449,11 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
                   selectedPocketId === 'ALL' && styles.pocketPillTextActive,
                 ]}
               >
-                Semua Kantong Kas
+                {entityFilter === 'TPA' ? 'Semua Kas TPA' : entityFilter === 'DKM' ? 'Semua Kas DKM' : 'Semua Kantong Kas'}
               </Text>
             </TouchableOpacity>
 
-            {pockets.map((p) => (
+            {entityPockets.map((p) => (
               <TouchableOpacity
                 key={p.id}
                 style={[
@@ -257,9 +479,18 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
             <View style={styles.heroBalanceTop}>
               <View>
                 <Text style={styles.heroBalanceLabel}>
-                  {selectedPocketId === 'ALL' ? 'SALDO GABUNGAN' : selectedPocket?.name.toUpperCase()}
+                  {selectedPocketId === 'ALL'
+                    ? entityFilter === 'TPA'
+                      ? 'TOTAL SALDO KAS OTONOM TPA'
+                      : entityFilter === 'DKM'
+                      ? 'TOTAL SALDO KAS UTAMA DKM'
+                      : 'SALDO KAS GABUNGAN MUSHOLLA'
+                    : selectedPocket?.name.toUpperCase()}
                 </Text>
                 <Text style={styles.heroBalanceAmount}>{formatRupiah(displayBalance)}</Text>
+                {entityFilter === 'TPA' && (
+                  <Text style={styles.heroBalanceSub}>42 Santri Aktif • SPP Rp 35.000 / Bulan</Text>
+                )}
               </View>
 
               <View style={styles.txStatsCol}>
@@ -281,30 +512,49 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
                   style={[styles.primaryActionBtn, styles.incomeActionBtn]}
                   onPress={() => {
                     setTxType('INCOME');
+                    // auto select appropriate pocket
+                    if (entityFilter === 'TPA') {
+                      setFormPocketId('pocket-tpa-spp');
+                      setFormCategory('SPP Santri');
+                    } else {
+                      setFormPocketId('pocket-operasional');
+                      setFormCategory('Infak Jumat');
+                    }
                     setModalVisible(true);
                   }}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="add-circle" size={18} color="#FFFFFF" />
-                  <Text style={styles.primaryActionBtnText}>Catat Pemasukan</Text>
+                  <Ionicons name="add-circle" size={18} color={THEME.white} />
+                  <Text style={styles.primaryActionBtnText}>
+                    {entityFilter === 'TPA' ? 'Catat Pemasukan TPA' : 'Catat Pemasukan'}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.primaryActionBtn, styles.expenseActionBtn]}
                   onPress={() => {
                     setTxType('EXPENSE');
+                    if (entityFilter === 'TPA') {
+                      setFormPocketId('pocket-tpa-operasional');
+                      setFormCategory('Honor Guru Pengajar');
+                    } else {
+                      setFormPocketId('pocket-operasional');
+                      setFormCategory('Operasional & Listrik');
+                    }
                     setModalVisible(true);
                   }}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="remove-circle" size={18} color="#FFFFFF" />
-                  <Text style={styles.primaryActionBtnText}>Catat Pengeluaran</Text>
+                  <Ionicons name="remove-circle" size={18} color={THEME.white} />
+                  <Text style={styles.primaryActionBtnText}>
+                    {entityFilter === 'TPA' ? 'Catat Pengeluaran TPA' : 'Catat Pengeluaran'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <View style={styles.rbacNoticeCard}>
                 <View style={styles.rbacNoticeIconCircle}>
-                  <Ionicons name="lock-closed" size={16} color="#64748B" />
+                  <Ionicons name="lock-closed" size={16} color={THEME.paynesGray} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rbacNoticeTitle}>Mode Transparansi Kas (Hanya Baca)</Text>
@@ -313,7 +563,7 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
                     <Text style={{ fontWeight: '800', color: permissions.roleBadgeColor }}>
                       {permissions.roleTitle}
                     </Text>
-                    . Pencatatan transaksi baru dibatasi khusus untuk Bendahara dan Ketua DKM.
+                    . Pencatatan transaksi baru dibatasi khusus untuk Bendahara dan DKM.
                   </Text>
                 </View>
               </View>
@@ -323,12 +573,13 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
           {/* Search & Type Filter Bar */}
           <View style={styles.filterControlBar}>
             <View style={styles.searchBox}>
-              <Ionicons name="search-outline" size={16} color="#64748B" />
+              <Ionicons name="search-outline" size={16} color={THEME.paynesGray} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Cari transaksi atau donatur..."
+                placeholder="Cari transaksi, SPP, modul..."
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+                placeholderTextColor={THEME.paynesGray}
               />
             </View>
 
@@ -348,89 +599,127 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
           </View>
 
           {/* Transaction Ledger Cards */}
-          <Text style={styles.ledgerHeader}>
-            Mutasi Transaksi ({filteredTransactions.length})
-          </Text>
-
-          {filteredTransactions.map((tx) => (
-            <View key={tx.id} style={styles.interactiveTxItem}>
-              <View
-                style={[
-                  styles.txIconBubble,
-                  { backgroundColor: tx.type === 'INCOME' ? '#DCFCE7' : '#FEE2E2' },
-                ]}
-              >
-                <Ionicons
-                  name={tx.type === 'INCOME' ? 'arrow-down' : 'arrow-up'}
-                  size={18}
-                  color={tx.type === 'INCOME' ? '#15803D' : '#DC2626'}
-                />
+          <View style={styles.ledgerHeaderRow}>
+            <Text style={styles.ledgerHeader}>
+              Mutasi Transaksi {entityFilter === 'TPA' ? 'Kas TPA' : entityFilter === 'DKM' ? 'Kas DKM' : 'Seluruh Unit'} ({filteredTransactions.length})
+            </Text>
+            {entityFilter === 'TPA' && (
+              <View style={styles.tpaTinyBadge}>
+                <Text style={styles.tpaTinyBadgeText}>Otonom</Text>
               </View>
+            )}
+          </View>
 
-              <View style={styles.txMainCol}>
-                <Text style={styles.txTitleText}>{tx.title}</Text>
-                <View style={styles.txMetaLine}>
-                  <Text style={styles.txCategoryTag}>{tx.category}</Text>
-                  <Text style={styles.dotSeparator}>•</Text>
-                  <Text style={styles.txDateText}>{formatShortDateIndo(tx.date)}</Text>
-                  {tx.donorName ? (
-                    <>
-                      <Text style={styles.dotSeparator}>•</Text>
-                      <Text style={styles.txDonorText}>Oleh: {tx.donorName}</Text>
-                    </>
-                  ) : null}
-                </View>
-                {tx.notes ? <Text style={styles.txNotesText}>Catatan: {tx.notes}</Text> : null}
-              </View>
-
-              <View style={styles.txRightCol}>
-                <Text
+          {filteredTransactions.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Ionicons name="receipt-outline" size={32} color={THEME.paynesGray} />
+              <Text style={styles.emptyTitle}>Belum Ada Transaksi</Text>
+              <Text style={styles.emptySubtitle}>Tidak ada transaksi yang cocok dengan filter yang dipilih.</Text>
+            </View>
+          ) : (
+            filteredTransactions.map((tx) => (
+              <View key={tx.id} style={styles.interactiveTxItem}>
+                <View
                   style={[
-                    styles.txAmountDisplay,
-                    { color: tx.type === 'INCOME' ? '#15803D' : '#B91C1C' },
+                    styles.txIconBubble,
+                    { backgroundColor: tx.type === 'INCOME' ? '#DCFCE7' : '#FEE2E2' },
                   ]}
                 >
-                  {tx.type === 'INCOME' ? '+' : '-'}
-                  {formatRupiah(tx.amount)}
-                </Text>
-                <Text style={styles.txAuthor}>{tx.recordedBy}</Text>
+                  <Ionicons
+                    name={tx.type === 'INCOME' ? 'arrow-down' : 'arrow-up'}
+                    size={18}
+                    color={tx.type === 'INCOME' ? '#15803D' : '#DC2626'}
+                  />
+                </View>
+
+                <View style={styles.txMainCol}>
+                  <Text style={styles.txTitleText}>{tx.title}</Text>
+                  <View style={styles.txMetaLine}>
+                    <Text style={styles.txCategoryTag}>{tx.category}</Text>
+                    {tx.subOrgId === 'org-tpa' && (
+                      <View style={styles.tpaMicroBadge}>
+                        <Text style={styles.tpaMicroBadgeText}>TPA</Text>
+                      </View>
+                    )}
+                    <Text style={styles.dotSeparator}>•</Text>
+                    <Text style={styles.txDateText}>{formatShortDateIndo(tx.date)}</Text>
+                    {tx.donorName ? (
+                      <>
+                        <Text style={styles.dotSeparator}>•</Text>
+                        <Text style={styles.txDonorText}>Oleh: {tx.donorName}</Text>
+                      </>
+                    ) : null}
+                  </View>
+                  {tx.notes ? <Text style={styles.txNotesText}>Catatan: {tx.notes}</Text> : null}
+                </View>
+
+                <View style={styles.txRightCol}>
+                  <Text
+                    style={[
+                      styles.txAmountDisplay,
+                      { color: tx.type === 'INCOME' ? '#15803D' : '#B91C1C' },
+                    ]}
+                  >
+                    {tx.type === 'INCOME' ? '+' : '-'}
+                    {formatRupiah(tx.amount)}
+                  </Text>
+                  <Text style={styles.txAuthor}>{tx.recordedBy}</Text>
+                </View>
               </View>
-            </View>
-          ))}
+            ))
+          )}
         </ScrollView>
       ) : (
-        /* Tab Laporan Jumat */
+        /* Tab Laporan / Warta */
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           <View style={styles.wartaCard}>
             <View style={styles.wartaTop}>
               <View style={styles.wartaIconCircle}>
-                <Ionicons name="document-text" size={24} color="#EF8354" />
+                <Ionicons
+                  name={entityFilter === 'TPA' ? 'school' : 'document-text'}
+                  size={24}
+                  color={THEME.coral}
+                />
               </View>
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.wartaTitle}>Teks Warta Kas Sholat Jumat</Text>
-                <Text style={styles.wartaSub}>Format pembacaan resmi takmir sebelum khutbah</Text>
+                <Text style={styles.wartaTitle}>
+                  {entityFilter === 'TPA'
+                    ? 'Laporan Keuangan TPA Nurul Ilmi'
+                    : 'Teks Warta Kas Sholat Jumat'}
+                </Text>
+                <Text style={styles.wartaSub}>
+                  {entityFilter === 'TPA'
+                    ? 'Format laporan resmi wali santri & dewan pembina TPA'
+                    : 'Format pembacaan resmi takmir sebelum khutbah Jumat'}
+                </Text>
               </View>
             </View>
 
             <View style={styles.wartaTextArea}>
-              <Text style={styles.wartaBody}>{generateFridayReportText()}</Text>
+              <Text style={styles.wartaBody}>
+                {entityFilter === 'TPA' ? generateTPAReportText() : generateFridayReportText()}
+              </Text>
             </View>
 
-            <TouchableOpacity style={styles.copyWartaBtn} onPress={handleCopyWarta}>
+            <TouchableOpacity style={styles.copyWartaBtn} onPress={handleCopyReport}>
               <Ionicons
                 name={copiedSuccess ? 'checkmark-circle' : 'copy-outline'}
                 size={18}
-                color="#FFFFFF"
+                color={THEME.white}
               />
               <Text style={styles.copyWartaBtnText}>
-                {copiedSuccess ? 'Tersalin ke Clipboard!' : 'Salin Teks Warta Jumat'}
+                {copiedSuccess
+                  ? 'Tersalin ke Clipboard!'
+                  : entityFilter === 'TPA'
+                  ? 'Salin Laporan Wali Santri'
+                  : 'Salin Teks Warta Jumat'}
               </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       )}
 
-      {/* Modal Input Transaksi dengan Quick Denomination Adder */}
+      {/* Modal Input Transaksi dengan Quick Denomination Adder & Quick Category */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
@@ -446,18 +735,18 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
                     {txType === 'INCOME' ? 'Catat Pemasukan Kas' : 'Catat Pengeluaran Kas'}
                   </Text>
                 </View>
-                <Text style={styles.modalSub}>Perbarui mutasi dan saldo amanah</Text>
+                <Text style={styles.modalSub}>
+                  {entityFilter === 'TPA' ? 'Kas Otonom TPA Nurul Ilmi' : 'Kas Utama DKM Musholla'}
+                </Text>
               </View>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalCloseBtn}>
-                <Ionicons name="close" size={20} color="#64748B" />
+                <Ionicons name="close" size={20} color={THEME.paynesGray} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={{ maxHeight: 440 }}>
               {/* Pocket Target */}
-              <Text style={styles.fieldLabel}>
-                Alokasi Kantong Kas {currentRole === 'BENDAHARA_SUB' ? '(Khusus Unit Otonom)' : ''}:
-              </Text>
+              <Text style={styles.fieldLabel}>Alokasi Kantong Kas:</Text>
               <View style={styles.pocketSelectorRow}>
                 {availableFormPockets.map((p) => (
                   <TouchableOpacity
@@ -484,7 +773,11 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
               <Text style={styles.fieldLabel}>Uraian / Judul Transaksi:</Text>
               <TextInput
                 style={styles.inputField}
-                placeholder="cth: Kotak Infak Jumat / Tagihan Listrik PLN"
+                placeholder={
+                  entityFilter === 'TPA'
+                    ? 'cth: SPP Santri Okt (42 Anak) / Bisyarah Guru'
+                    : 'cth: Kotak Infak Jumat / Tagihan Listrik PLN'
+                }
                 value={formTitle}
                 onChangeText={setFormTitle}
               />
@@ -508,16 +801,40 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
                     style={styles.adderChip}
                     onPress={() => handleAddNominal(val)}
                   >
-                    <Text style={styles.adderChipText}>+{val >= 1000000 ? `${val / 1000000} Jt` : `${val / 1000} Rb`}</Text>
+                    <Text style={styles.adderChipText}>
+                      +{val >= 1000000 ? `${val / 1000000} Jt` : `${val / 1000} Rb`}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              {/* Category */}
-              <Text style={styles.fieldLabel}>Kategori:</Text>
+              {/* Quick Category Chips */}
+              <Text style={styles.fieldLabel}>Kategori Cepat:</Text>
+              <View style={styles.quickCategoryRow}>
+                {(entityFilter === 'TPA' ? TPA_QUICK_CATEGORIES : DKM_QUICK_CATEGORIES).map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      styles.quickCategoryChip,
+                      formCategory === cat && styles.quickCategoryChipActive,
+                    ]}
+                    onPress={() => setFormCategory(cat)}
+                  >
+                    <Text
+                      style={[
+                        styles.quickCategoryText,
+                        formCategory === cat && styles.quickCategoryTextActive,
+                      ]}
+                    >
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <TextInput
-                style={styles.inputField}
-                placeholder="cth: Infak Jumat / Token Listrik / Bisyarah"
+                style={[styles.inputField, { marginTop: 6 }]}
+                placeholder="Ketik kategori manual..."
                 value={formCategory}
                 onChangeText={setFormCategory}
               />
@@ -544,7 +861,7 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
               <TouchableOpacity
                 style={[
                   styles.btnSave,
-                  { backgroundColor: txType === 'INCOME' ? '#EF8354' : '#DC2626' },
+                  { backgroundColor: txType === 'INCOME' ? THEME.coral : '#DC2626' },
                 ]}
                 onPress={handleSaveTransaction}
               >
@@ -561,34 +878,87 @@ Jazakumullahu khairan katsiran kepada seluruh kaum muslimin atas infak, sedekah,
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: THEME.background,
   },
+
+  // ENTITY SELECTOR
+  entitySelectorContainer: {
+    backgroundColor: THEME.white,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderColor: THEME.silverBorder,
+  },
+  entitySegmentWrap: {
+    flexDirection: 'row',
+    backgroundColor: THEME.silverLight,
+    borderRadius: 10,
+    padding: 3,
+    gap: 4,
+  },
+  entitySegmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  entitySegmentBtnActive: {
+    backgroundColor: THEME.gunmetal,
+  },
+  entitySegmentBtnActiveTpa: {
+    backgroundColor: THEME.coral,
+  },
+  entitySegmentText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.paynesGray,
+  },
+  entitySegmentTextActive: {
+    color: THEME.white,
+  },
+  tpaTinyBadge: {
+    backgroundColor: THEME.coralSoftBg,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  tpaTinyBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: THEME.coral,
+  },
+
+  // TABS
   tabHeader: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: THEME.white,
     borderBottomWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: THEME.silverBorder,
     paddingHorizontal: 16,
   },
   tabButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 14,
+    paddingVertical: 12,
     marginRight: 20,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
   tabButtonActive: {
-    borderBottomColor: '#EF8354',
+    borderBottomColor: THEME.coral,
   },
   tabButtonText: {
     fontSize: 13,
-    color: '#64748B',
+    color: THEME.paynesGray,
     fontWeight: '600',
   },
   tabButtonTextActive: {
-    color: '#EF8354',
+    color: THEME.coral,
     fontWeight: '800',
   },
   scrollView: {
@@ -598,10 +968,80 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
+
+  // TPA NOTICE
+  tpaFinanceNotice: {
+    backgroundColor: THEME.white,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: THEME.coral,
+  },
+  tpaNoticeTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  tpaNoticeTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: THEME.gunmetal,
+  },
+  tpaNoticeDesc: {
+    fontSize: 11,
+    color: THEME.paynesGray,
+    lineHeight: 17,
+  },
+
+  // ALL BREAKDOWN CARD
+  allBreakdownCard: {
+    backgroundColor: THEME.white,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: THEME.silverBorder,
+  },
+  allBreakdownTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: THEME.paynesGray,
+    marginBottom: 10,
+  },
+  allBreakdownRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  breakdownItem: {
+    flex: 1,
+    backgroundColor: THEME.silverLight,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: THEME.silverLine,
+  },
+  breakdownLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.gunmetal,
+  },
+  breakdownValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: THEME.gunmetal,
+    marginVertical: 2,
+  },
+  breakdownSub: {
+    fontSize: 9,
+    color: THEME.paynesGray,
+  },
+
   filterSectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#475569',
+    color: THEME.gunmetal,
     marginBottom: 8,
   },
   pocketFilterRow: {
@@ -609,29 +1049,29 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   pocketPill: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: THEME.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: THEME.silverBorder,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 7,
     marginRight: 8,
   },
   pocketPillActive: {
-    backgroundColor: '#EF8354',
-    borderColor: '#EF8354',
+    backgroundColor: THEME.coral,
+    borderColor: THEME.coral,
   },
   pocketPillText: {
     fontSize: 12,
-    color: '#475569',
+    color: THEME.paynesGray,
     fontWeight: '600',
   },
   pocketPillTextActive: {
-    color: '#FFFFFF',
+    color: THEME.white,
     fontWeight: '800',
   },
   heroBalanceCard: {
-    backgroundColor: '#2D3142',
+    backgroundColor: THEME.gunmetal,
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
@@ -652,14 +1092,20 @@ const styles = StyleSheet.create({
   heroBalanceLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#BFC0C0',
+    color: THEME.silver,
     letterSpacing: 0.5,
   },
   heroBalanceAmount: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: THEME.white,
     marginTop: 2,
+  },
+  heroBalanceSub: {
+    fontSize: 11,
+    color: THEME.coral,
+    fontWeight: '600',
+    marginTop: 3,
   },
   txStatsCol: {
     flexDirection: 'row',
@@ -711,13 +1157,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   incomeActionBtn: {
-    backgroundColor: '#EF8354',
+    backgroundColor: THEME.coral,
   },
   expenseActionBtn: {
     backgroundColor: '#DC2626',
   },
   primaryActionBtnText: {
-    color: '#FFFFFF',
+    color: THEME.white,
     fontWeight: '800',
     fontSize: 13,
   },
@@ -733,23 +1179,26 @@ const styles = StyleSheet.create({
     minWidth: 180,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: THEME.white,
     borderRadius: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: THEME.silverBorder,
     gap: 8,
   },
   searchInput: {
     flex: 1,
     paddingVertical: 8,
     fontSize: 12,
+    color: THEME.gunmetal,
   },
   typeFilterGroup: {
     flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: THEME.silverLight,
     borderRadius: 10,
     padding: 3,
+    borderWidth: 1,
+    borderColor: THEME.silverLine,
   },
   typeBtn: {
     paddingVertical: 6,
@@ -757,32 +1206,37 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   typeBtnActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: THEME.white,
   },
   typeBtnText: {
     fontSize: 11,
-    color: '#64748B',
+    color: THEME.paynesGray,
     fontWeight: '600',
   },
   typeBtnTextActive: {
-    color: '#EF8354',
+    color: THEME.coral,
     fontWeight: '800',
+  },
+  ledgerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
   ledgerHeader: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#1E293B',
-    marginBottom: 10,
+    color: THEME.gunmetal,
   },
   interactiveTxItem: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: THEME.white,
     borderRadius: 14,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: THEME.silverBorder,
   },
   txIconBubble: {
     width: 38,
@@ -798,7 +1252,7 @@ const styles = StyleSheet.create({
   txTitleText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1E293B',
+    color: THEME.gunmetal,
   },
   txMetaLine: {
     flexDirection: 'row',
@@ -809,25 +1263,36 @@ const styles = StyleSheet.create({
   },
   txCategoryTag: {
     fontSize: 11,
-    color: '#EF8354',
+    color: THEME.coral,
     fontWeight: '700',
+  },
+  tpaMicroBadge: {
+    backgroundColor: THEME.coralSoftBg,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  tpaMicroBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: THEME.coral,
   },
   dotSeparator: {
     fontSize: 10,
-    color: '#94A3B8',
+    color: THEME.paynesGray,
   },
   txDateText: {
     fontSize: 11,
-    color: '#64748B',
+    color: THEME.paynesGray,
   },
   txDonorText: {
     fontSize: 11,
-    color: '#475569',
+    color: THEME.paynesGray,
     fontStyle: 'italic',
   },
   txNotesText: {
     fontSize: 11,
-    color: '#64748B',
+    color: THEME.paynesGray,
     marginTop: 2,
   },
   txRightCol: {
@@ -840,15 +1305,35 @@ const styles = StyleSheet.create({
   },
   txAuthor: {
     fontSize: 10,
-    color: '#94A3B8',
+    color: THEME.paynesGray,
     marginTop: 2,
   },
+  emptyCard: {
+    backgroundColor: THEME.white,
+    borderRadius: 14,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: THEME.silverBorder,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: THEME.gunmetal,
+    marginTop: 8,
+  },
+  emptySubtitle: {
+    fontSize: 12,
+    color: THEME.paynesGray,
+    textAlign: 'center',
+    marginTop: 4,
+  },
   wartaCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: THEME.white,
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: THEME.silverBorder,
   },
   wartaTop: {
     flexDirection: 'row',
@@ -859,35 +1344,35 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#FDF1EB',
+    backgroundColor: THEME.coralSoftBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   wartaTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E293B',
+    color: THEME.gunmetal,
   },
   wartaSub: {
     fontSize: 12,
-    color: '#64748B',
+    color: THEME.paynesGray,
   },
   wartaTextArea: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: THEME.silverLight,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: THEME.silverBorder,
     marginBottom: 14,
   },
   wartaBody: {
-    fontSize: 13,
-    color: '#334155',
-    lineHeight: 22,
+    fontSize: 12.5,
+    color: THEME.gunmetal,
+    lineHeight: 21,
     fontFamily: Platform.select({ web: 'monospace', default: 'normal' }),
   },
   copyWartaBtn: {
-    backgroundColor: '#EF8354',
+    backgroundColor: THEME.coral,
     borderRadius: 12,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -896,19 +1381,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   copyWartaBtnText: {
-    color: '#FFFFFF',
+    color: THEME.white,
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 13,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(2, 44, 34, 0.65)',
+    backgroundColor: 'rgba(45, 49, 66, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
   },
   modalSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: THEME.white,
     borderRadius: 20,
     padding: 20,
     width: '100%',
@@ -923,21 +1408,22 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E293B',
+    color: THEME.gunmetal,
   },
   modalSub: {
     fontSize: 11,
-    color: '#64748B',
+    color: THEME.coral,
+    fontWeight: '700',
   },
   modalCloseBtn: {
     padding: 4,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: THEME.silverLight,
     borderRadius: 16,
   },
   fieldLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#334155',
+    color: THEME.gunmetal,
     marginTop: 10,
     marginBottom: 6,
   },
@@ -949,41 +1435,42 @@ const styles = StyleSheet.create({
   },
   pocketOption: {
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: THEME.silverBorder,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: THEME.silverLight,
   },
   pocketOptionActive: {
-    backgroundColor: '#FDF1EB',
-    borderColor: '#EF8354',
+    backgroundColor: THEME.coralSoftBg,
+    borderColor: THEME.coral,
   },
   pocketOptionText: {
     fontSize: 11,
-    color: '#475569',
+    color: THEME.paynesGray,
     fontWeight: '600',
   },
   pocketOptionTextActive: {
-    color: '#EF8354',
+    color: THEME.coral,
     fontWeight: '800',
   },
   inputField: {
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: THEME.silverBorder,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
     fontSize: 13,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: THEME.white,
+    color: THEME.gunmetal,
   },
   amountDisplayBox: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FDF1EB',
+    backgroundColor: THEME.coralSoftBg,
     borderWidth: 1,
-    borderColor: '#BFC0C0',
+    borderColor: THEME.coralBorder,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -991,7 +1478,7 @@ const styles = StyleSheet.create({
   amountDisplayVal: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#EF8354',
+    color: THEME.coral,
   },
   resetAmountText: {
     fontSize: 12,
@@ -1005,17 +1492,44 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   adderChip: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: THEME.silverLight,
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: THEME.silverBorder,
   },
   adderChipText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#EF8354',
+    color: THEME.coral,
+  },
+  quickCategoryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 4,
+  },
+  quickCategoryChip: {
+    backgroundColor: THEME.silverLight,
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: THEME.silverBorder,
+  },
+  quickCategoryChipActive: {
+    backgroundColor: THEME.coralSoftBg,
+    borderColor: THEME.coral,
+  },
+  quickCategoryText: {
+    fontSize: 11,
+    color: THEME.paynesGray,
+    fontWeight: '600',
+  },
+  quickCategoryTextActive: {
+    color: THEME.coral,
+    fontWeight: '700',
   },
   modalActions: {
     flexDirection: 'row',
@@ -1027,11 +1541,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: THEME.silverBorder,
     alignItems: 'center',
   },
   btnCancelText: {
-    color: '#64748B',
+    color: THEME.paynesGray,
     fontWeight: '700',
     fontSize: 13,
   },
@@ -1042,7 +1556,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnSaveText: {
-    color: '#FFFFFF',
+    color: THEME.white,
     fontWeight: '800',
     fontSize: 13,
   },
@@ -1050,29 +1564,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: THEME.white,
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: THEME.silverBorder,
     marginTop: 10,
   },
   rbacNoticeIconCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: THEME.silverLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rbacNoticeTitle: {
     fontSize: 12.5,
     fontWeight: '800',
-    color: '#334155',
+    color: THEME.gunmetal,
   },
   rbacNoticeText: {
     fontSize: 11,
-    color: '#64748B',
+    color: THEME.paynesGray,
     lineHeight: 16,
     marginTop: 1,
   },

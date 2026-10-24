@@ -7,31 +7,43 @@ const router = express.Router();
 // 1. Ambil Laporan Ringkasan Kas & Daftar Mutasi
 router.get('/', authMiddleware, (req, res) => {
   try {
-    const transactions = db.prepare(`
-      SELECT * FROM transactions
-      ORDER BY date DESC, id DESC
-    `).all();
+    const { unit } = req.query;
+    let query = 'SELECT * FROM transactions';
+    const params = [];
+    if (unit && unit !== 'ALL') {
+      query += ' WHERE sub_org = ?';
+      params.push(unit);
+    }
+    query += ' ORDER BY date DESC, id DESC';
+    const transactions = db.prepare(query).all(...params);
 
     // Hitung akumulasi
     let totalIncome = 0;
     let totalExpense = 0;
-    const pocketMap = {
-      'Kas Utama': 0,
-      'Kas Anak Yatim': 0,
-      'Kas Pembangunan': 0,
-    };
+    let dkmIncome = 0;
+    let dkmExpense = 0;
+    let tpaIncome = 0;
+    let tpaExpense = 0;
+    const pocketMap = {};
 
     for (const tx of transactions) {
+      pocketMap[tx.pocket] = pocketMap[tx.pocket] || 0;
       if (tx.type === 'INCOME') {
         totalIncome += tx.amount;
-        pocketMap[tx.pocket] = (pocketMap[tx.pocket] || 0) + tx.amount;
+        pocketMap[tx.pocket] += tx.amount;
+        if (tx.sub_org === 'TPA') tpaIncome += tx.amount;
+        else dkmIncome += tx.amount;
       } else {
         totalExpense += tx.amount;
-        pocketMap[tx.pocket] = (pocketMap[tx.pocket] || 0) - tx.amount;
+        pocketMap[tx.pocket] -= tx.amount;
+        if (tx.sub_org === 'TPA') tpaExpense += tx.amount;
+        else dkmExpense += tx.amount;
       }
     }
 
     const currentBalance = totalIncome - totalExpense;
+    const dkmBalance = dkmIncome - dkmExpense;
+    const tpaBalance = tpaIncome - tpaExpense;
 
     return res.json({
       success: true,
@@ -40,6 +52,8 @@ router.get('/', authMiddleware, (req, res) => {
           totalIncome,
           totalExpense,
           currentBalance,
+          dkm: { income: dkmIncome, expense: dkmExpense, balance: dkmBalance },
+          tpa: { income: tpaIncome, expense: tpaExpense, balance: tpaBalance },
           pocketBalances: pocketMap,
         },
         transactions,
@@ -60,6 +74,7 @@ router.post('/', authMiddleware, requireRole('BENDAHARA', 'ADMIN'), (req, res) =
       amount,
       category,
       pocket = 'Kas Utama',
+      sub_org,
       date = new Date().toISOString().split('T')[0],
       notes = '',
     } = req.body;
@@ -73,17 +88,30 @@ router.post('/', authMiddleware, requireRole('BENDAHARA', 'ADMIN'), (req, res) =
       return res.status(400).json({ success: false, error: 'Nominal transaksi harus berupa angka positif' });
     }
 
+    // Tentukan unit sub_org otomatis jika tidak dikirim
+    let targetSubOrg = sub_org || 'DKM';
+    if (!sub_org) {
+      const isTpa = String(pocket).toUpperCase().includes('TPA') ||
+                    String(category).toUpperCase().includes('SPP') ||
+                    String(category).toUpperCase().includes('TPA') ||
+                    String(category).toUpperCase().includes('SANTRI') ||
+                    String(title).toUpperCase().includes('TPA') ||
+                    String(title).toUpperCase().includes('SANTRI');
+      if (isTpa) targetSubOrg = 'TPA';
+    }
+
     const recordedBy = req.user.name || 'Bendahara DKM';
 
     const info = db.prepare(`
-      INSERT INTO transactions (title, type, amount, category, pocket, date, recorded_by, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (title, type, amount, category, pocket, sub_org, date, recorded_by, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       title.trim(),
       type.toUpperCase(),
       numAmount,
       category.trim(),
       pocket.trim(),
+      targetSubOrg,
       date,
       recordedBy,
       notes.trim()

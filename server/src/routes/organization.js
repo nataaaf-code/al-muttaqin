@@ -4,24 +4,40 @@ import { authMiddleware, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// 1. List Pengurus DKM
+// 1. List Pengurus DKM & TPA Otonom
 router.get('/', (req, res) => {
   try {
-    const list = db.prepare(`
-      SELECT * FROM organization
-      ORDER BY order_index ASC, id ASC
-    `).all();
-    return res.json({ success: true, data: list });
+    const { unit } = req.query;
+    let query = 'SELECT * FROM organization';
+    const params = [];
+    if (unit && unit !== 'ALL') {
+      query += ' WHERE unit = ?';
+      params.push(unit);
+    }
+    query += ' ORDER BY order_index ASC, id ASC';
+    const list = db.prepare(query).all(...params);
+
+    const dkmList = list.filter((o) => o.unit === 'DKM');
+    const tpaList = list.filter((o) => o.unit === 'TPA');
+
+    return res.json({
+      success: true,
+      data: list,
+      grouped: {
+        dkm: dkmList,
+        tpa: tpaList,
+      },
+    });
   } catch (error) {
     console.error('[Get Org Error]', error);
-    return res.status(500).json({ success: false, error: 'Gagal mengambil data pengurus DKM' });
+    return res.status(500).json({ success: false, error: 'Gagal mengambil data pengurus organisasi' });
   }
 });
 
-// 2. Tambah Pengurus DKM (DKM & ADMIN)
+// 2. Tambah Pengurus DKM / TPA (DKM & ADMIN)
 router.post('/', authMiddleware, requireRole('DKM', 'ADMIN'), (req, res) => {
   try {
-    const { position, name, phone, period = '2024 - 2027', order_index = 10 } = req.body;
+    const { position, name, phone, period = '2024 - 2027', order_index = 10, unit = 'DKM', notes = '' } = req.body;
     if (!position || !name || !phone) {
       return res.status(400).json({ success: false, error: 'Jabatan, nama pengurus, dan nomor telepon wajib diisi' });
     }
@@ -31,15 +47,15 @@ router.post('/', authMiddleware, requireRole('DKM', 'ADMIN'), (req, res) => {
     if (!cleanPhone.startsWith('62')) cleanPhone = '62' + cleanPhone;
 
     const info = db.prepare(`
-      INSERT INTO organization (position, name, phone, period, order_index)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(position.trim(), name.trim(), cleanPhone, period.trim(), Number(order_index) || 10);
+      INSERT INTO organization (unit, position, name, phone, period, order_index, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(unit.trim().toUpperCase(), position.trim(), name.trim(), cleanPhone, period.trim(), Number(order_index) || 10, notes.trim());
 
     const newOrg = db.prepare('SELECT * FROM organization WHERE id = ?').get(info.lastInsertRowid);
-    return res.status(201).json({ success: true, message: 'Pengurus DKM berhasil ditambahkan', data: newOrg });
+    return res.status(201).json({ success: true, message: 'Data pengurus berhasil ditambahkan', data: newOrg });
   } catch (error) {
     console.error('[Add Org Error]', error);
-    return res.status(500).json({ success: false, error: 'Gagal menambahkan pengurus DKM' });
+    return res.status(500).json({ success: false, error: 'Gagal menambahkan data pengurus' });
   }
 });
 
@@ -47,7 +63,7 @@ router.post('/', authMiddleware, requireRole('DKM', 'ADMIN'), (req, res) => {
 router.put('/:id', authMiddleware, requireRole('DKM', 'ADMIN'), (req, res) => {
   try {
     const { id } = req.params;
-    const { position, name, phone, period, order_index } = req.body;
+    const { position, name, phone, period, order_index, unit, notes } = req.body;
 
     let cleanPhone = phone ? String(phone).replace(/\D/g, '') : null;
     if (cleanPhone && cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.slice(1);
@@ -59,7 +75,9 @@ router.put('/:id', authMiddleware, requireRole('DKM', 'ADMIN'), (req, res) => {
           name = COALESCE(?, name),
           phone = COALESCE(?, phone),
           period = COALESCE(?, period),
-          order_index = COALESCE(?, order_index)
+          order_index = COALESCE(?, order_index),
+          unit = COALESCE(?, unit),
+          notes = COALESCE(?, notes)
       WHERE id = ?
     `).run(
       position ? position.trim() : null,
@@ -67,6 +85,8 @@ router.put('/:id', authMiddleware, requireRole('DKM', 'ADMIN'), (req, res) => {
       cleanPhone,
       period ? period.trim() : null,
       order_index ? Number(order_index) : null,
+      unit ? unit.trim().toUpperCase() : null,
+      notes ? notes.trim() : null,
       id
     );
 

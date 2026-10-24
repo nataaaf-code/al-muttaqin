@@ -144,10 +144,11 @@ export const jamaahApi = {
 
 // 4. Modul Keuangan & Kas
 export const financeApi = {
-  async getSummaryAndTransactions(): Promise<{ success: boolean; data: { summary: any; transactions: any[] } }> {
-    return fetchApi('/api/finance');
+  async getSummaryAndTransactions(unit?: string): Promise<{ success: boolean; data: { summary: any; transactions: any[] } }> {
+    const q = unit ? `?unit=${encodeURIComponent(unit)}` : '';
+    return fetchApi(`/api/finance${q}`);
   },
-  async create(payload: { title: string; type: 'INCOME' | 'EXPENSE'; amount: number; category: string; pocket?: string; date?: string; notes?: string }): Promise<{ success: boolean; data: any }> {
+  async create(payload: { title: string; type: 'INCOME' | 'EXPENSE'; amount: number; category: string; pocket?: string; sub_org?: string; date?: string; notes?: string }): Promise<{ success: boolean; data: any }> {
     return fetchApi('/api/finance', {
       method: 'POST',
       body: JSON.stringify(payload),

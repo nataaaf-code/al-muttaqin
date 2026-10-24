@@ -7,6 +7,9 @@ import {
   InventoryItem,
   JamaahResident,
   SignageConfig,
+  TPAStaffMember,
+  TPAClassInfo,
+  TPAStructureSummary,
 } from '../types';
 
 export const INITIAL_SUB_ORGS: SubOrganization[] = [
@@ -19,7 +22,7 @@ export const INITIAL_SUB_ORGS: SubOrganization[] = [
     leaderName: 'Ustadz Astriyo & Ustadz Dicky',
     memberCount: 16,
     contactPhone: '0857-7790-0383',
-    color: '#059669', // Emerald
+    color: '#2D3142', // Gunmetal
   },
   {
     id: 'org-risma',
@@ -30,7 +33,7 @@ export const INITIAL_SUB_ORGS: SubOrganization[] = [
     leaderName: 'Fauzan Ramadhan',
     memberCount: 24,
     contactPhone: '0813-8888-9999',
-    color: '#0284C7', // Sky Blue
+    color: '#4F5D75', // Payne's Gray
   },
   {
     id: 'org-taklim',
@@ -41,18 +44,18 @@ export const INITIAL_SUB_ORGS: SubOrganization[] = [
     leaderName: 'Hj. Siti Nurhaliza',
     memberCount: 38,
     contactPhone: '0815-1234-5678',
-    color: '#D97706', // Amber
+    color: '#EF8354', // Coral
   },
   {
     id: 'org-tpa',
     name: 'TPA / TPQ Nurul Ilmi',
-    shortName: 'TPA Anak',
+    shortName: 'TPA Otonom',
     category: 'TPA',
-    description: 'Pendidikan Al-Qur’an dasar, tajwid, dan hafalan juz amma untuk anak-anak warga sekitar.',
+    description: 'Pendidikan Al-Qur’an dasar, tajwid, dan hafalan juz amma untuk 42 santri warga dengan kepengurusan dan keuangan otonom.',
     leaderName: 'Ustadzah Maryam, S.Pd.I',
     memberCount: 42,
     contactPhone: '0857-9900-1122',
-    color: '#7C3AED', // Purple
+    color: '#EF8354', // Coral Accent
   },
   {
     id: 'org-qurban',
@@ -63,11 +66,166 @@ export const INITIAL_SUB_ORGS: SubOrganization[] = [
     leaderName: 'Ir. Bambang Trihatmono',
     memberCount: 20,
     contactPhone: '0818-5544-3322',
-    color: '#DC2626', // Red
+    color: '#2D3142', // Gunmetal
+  },
+];
+
+export const TPA_STRUCTURE_SUMMARY: TPAStructureSummary = {
+  totalSantri: 42,
+  santriPutra: 24,
+  santriPutri: 18,
+  totalTeachers: 6,
+  activeClasses: 5,
+  sppNominalPerSantri: 35000,
+  headmaster: 'Ustadzah Maryam, S.Pd.I',
+  secretary: 'Ustadzah Siti Aisyah, S.Pd',
+  treasurer: 'Ustadzah Fitri Handayani, S.E',
+};
+
+export const TPA_STAFF_MEMBERS: TPAStaffMember[] = [
+  {
+    id: 'tpa-staff-1',
+    name: 'Ustadz Astriyo',
+    role: 'Pembina Syariah & Keagamaan',
+    roleCategory: 'PEMBINA',
+    phone: '6285777900383',
+    bio: 'Penasehat Takmir DKM & Pengawas Standar Kurikulum Keagamaan TPA',
+    orderIndex: 1,
+  },
+  {
+    id: 'tpa-staff-2',
+    name: 'Ustadz Dicky',
+    role: 'Pembina Operasional & Lembaga',
+    roleCategory: 'PEMBINA',
+    phone: '628174958342',
+    bio: 'Ketua DKM Musholla Al-Muttaqin & Pembina Kemitraan Lembaga TPA',
+    orderIndex: 2,
+  },
+  {
+    id: 'tpa-staff-3',
+    name: 'Ustadzah Maryam, S.Pd.I',
+    role: 'Kepala Sekolah / Direktur TPA',
+    roleCategory: 'KEPALA_TPA',
+    phone: '6285799001122',
+    assignedClass: 'Kelas Tahfidz Juz 30 & Hadits',
+    bio: 'Alumnus Tarbiyah PAI, pemegang sanad tahsin metode Tilawati & Iqro',
+    orderIndex: 3,
+  },
+  {
+    id: 'tpa-staff-4',
+    name: 'Ustadzah Siti Aisyah, S.Pd',
+    role: 'Sekretaris & Tata Usaha Santri',
+    roleCategory: 'SEKRETARIS',
+    phone: '6281299887766',
+    bio: 'Penanggung jawab administrasi pendaftaran, absensi, dan raport santri',
+    orderIndex: 4,
+  },
+  {
+    id: 'tpa-staff-5',
+    name: 'Ustadzah Fitri Handayani, S.E',
+    role: 'Bendahara Keuangan Otonom TPA',
+    roleCategory: 'BENDAHARA',
+    phone: '6281311223344',
+    bio: 'Pengelola kas otonom SPP santri, bisyarah asatidz, dan modul belajar',
+    orderIndex: 5,
+  },
+  {
+    id: 'tpa-staff-6',
+    name: 'Ustadz Hafiz Al-Faruq, S.Ag',
+    role: 'Koordinator Kurikulum & Mutu Tahsin',
+    roleCategory: 'KURIKULUM',
+    phone: '6285644332211',
+    assignedClass: 'Kelas Al-Qur\'an & Praktik Sholat',
+    bio: 'Hafizh 30 Juz, pembimbing tartil dan tahsin makharijul huruf santri',
+    orderIndex: 6,
+  },
+  {
+    id: 'tpa-staff-7',
+    name: 'Ustadzah Nurul Fatimah',
+    role: 'Guru Pengajar / Wali Kelas',
+    roleCategory: 'PENGAJAR',
+    phone: '6287755667788',
+    assignedClass: 'Kelas Iqro 1 - 2 (Pemula / Pra-TK)',
+    bio: 'Spesialis bimbingan anak usia dini, doa harian, dan adab islami',
+    orderIndex: 7,
+  },
+  {
+    id: 'tpa-staff-8',
+    name: 'Ustadzah Khadijah Al-Kubro',
+    role: 'Guru Pengajar / Wali Kelas',
+    roleCategory: 'PENGAJAR',
+    phone: '6281899001144',
+    assignedClass: 'Kelas Iqro 3 - 4 (Menengah)',
+    bio: 'Pembimbing kelancaran menyambung huruf dan harakat tanwin/sukun',
+    orderIndex: 8,
+  },
+  {
+    id: 'tpa-staff-9',
+    name: 'Ustadz Ahmad Fauzi',
+    role: 'Guru Pengajar / Wali Kelas',
+    roleCategory: 'PENGAJAR',
+    phone: '6289912345678',
+    assignedClass: 'Kelas Iqro 5 - 6 (Lanjutan)',
+    bio: 'Pembimbing hukum mad, waqaf ibtida, dan persiapan masuk Al-Qur\'an',
+    orderIndex: 9,
+  },
+];
+
+export const TPA_CLASSES: TPAClassInfo[] = [
+  {
+    id: 'cls-1',
+    name: 'Kelas Iqro Dasar (Iqro 1 - 2)',
+    level: 'Tingkat Pemula (Pra-TK & TK)',
+    teacherName: 'Ustadzah Nurul Fatimah',
+    studentCount: 10,
+    schedule: 'Senin - Kamis, 16.00 - 17.30 WIB',
+    curriculum: 'Mengenal huruf hijaiyah tunggal & berharakat, doa sebelum makan & tidur',
+    room: 'Serambi Kanan Musholla',
+  },
+  {
+    id: 'cls-2',
+    name: 'Kelas Iqro Menengah (Iqro 3 - 4)',
+    level: 'Tingkat Menengah (SD Kelas 1 - 2)',
+    teacherName: 'Ustadzah Khadijah Al-Kubro',
+    studentCount: 12,
+    schedule: 'Senin - Kamis, 16.00 - 17.30 WIB',
+    curriculum: 'Huruf sambung, mad thobi\'i, harakat tanwin & sukun, doa untuk kedua orang tua',
+    room: 'Serambi Kiri Musholla',
+  },
+  {
+    id: 'cls-3',
+    name: 'Kelas Iqro Lanjutan (Iqro 5 - 6)',
+    level: 'Tingkat Lanjutan (SD Kelas 3 - 4)',
+    teacherName: 'Ustadz Ahmad Fauzi',
+    studentCount: 8,
+    schedule: 'Senin - Kamis, 16.00 - 17.30 WIB',
+    curriculum: 'Nun sukun & tanwin, waqaf ibtida, qolqolah, bacaan sholat & thaharah praktis',
+    room: 'Ruang Tengah Musholla',
+  },
+  {
+    id: 'cls-4',
+    name: 'Kelas Al-Qur\'an & Tajwid',
+    level: 'Tingkat Mahir (SD Kelas 5 - SMP)',
+    teacherName: 'Ustadz Hafiz Al-Faruq, S.Ag',
+    studentCount: 7,
+    schedule: 'Senin - Kamis, 16.00 - 17.30 WIB',
+    curriculum: 'Tartil juz 1-5, tajwid lengkap, adab tilawah, praktik imam & makmum sholat',
+    room: 'Ruang Imaman Musholla',
+  },
+  {
+    id: 'cls-5',
+    name: 'Kelas Tahfidz Santri Pilihan',
+    level: 'Program Khusus Tahfidz Santri',
+    teacherName: 'Ustadzah Maryam, S.Pd.I',
+    studentCount: 5,
+    schedule: 'Senin - Kamis, 16.00 - 17.30 WIB',
+    curriculum: 'Hafalan mutqin Juz 30 (An-Naba s.d An-Nas), 20 Hadits Pilihan & Terjemah',
+    room: 'Ruang Perpustakaan Musholla',
   },
 ];
 
 export const INITIAL_CASH_POCKETS: CashPocket[] = [
+  // 1. Kas DKM Utama
   {
     id: 'pocket-operasional',
     subOrgId: 'org-dkm',
@@ -112,6 +270,44 @@ export const INITIAL_CASH_POCKETS: CashPocket[] = [
     category: 'KEGIATAN',
     description: 'Dana kegiatan pemuda, perlengkapan podcast kajian, dan olahraga futsal ukhuwah.',
     iconName: 'flame-outline',
+  },
+
+  // 2. KAS OTONOM TPA NURUL ILMI (Terpisah Penuh dari DKM)
+  {
+    id: 'pocket-tpa-operasional',
+    subOrgId: 'org-tpa',
+    name: 'Kas Operasional & Honor Asatidz TPA',
+    balance: 2450000,
+    category: 'TPA_HONOR',
+    description: 'Honor bulanan 5 ustadz/ustadzah pengajar, fotokopi modul santri, dan ATK harian.',
+    iconName: 'school-outline',
+  },
+  {
+    id: 'pocket-tpa-spp',
+    subOrgId: 'org-tpa',
+    name: 'Kas SPP Santri & Infaq Pendidikan',
+    balance: 3150000,
+    category: 'TPA_SPP',
+    description: 'Penampungan iuran SPP rutin santri (42 santri @Rp 35.000/bln) dan pendaftaran santri baru.',
+    iconName: 'cash-outline',
+  },
+  {
+    id: 'pocket-tpa-modul',
+    subOrgId: 'org-tpa',
+    name: 'Kas Buku Iqro & Modul Santri',
+    balance: 1250000,
+    category: 'TPA_MODUL',
+    description: 'Penyediaan buku metode Iqro 1-6, buku prestasi santri, jus amma, dan seragam TPA.',
+    iconName: 'book-outline',
+  },
+  {
+    id: 'pocket-tpa-kegiatan',
+    subOrgId: 'org-tpa',
+    name: 'Kas Imtihan & Wisuda Santri',
+    balance: 1800000,
+    category: 'TPA_KEGIATAN',
+    description: 'Tabungan acara wisuda kelulusan santri, festival anak sholeh, panggung imtihan, dan rihla santri.',
+    iconName: 'trophy-outline',
   },
 ];
 
@@ -222,6 +418,76 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     receiptNumber: 'RSM-20261017-01',
     recordedBy: 'Fauzan Ramadhan',
     notes: 'Snack dan kopi untuk 30 pemuda peserta mabit',
+  },
+
+  // Transaksi Kas Otonom TPA Nurul Ilmi
+  {
+    id: 'trx-tpa-001',
+    pocketId: 'pocket-tpa-spp',
+    subOrgId: 'org-tpa',
+    type: 'INCOME',
+    amount: 1470000,
+    title: 'Penerimaan Iuran SPP Santri Bulan Oktober 2026',
+    category: 'SPP Santri',
+    date: '2026-10-15',
+    receiptNumber: 'SPP-TPA-202610-01',
+    recordedBy: 'Ustadzah Fitri Handayani (Bendahara TPA)',
+    donorName: '42 Wali Santri TPA Nurul Ilmi',
+    notes: 'Pembayaran SPP lunas 42 santri @Rp 35.000/santri',
+  },
+  {
+    id: 'trx-tpa-002',
+    pocketId: 'pocket-tpa-operasional',
+    subOrgId: 'org-tpa',
+    type: 'EXPENSE',
+    amount: 1250000,
+    title: 'Bisyarah / Honor 5 Dewan Asatidz TPA Oktober',
+    category: 'Honor Pengajar',
+    date: '2026-10-20',
+    receiptNumber: 'HON-TPA-202610-01',
+    recordedBy: 'Ustadzah Fitri Handayani (Bendahara TPA)',
+    notes: 'Penyaluran honor mengajar 5 pengajar kelas Iqro 1-6 & Tahfidz',
+  },
+  {
+    id: 'trx-tpa-003',
+    pocketId: 'pocket-tpa-modul',
+    subOrgId: 'org-tpa',
+    type: 'INCOME',
+    amount: 525000,
+    title: 'Infaq Pengadaan Paket Buku Iqro 1-6 & Prestasi',
+    category: 'Modul & Buku',
+    date: '2026-10-18',
+    receiptNumber: 'MOD-TPA-202610-02',
+    recordedBy: 'Ustadzah Siti Aisyah (Sekretaris TPA)',
+    donorName: '15 Santri Baru Angkatan 2026',
+    notes: 'Paket buku metode Iqro original Balai Litbang LPTQ',
+  },
+  {
+    id: 'trx-tpa-004',
+    pocketId: 'pocket-tpa-kegiatan',
+    subOrgId: 'org-tpa',
+    type: 'INCOME',
+    amount: 800000,
+    title: 'Infaq Donatur Khusus Tabungan Wisuda Khotmil Qur\'an',
+    category: 'Donasi Wisuda',
+    date: '2026-10-22',
+    receiptNumber: 'DON-TPA-202610-03',
+    recordedBy: 'Ustadzah Fitri Handayani',
+    donorName: 'Hamba Allah (Wali Santri Angkatan 2025)',
+    notes: 'Dana tabungan kepanitiaan wisuda kelulusan santri akhir tahun',
+  },
+  {
+    id: 'trx-tpa-005',
+    pocketId: 'pocket-tpa-operasional',
+    subOrgId: 'org-tpa',
+    type: 'EXPENSE',
+    amount: 320000,
+    title: 'Pengadaan 4 Meja Mengaji Lipat & Papan Tulis Baru',
+    category: 'Sarana TPA',
+    date: '2026-10-21',
+    receiptNumber: 'KW-TPA-202610-04',
+    recordedBy: 'Ustadzah Siti Aisyah',
+    notes: 'Fasilitas kenyamanan mengaji santri kelas pemula Iqro 1 & 2',
   },
 ];
 

@@ -72,6 +72,7 @@ export function initDatabase() {
       amount INTEGER NOT NULL,
       category TEXT NOT NULL,
       pocket TEXT NOT NULL DEFAULT 'Kas Utama',
+      sub_org TEXT NOT NULL DEFAULT 'DKM',
       date TEXT NOT NULL,
       recorded_by TEXT NOT NULL DEFAULT 'Bendahara DKM',
       notes TEXT,
@@ -105,14 +106,16 @@ export function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- 6. Tabel Pengurus DKM Organisasi
+    -- 6. Tabel Pengurus DKM & Unit Otonom TPA
     CREATE TABLE IF NOT EXISTS organization (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      unit TEXT NOT NULL DEFAULT 'DKM',
       position TEXT NOT NULL,
       name TEXT NOT NULL,
       phone TEXT NOT NULL,
       period TEXT NOT NULL DEFAULT '2024 - 2027',
       order_index INTEGER NOT NULL DEFAULT 1,
+      notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -193,15 +196,24 @@ function seedInitialData() {
     insertInv.run(3, 'AC Split Sharp 2 PK', 2, 'Unit', 'Baik', 'Ruang Utama', 'Sie Perlengkapan', 'Rutin dicuci berkala setiap 2 bulan');
     insertInv.run(4, 'Genset Portabel 3000 Watt', 1, 'Unit', 'Baik', 'Gudang Musholla', 'Sie Perlengkapan', 'Cadangan daya darurat saat pemadaman listrik');
 
-    // 6. Seed 4 Pengurus Organisasi
+    // 6. Seed Pengurus Organisasi (DKM & TPA Otonom)
     const insertOrg = db.prepare(`
-      INSERT INTO organization (id, position, name, phone, period, order_index)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO organization (id, unit, position, name, phone, period, order_index, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    insertOrg.run(1, 'Penasehat DKM', 'Ustadz Astriyo', '6285777900383', '2024 - 2027', 1);
-    insertOrg.run(2, 'Ketua DKM', 'Ustadz Dicky', '628174958342', '2024 - 2027', 2);
-    insertOrg.run(3, 'Bendahara DKM', 'H. Rahmat Hidayat', '6281234567890', '2024 - 2027', 3);
-    insertOrg.run(4, 'Marbot & Koordinator Ibadah', 'Bpk. Joko Susanto', '6281398765432', '2024 - 2027', 4);
+    // DKM
+    insertOrg.run(1, 'DKM', 'Penasehat DKM', 'Ustadz Astriyo', '6285777900383', '2024 - 2027', 1, 'Pembina Keagamaan');
+    insertOrg.run(2, 'DKM', 'Ketua DKM', 'Ustadz Dicky', '628174958342', '2024 - 2027', 2, 'Ketua Takmir');
+    insertOrg.run(3, 'DKM', 'Bendahara DKM', 'H. Rahmat Hidayat', '6281234567890', '2024 - 2027', 3, 'Bendahara Utama');
+    insertOrg.run(4, 'DKM', 'Marbot & Koordinator Ibadah', 'Bpk. Joko Susanto', '6281398765432', '2024 - 2027', 4, 'Sie Peribadatan');
+    // TPA
+    insertOrg.run(5, 'TPA', 'Kepala Sekolah / Direktur TPA', 'Ustadzah Maryam, S.Pd.I', '6285799001122', '2024 - 2027', 1, 'Kelas Tahfidz Juz 30 & Hadits');
+    insertOrg.run(6, 'TPA', 'Sekretaris & Tata Usaha Santri', 'Ustadzah Siti Aisyah, S.Pd', '6281299887766', '2024 - 2027', 2, 'Administrasi Santri & Raport');
+    insertOrg.run(7, 'TPA', 'Bendahara Keuangan Otonom', 'Ustadzah Fitri Handayani, S.E', '6281311223344', '2024 - 2027', 3, 'Pengelola Kas SPP, Honor & Modul');
+    insertOrg.run(8, 'TPA', 'Koordinator Kurikulum & Tahsin', 'Ustadz Hafiz Al-Faruq, S.Ag', '6285644332211', '2024 - 2027', 4, 'Penjamin Mutu Tahsin & Tartil');
+    insertOrg.run(9, 'TPA', 'Guru Pengajar Kelas Iqro 1 - 2', 'Ustadzah Nurul Fatimah', '6287755667788', '2024 - 2027', 5, 'Wali Kelas Pemula / Pra-TK');
+    insertOrg.run(10, 'TPA', 'Guru Pengajar Kelas Iqro 3 - 4', 'Ustadzah Khadijah Al-Kubro', '6281899001144', '2024 - 2027', 6, 'Wali Kelas Menengah');
+    insertOrg.run(11, 'TPA', 'Guru Pengajar Kelas Iqro 5 - 6', 'Ustadz Ahmad Fauzi', '6289912345678', '2024 - 2027', 7, 'Wali Kelas Lanjutan');
 
     // 7. Seed Profil & Konfigurasi Sholat Musholla
     const insertSettings = db.prepare(`
