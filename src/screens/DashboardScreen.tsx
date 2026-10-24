@@ -304,15 +304,21 @@ export function DashboardScreen({ onNavigateTab }: DashboardProps) {
           <View style={styles.contactDivider} />
 
           <Text style={styles.contactSectionLabel}>Kontak Layanan DKM & Konfirmasi Infaq:</Text>
-          <View style={styles.contactGrid}>
+          <View style={styles.contactStreamCanvas}>
             {MUSHOLA_INFO.contacts.map((c, idx) => (
-              <View key={idx} style={styles.contactItemBox}>
+              <View
+                key={idx}
+                style={[
+                  styles.contactStreamRow,
+                  idx === MUSHOLA_INFO.contacts.length - 1 && { borderBottomWidth: 0 },
+                ]}
+              >
                 <View style={styles.contactAvatar}>
-                  <Ionicons name="person" size={15} color="#047857" />
+                  <Ionicons name="person" size={15} color="#EF8354" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.contactPersonName}>{c.name}</Text>
-                  <Text style={styles.contactPersonPhone}>{c.formattedPhone}</Text>
+                  <Text style={styles.contactPersonPhone}>{c.role} • {c.formattedPhone}</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.chatWaBtn}
@@ -514,11 +520,16 @@ const styles = StyleSheet.create({
   },
   fridayInteractiveCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 18,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#BFC0C0',
+    borderColor: 'rgba(191, 192, 192, 0.4)',
+    shadowColor: '#2D3142',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
   },
   fridayTopRow: {
     flexDirection: 'row',
@@ -561,27 +572,31 @@ const styles = StyleSheet.create({
   fridayDateLabel: {
     fontSize: 12,
     color: '#4F5D75',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   officerCluster: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    borderTopWidth: 1,
-    borderColor: '#F1F5F9',
-    paddingTop: 12,
+    gap: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 12,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(191, 192, 192, 0.25)',
   },
   officerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     flex: 1,
-    minWidth: 140,
+    minWidth: 130,
   },
   officerAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
+    backgroundColor: 'rgba(239, 131, 84, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -617,14 +632,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   eventGrid: {
-    gap: 10,
+    gap: 12,
   },
   interactiveEventCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#BFC0C0',
+    borderRadius: 20,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF8354',
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(191, 192, 192, 0.25)',
+    shadowColor: '#2D3142',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   eventCardHeader: {
     flexDirection: 'row',
@@ -777,8 +801,20 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  contactGrid: {
-    gap: 8,
+  contactStreamCanvas: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(191, 192, 192, 0.25)',
+  },
+  contactStreamRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(191, 192, 192, 0.2)',
   },
   contactItemBox: {
     flexDirection: 'row',
@@ -791,9 +827,9 @@ const styles = StyleSheet.create({
     borderColor: '#BFC0C0',
   },
   contactAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: '#FDF1EB',
     alignItems: 'center',
     justifyContent: 'center',

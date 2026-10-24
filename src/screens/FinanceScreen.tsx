@@ -412,20 +412,23 @@ Terima kasih atas kepercayaan seluruh wali santri. Semoga putra-putri kita menja
           {/* ALL ENTITIES BREAKDOWN CARD (IF ALL SELECTED) */}
           {entityFilter === 'ALL' && (
             <View style={styles.allBreakdownCard}>
-              <Text style={styles.allBreakdownTitle}>Perbandingan Saldo Kas Entitas Musholla:</Text>
-              <View style={styles.allBreakdownRow}>
-                <View style={styles.breakdownItem}>
-                  <Text style={styles.breakdownLabel}>🏛️ Kas DKM Musholla</Text>
+              <View style={styles.allBreakdownHeader}>
+                <Ionicons name="pie-chart" size={15} color={THEME.coral} />
+                <Text style={styles.allBreakdownTitle}>Komposisi Kas Lintas Entitas</Text>
+              </View>
+              <View style={styles.allBreakdownRibbon}>
+                <View style={styles.breakdownSegment}>
+                  <Text style={styles.breakdownLabel}>🏛️ DKM Musholla</Text>
                   <Text style={styles.breakdownValue}>{formatRupiah(getDKMBalance())}</Text>
-                  <Text style={styles.breakdownSub}>Operasional, Pembangunan, Yatim</Text>
+                  <Text style={styles.breakdownSub}>Operasional • Pembangunan • Yatim</Text>
                 </View>
-
-                <View style={styles.breakdownItem}>
-                  <Text style={styles.breakdownLabel}>📖 Kas Otonom TPA</Text>
+                <View style={styles.breakdownDivider} />
+                <View style={styles.breakdownSegment}>
+                  <Text style={styles.breakdownLabel}>📖 Otonom TPA</Text>
                   <Text style={[styles.breakdownValue, { color: THEME.coral }]}>
                     {formatRupiah(getTPABalance())}
                   </Text>
-                  <Text style={styles.breakdownSub}>SPP Santri, Honor Guru, Modul</Text>
+                  <Text style={styles.breakdownSub}>SPP Santri • Honor Guru • Modul</Text>
                 </View>
               </View>
             </View>
@@ -474,19 +477,22 @@ Terima kasih atas kepercayaan seluruh wali santri. Semoga putra-putri kita menja
             ))}
           </ScrollView>
 
-          {/* Interactive Balance Card */}
+          {/* Seamless Hero Balance Surface */}
           <View style={styles.heroBalanceCard}>
             <View style={styles.heroBalanceTop}>
-              <View>
-                <Text style={styles.heroBalanceLabel}>
-                  {selectedPocketId === 'ALL'
-                    ? entityFilter === 'TPA'
-                      ? 'TOTAL SALDO KAS OTONOM TPA'
-                      : entityFilter === 'DKM'
-                      ? 'TOTAL SALDO KAS UTAMA DKM'
-                      : 'SALDO KAS GABUNGAN MUSHOLLA'
-                    : selectedPocket?.name.toUpperCase()}
-                </Text>
+              <View style={{ flex: 1 }}>
+                <View style={styles.heroBalanceBadgeRow}>
+                  <View style={styles.heroSubOrgIndicator} />
+                  <Text style={styles.heroBalanceLabel}>
+                    {selectedPocketId === 'ALL'
+                      ? entityFilter === 'TPA'
+                        ? 'TOTAL SALDO KAS OTONOM TPA'
+                        : entityFilter === 'DKM'
+                        ? 'TOTAL SALDO KAS UTAMA DKM'
+                        : 'SALDO KAS GABUNGAN MUSHOLLA'
+                      : selectedPocket?.name.toUpperCase()}
+                  </Text>
+                </View>
                 <Text style={styles.heroBalanceAmount}>{formatRupiah(displayBalance)}</Text>
                 {entityFilter === 'TPA' && (
                   <Text style={styles.heroBalanceSub}>42 Santri Aktif • SPP Rp 35.000 / Bulan</Text>
@@ -617,56 +623,64 @@ Terima kasih atas kepercayaan seluruh wali santri. Semoga putra-putri kita menja
               <Text style={styles.emptySubtitle}>Tidak ada transaksi yang cocok dengan filter yang dipilih.</Text>
             </View>
           ) : (
-            filteredTransactions.map((tx) => (
-              <View key={tx.id} style={styles.interactiveTxItem}>
+            <View style={styles.unifiedLedgerCanvas}>
+              {filteredTransactions.map((tx, idx) => (
                 <View
+                  key={tx.id}
                   style={[
-                    styles.txIconBubble,
-                    { backgroundColor: tx.type === 'INCOME' ? '#DCFCE7' : '#FEE2E2' },
+                    styles.ledgerStreamRow,
+                    idx === filteredTransactions.length - 1 && { borderBottomWidth: 0 },
                   ]}
                 >
-                  <Ionicons
-                    name={tx.type === 'INCOME' ? 'arrow-down' : 'arrow-up'}
-                    size={18}
-                    color={tx.type === 'INCOME' ? '#15803D' : '#DC2626'}
-                  />
-                </View>
-
-                <View style={styles.txMainCol}>
-                  <Text style={styles.txTitleText}>{tx.title}</Text>
-                  <View style={styles.txMetaLine}>
-                    <Text style={styles.txCategoryTag}>{tx.category}</Text>
-                    {tx.subOrgId === 'org-tpa' && (
-                      <View style={styles.tpaMicroBadge}>
-                        <Text style={styles.tpaMicroBadgeText}>TPA</Text>
-                      </View>
-                    )}
-                    <Text style={styles.dotSeparator}>•</Text>
-                    <Text style={styles.txDateText}>{formatShortDateIndo(tx.date)}</Text>
-                    {tx.donorName ? (
-                      <>
-                        <Text style={styles.dotSeparator}>•</Text>
-                        <Text style={styles.txDonorText}>Oleh: {tx.donorName}</Text>
-                      </>
-                    ) : null}
-                  </View>
-                  {tx.notes ? <Text style={styles.txNotesText}>Catatan: {tx.notes}</Text> : null}
-                </View>
-
-                <View style={styles.txRightCol}>
-                  <Text
+                  <View
                     style={[
-                      styles.txAmountDisplay,
-                      { color: tx.type === 'INCOME' ? '#15803D' : '#B91C1C' },
+                      styles.txIconBubble,
+                      { backgroundColor: tx.type === 'INCOME' ? 'rgba(21, 128, 61, 0.12)' : 'rgba(220, 38, 38, 0.12)' },
                     ]}
                   >
-                    {tx.type === 'INCOME' ? '+' : '-'}
-                    {formatRupiah(tx.amount)}
-                  </Text>
-                  <Text style={styles.txAuthor}>{tx.recordedBy}</Text>
+                    <Ionicons
+                      name={tx.type === 'INCOME' ? 'arrow-down' : 'arrow-up'}
+                      size={17}
+                      color={tx.type === 'INCOME' ? '#15803D' : '#DC2626'}
+                    />
+                  </View>
+
+                  <View style={styles.txMainCol}>
+                    <Text style={styles.txTitleText}>{tx.title}</Text>
+                    <View style={styles.txMetaLine}>
+                      <Text style={styles.txCategoryTag}>{tx.category}</Text>
+                      {tx.subOrgId === 'org-tpa' && (
+                        <View style={styles.tpaMicroBadge}>
+                          <Text style={styles.tpaMicroBadgeText}>TPA</Text>
+                        </View>
+                      )}
+                      <Text style={styles.dotSeparator}>•</Text>
+                      <Text style={styles.txDateText}>{formatShortDateIndo(tx.date)}</Text>
+                      {tx.donorName ? (
+                        <>
+                          <Text style={styles.dotSeparator}>•</Text>
+                          <Text style={styles.txDonorText}>Oleh: {tx.donorName}</Text>
+                        </>
+                      ) : null}
+                    </View>
+                    {tx.notes ? <Text style={styles.txNotesText}>Catatan: {tx.notes}</Text> : null}
+                  </View>
+
+                  <View style={styles.txRightCol}>
+                    <Text
+                      style={[
+                        styles.txAmountDisplay,
+                        { color: tx.type === 'INCOME' ? '#15803D' : '#B91C1C' },
+                      ]}
+                    >
+                      {tx.type === 'INCOME' ? '+' : '-'}
+                      {formatRupiah(tx.amount)}
+                    </Text>
+                    <Text style={styles.txAuthor}>{tx.recordedBy}</Text>
+                  </View>
                 </View>
-              </View>
-            ))
+              ))}
+            </View>
           )}
         </ScrollView>
       ) : (
@@ -886,15 +900,15 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.white,
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderColor: THEME.silverBorder,
   },
   entitySegmentWrap: {
     flexDirection: 'row',
     backgroundColor: THEME.silverLight,
-    borderRadius: 10,
-    padding: 3,
+    borderRadius: 24,
+    padding: 4,
     gap: 4,
   },
   entitySegmentBtn: {
@@ -902,9 +916,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 8,
-    borderRadius: 8,
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 20,
   },
   entitySegmentBtnActive: {
     backgroundColor: THEME.gunmetal,
@@ -972,7 +986,7 @@ const styles = StyleSheet.create({
   // TPA NOTICE
   tpaFinanceNotice: {
     backgroundColor: THEME.white,
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1.5,
@@ -995,46 +1009,56 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
 
-  // ALL BREAKDOWN CARD
+  // ALL BREAKDOWN CARD (SEAMLESS DUAL RIBBON)
   allBreakdownCard: {
     backgroundColor: THEME.white,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 14,
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: THEME.silverBorder,
   },
-  allBreakdownTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: THEME.paynesGray,
+  allBreakdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 10,
   },
-  allBreakdownRow: {
-    flexDirection: 'row',
-    gap: 10,
+  allBreakdownTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: THEME.gunmetal,
   },
-  breakdownItem: {
-    flex: 1,
+  allBreakdownRibbon: {
+    flexDirection: 'row',
     backgroundColor: THEME.silverLight,
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: THEME.silverLine,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  breakdownSegment: {
+    flex: 1,
+  },
+  breakdownDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: THEME.silverLine,
+    marginHorizontal: 12,
   },
   breakdownLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: THEME.gunmetal,
+    color: THEME.paynesGray,
   },
   breakdownValue: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '900',
     color: THEME.gunmetal,
     marginVertical: 2,
   },
   breakdownSub: {
-    fontSize: 9,
+    fontSize: 9.5,
     color: THEME.paynesGray,
   },
 
@@ -1072,14 +1096,26 @@ const styles = StyleSheet.create({
   },
   heroBalanceCard: {
     backgroundColor: THEME.gunmetal,
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
+    marginBottom: 18,
+    shadowColor: THEME.gunmetal,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  heroBalanceBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  heroSubOrgIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: THEME.coral,
   },
   heroBalanceTop: {
     flexDirection: 'row',
@@ -1090,7 +1126,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   heroBalanceLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
     color: THEME.silver,
     letterSpacing: 0.5,
@@ -1228,6 +1264,26 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: THEME.gunmetal,
   },
+  unifiedLedgerCanvas: {
+    backgroundColor: THEME.white,
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: THEME.silverBorder,
+    marginBottom: 20,
+    shadowColor: THEME.gunmetal,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  ledgerStreamRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderColor: THEME.silverLine,
+  },
   interactiveTxItem: {
     backgroundColor: THEME.white,
     borderRadius: 14,
@@ -1241,10 +1297,10 @@ const styles = StyleSheet.create({
   txIconBubble: {
     width: 38,
     height: 38,
-    borderRadius: 12,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 12,
   },
   txMainCol: {
     flex: 1,

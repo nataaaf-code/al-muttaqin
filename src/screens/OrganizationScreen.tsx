@@ -135,25 +135,52 @@ export function OrganizationScreen() {
             <TouchableOpacity
               key={org.id}
               style={[
-                styles.orgTabCard,
-                isSelected && { borderColor: THEME.coral, borderWidth: 2, backgroundColor: THEME.white },
-                isTpa && styles.orgTabCardTpa,
+                styles.orgPillTab,
+                isSelected && styles.orgPillTabActive,
+                isTpa && !isSelected && styles.orgPillTabTpa,
               ]}
               onPress={() => setSelectedOrg(org)}
               activeOpacity={0.8}
             >
-              <View style={[styles.orgColorIndicator, { backgroundColor: isSelected ? THEME.coral : org.color }]} />
-              <View style={styles.orgTabNameRow}>
-                <Text style={[styles.orgTabName, isSelected && { color: THEME.gunmetal }]}>
-                  {org.shortName}
-                </Text>
-                {isTpa && (
-                  <View style={styles.tpaStarBadge}>
-                    <Text style={styles.tpaStarBadgeText}>Otonom</Text>
-                  </View>
-                )}
+              <View
+                style={[
+                  styles.orgDotCircle,
+                  { backgroundColor: isSelected ? THEME.white : isTpa ? THEME.coral : org.color },
+                ]}
+              >
+                <Ionicons
+                  name={isTpa ? 'school' : org.category === 'DKM' ? 'business' : 'people'}
+                  size={12}
+                  color={isSelected ? (isTpa ? THEME.coral : THEME.gunmetal) : THEME.white}
+                />
               </View>
-              <Text style={styles.orgTabCategory}>{org.category.replace('_', ' ')}</Text>
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text
+                    style={[
+                      styles.orgPillName,
+                      isSelected && styles.orgPillNameActive,
+                    ]}
+                  >
+                    {org.shortName}
+                  </Text>
+                  {isTpa && (
+                    <View style={[styles.tpaBadgeMicro, isSelected && { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+                      <Text style={[styles.tpaBadgeMicroText, isSelected && { color: THEME.white }]}>
+                        Otonom
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text
+                  style={[
+                    styles.orgPillCategory,
+                    isSelected && styles.orgPillCategoryActive,
+                  ]}
+                >
+                  {org.category.replace('_', ' ')}
+                </Text>
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -164,69 +191,78 @@ export function OrganizationScreen() {
       {/* ============================================================== */}
       {isTPASelected ? (
         <View style={styles.tpaMainContainer}>
-          {/* TPA Banner Card */}
-          <View style={styles.tpaBannerCard}>
-            <View style={styles.tpaBannerHeader}>
+          {/* TPA Fluid Hero Banner Card */}
+          <View style={styles.tpaHeroSurface}>
+            <View style={styles.tpaHeroTopRow}>
               <View style={styles.tpaEmblemCircle}>
                 <Ionicons name="book" size={26} color={THEME.white} />
               </View>
               <View style={{ flex: 1 }}>
-                <View style={styles.tpaOtonomTag}>
-                  <Text style={styles.tpaOtonomTagText}>BADAN OTONOM MANDIRI</Text>
+                <View style={styles.tpaOtonomBadge}>
+                  <Ionicons name="sparkles" size={10} color={THEME.coral} />
+                  <Text style={styles.tpaOtonomBadgeText}>BADAN OTONOM MANDIRI</Text>
                 </View>
-                <Text style={styles.tpaBannerTitle}>TPA / TPQ Nurul Ilmi</Text>
-                <Text style={styles.tpaBannerSubtitle}>Musholla Al-Muttaqin • Perumahan Mutiara Puri Harmoni Blok H</Text>
+                <Text style={styles.tpaHeroTitle}>TPA / TPQ Nurul Ilmi</Text>
+                <Text style={styles.tpaHeroLocation}>
+                  Musholla Al-Muttaqin • Perumahan Mutiara Puri Harmoni Blok H
+                </Text>
               </View>
             </View>
 
-            <Text style={styles.tpaBannerDesc}>
-              Lembaga pendidikan Al-Qur'an terakreditasi tingkat pemukiman yang mengelola kurikulum berjenjang dari Pra-TK hingga Tahfidz Juz 30. Memiliki struktur kepengurusan terpisah, dewan asatidz mandiri, serta pembukuan keuangan kas otonom tersendiri.
+            <Text style={styles.tpaHeroDescription}>
+              Lembaga pembinaan Al-Qur'an terpadu santri lingkungan sekitar. Dikelola secara mandiri dengan kurikulum berjenjang dari Pra-TK (Iqro) hingga Tahfidz Juz 30, dewan asatidz mandiri, serta pembukuan kas otonom terpisah.
             </Text>
 
-            {/* Quick Stat Highlights */}
-            <View style={styles.tpaStatsGrid}>
-              <View style={styles.tpaStatBox}>
-                <Text style={styles.tpaStatNum}>{TPA_STRUCTURE_SUMMARY.totalSantri}</Text>
-                <Text style={styles.tpaStatLabel}>Santri Aktif</Text>
-                <Text style={styles.tpaStatSub}>24 Putra • 18 Putri</Text>
+            {/* Seamless Unified Metric Ribbon (No Boxy Borders) */}
+            <View style={styles.tpaMetricRibbon}>
+              <View style={styles.metricRibbonItem}>
+                <Text style={styles.metricRibbonNum}>{TPA_STRUCTURE_SUMMARY.totalSantri}</Text>
+                <Text style={styles.metricRibbonLabel}>Santri Aktif</Text>
+                <Text style={styles.metricRibbonSub}>24 Putra • 18 Putri</Text>
               </View>
 
-              <View style={styles.tpaStatBox}>
-                <Text style={styles.tpaStatNum}>{TPA_STRUCTURE_SUMMARY.activeClasses}</Text>
-                <Text style={styles.tpaStatLabel}>Tingkat Kelas</Text>
-                <Text style={styles.tpaStatSub}>Iqro 1-6 s.d Tahfidz</Text>
+              <View style={styles.metricRibbonDivider} />
+
+              <View style={styles.metricRibbonItem}>
+                <Text style={styles.metricRibbonNum}>{TPA_STRUCTURE_SUMMARY.activeClasses}</Text>
+                <Text style={styles.metricRibbonLabel}>Jenjang Kelas</Text>
+                <Text style={styles.metricRibbonSub}>Iqro 1-6 s.d Tahfidz</Text>
               </View>
 
-              <View style={styles.tpaStatBox}>
-                <Text style={styles.tpaStatNum}>{TPA_STAFF_MEMBERS.length}</Text>
-                <Text style={styles.tpaStatLabel}>Dewan Asatidz</Text>
-                <Text style={styles.tpaStatSub}>Ustadz & Ustadzah</Text>
+              <View style={styles.metricRibbonDivider} />
+
+              <View style={styles.metricRibbonItem}>
+                <Text style={styles.metricRibbonNum}>{TPA_STAFF_MEMBERS.length}</Text>
+                <Text style={styles.metricRibbonLabel}>Dewan Guru</Text>
+                <Text style={styles.metricRibbonSub}>Asatidz & Ustadzah</Text>
               </View>
 
-              <View style={styles.tpaStatBox}>
-                <Text style={[styles.tpaStatNum, { color: THEME.coral }]}>
+              <View style={styles.metricRibbonDivider} />
+
+              <View style={styles.metricRibbonItem}>
+                <Text style={[styles.metricRibbonNum, { color: THEME.coral }]}>
                   {formatRupiah(getTPABalance())}
                 </Text>
-                <Text style={styles.tpaStatLabel}>Kas Otonom TPA</Text>
-                <Text style={styles.tpaStatSub}>4 Kantong Khusus</Text>
+                <Text style={styles.metricRibbonLabel}>Kas Otonom</Text>
+                <Text style={styles.metricRibbonSub}>4 Kantong Mandiri</Text>
               </View>
             </View>
 
-            {/* TPA Internal Tab Buttons */}
-            <View style={styles.tpaSubTabRow}>
+            {/* Fluid Capsule Segmented Tabs */}
+            <View style={styles.tpaCapsuleNav}>
               <TouchableOpacity
-                style={[styles.tpaSubTabBtn, tpaSubTab === 'STRUKTUR' && styles.tpaSubTabBtnActive]}
+                style={[styles.tpaCapsuleItem, tpaSubTab === 'STRUKTUR' && styles.tpaCapsuleItemActive]}
                 onPress={() => setTpaSubTab('STRUKTUR')}
               >
                 <Ionicons
                   name="git-branch-outline"
-                  size={15}
-                  color={tpaSubTab === 'STRUKTUR' ? THEME.white : THEME.paynesGray}
+                  size={14}
+                  color={tpaSubTab === 'STRUKTUR' ? THEME.white : THEME.silver}
                 />
                 <Text
                   style={[
-                    styles.tpaSubTabBtnText,
-                    tpaSubTab === 'STRUKTUR' && styles.tpaSubTabBtnTextActive,
+                    styles.tpaCapsuleText,
+                    tpaSubTab === 'STRUKTUR' && styles.tpaCapsuleTextActive,
                   ]}
                 >
                   Bagan Struktur
@@ -234,214 +270,251 @@ export function OrganizationScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.tpaSubTabBtn, tpaSubTab === 'GURU' && styles.tpaSubTabBtnActive]}
+                style={[styles.tpaCapsuleItem, tpaSubTab === 'GURU' && styles.tpaCapsuleItemActive]}
                 onPress={() => setTpaSubTab('GURU')}
               >
                 <Ionicons
                   name="school-outline"
-                  size={15}
-                  color={tpaSubTab === 'GURU' ? THEME.white : THEME.paynesGray}
+                  size={14}
+                  color={tpaSubTab === 'GURU' ? THEME.white : THEME.silver}
                 />
                 <Text
                   style={[
-                    styles.tpaSubTabBtnText,
-                    tpaSubTab === 'GURU' && styles.tpaSubTabBtnTextActive,
+                    styles.tpaCapsuleText,
+                    tpaSubTab === 'GURU' && styles.tpaCapsuleTextActive,
                   ]}
                 >
-                  Dewan Asatidz ({TPA_STAFF_MEMBERS.length})
+                  Dewan Guru
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.tpaSubTabBtn, tpaSubTab === 'KELAS' && styles.tpaSubTabBtnActive]}
+                style={[styles.tpaCapsuleItem, tpaSubTab === 'KELAS' && styles.tpaCapsuleItemActive]}
                 onPress={() => setTpaSubTab('KELAS')}
               >
                 <Ionicons
                   name="layers-outline"
-                  size={15}
-                  color={tpaSubTab === 'KELAS' ? THEME.white : THEME.paynesGray}
+                  size={14}
+                  color={tpaSubTab === 'KELAS' ? THEME.white : THEME.silver}
                 />
                 <Text
                   style={[
-                    styles.tpaSubTabBtnText,
-                    tpaSubTab === 'KELAS' && styles.tpaSubTabBtnTextActive,
+                    styles.tpaCapsuleText,
+                    tpaSubTab === 'KELAS' && styles.tpaCapsuleTextActive,
                   ]}
                 >
-                  Kurikulum & Kelas ({TPA_CLASSES.length})
+                  Kurikulum
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.tpaSubTabBtn, tpaSubTab === 'KEUANGAN' && styles.tpaSubTabBtnActive]}
+                style={[styles.tpaCapsuleItem, tpaSubTab === 'KEUANGAN' && styles.tpaCapsuleItemActive]}
                 onPress={() => setTpaSubTab('KEUANGAN')}
               >
                 <Ionicons
                   name="wallet-outline"
-                  size={15}
-                  color={tpaSubTab === 'KEUANGAN' ? THEME.white : THEME.paynesGray}
+                  size={14}
+                  color={tpaSubTab === 'KEUANGAN' ? THEME.white : THEME.silver}
                 />
                 <Text
                   style={[
-                    styles.tpaSubTabBtnText,
-                    tpaSubTab === 'KEUANGAN' && styles.tpaSubTabBtnTextActive,
+                    styles.tpaCapsuleText,
+                    tpaSubTab === 'KEUANGAN' && styles.tpaCapsuleTextActive,
                   ]}
                 >
-                  Kas Otonom
+                  Kas Mandiri
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* TAB 1: BAGAN HIRARKI STRUKTUR ORGANISASI TPA */}
+          {/* TAB 1: BAGAN HIRARKI STRUKTUR ORGANISASI TPA (SEAMLESS FLOW) */}
           {tpaSubTab === 'STRUKTUR' && (
-            <View style={styles.tpaTreeCard}>
-              <View style={styles.tpaTreeHeader}>
+            <View style={styles.tpaFlowCanvas}>
+              <View style={styles.flowCanvasHeader}>
                 <Ionicons name="git-network" size={20} color={THEME.coral} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.tpaTreeHeaderTitle}>Bagan Hirarki Kepengurusan TPA Nurul Ilmi</Text>
-                  <Text style={styles.tpaTreeHeaderSubtitle}>
-                    Struktur komando berjenjang dari pembina DKM hingga wali kelas pengajar:
+                  <Text style={styles.flowCanvasTitle}>Bagan Alur Kepengurusan TPA</Text>
+                  <Text style={styles.flowCanvasSubtitle}>
+                    Hubungan koordinatif berjenjang dari pembina DKM hingga wali kelas:
                   </Text>
                 </View>
               </View>
 
               {/* LEVEL 1: DEWAN PEMBINA */}
-              <View style={styles.treeLevelBox}>
-                <View style={[styles.treeLevelBadge, { backgroundColor: THEME.gunmetalDark }]}>
-                  <Text style={styles.treeLevelBadgeText}>TINGKAT 1 • DEWAN PEMBINA DKM</Text>
+              <View style={styles.flowTierWrap}>
+                <View style={styles.flowTierHeader}>
+                  <View style={[styles.flowTierDot, { backgroundColor: THEME.paynesGray }]} />
+                  <Text style={styles.flowTierTitle}>TINGKAT 1 • DEWAN PEMBINA DKM</Text>
                 </View>
-                <View style={styles.treeNodeRow}>
-                  <View style={styles.treeNodeCard}>
-                    <Ionicons name="shield-checkmark" size={18} color={THEME.coral} />
-                    <View style={{ flex: 1, marginLeft: 8 }}>
-                      <Text style={styles.treeNodeName}>Ustadz Astriyo</Text>
-                      <Text style={styles.treeNodeRole}>Pembina Syariah & Kurikulum DKM</Text>
-                      <Text style={styles.treeNodePhone}>0857-7790-0383</Text>
+                <View style={styles.duoPillRow}>
+                  <View style={styles.duoPillCard}>
+                    <View style={styles.duoPillIcon}>
+                      <Ionicons name="shield-checkmark" size={16} color={THEME.coral} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.duoPillName}>Ustadz Astriyo</Text>
+                      <Text style={styles.duoPillRole}>Pembina Syariah & Agama</Text>
+                      <Text style={styles.duoPillMeta}>0857-7790-0383</Text>
                     </View>
                   </View>
 
-                  <View style={styles.treeNodeCard}>
-                    <Ionicons name="shield-checkmark" size={18} color={THEME.coral} />
-                    <View style={{ flex: 1, marginLeft: 8 }}>
-                      <Text style={styles.treeNodeName}>Ustadz Dicky</Text>
-                      <Text style={styles.treeNodeRole}>Pembina Lembaga & Ketua DKM</Text>
-                      <Text style={styles.treeNodePhone}>0817-4958-342</Text>
+                  <View style={styles.duoPillCard}>
+                    <View style={styles.duoPillIcon}>
+                      <Ionicons name="shield-checkmark" size={16} color={THEME.coral} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.duoPillName}>Ustadz Dicky</Text>
+                      <Text style={styles.duoPillRole}>Pembina Lembaga / Ketua DKM</Text>
+                      <Text style={styles.duoPillMeta}>0817-4958-342</Text>
                     </View>
                   </View>
                 </View>
               </View>
 
-              <View style={styles.treeConnectorVertical}>
-                <Ionicons name="arrow-down" size={16} color={THEME.silverBorder} />
+              {/* Connecting Flow Line */}
+              <View style={styles.connectingRail}>
+                <View style={styles.railLine} />
+                <View style={styles.railNode} />
+                <View style={styles.railLine} />
               </View>
 
-              {/* LEVEL 2: KEPALA SEKOLAH / DIREKTUR TPA */}
-              <View style={styles.treeLevelBox}>
-                <View style={[styles.treeLevelBadge, { backgroundColor: THEME.coral }]}>
-                  <Text style={styles.treeLevelBadgeText}>TINGKAT 2 • PIMPINAN LEMBAGA TPA</Text>
+              {/* LEVEL 2: KEPALA TPA (HERO FEATURE CARD) */}
+              <View style={styles.flowTierWrap}>
+                <View style={styles.flowTierHeader}>
+                  <View style={[styles.flowTierDot, { backgroundColor: THEME.coral }]} />
+                  <Text style={styles.flowTierTitle}>TINGKAT 2 • DIREKTUR / KEPALA SEKOLAH</Text>
                 </View>
-                <View style={[styles.treeNodeCard, styles.treeNodeHeadCard]}>
-                  <View style={styles.treeAvatarCircle}>
-                    <Ionicons name="person" size={24} color={THEME.white} />
+                <View style={styles.headmasterHeroSurface}>
+                  <View style={styles.headmasterLeft}>
+                    <View style={styles.headmasterAvatarRing}>
+                      <Ionicons name="person" size={26} color={THEME.white} />
+                    </View>
                   </View>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.treeHeadName}>Ustadzah Maryam, S.Pd.I</Text>
-                    <Text style={styles.treeHeadRole}>Kepala Sekolah / Direktur TPA Nurul Ilmi</Text>
-                    <Text style={styles.treeHeadBio}>Penanggung jawab operasional, standarisasi pembelajaran, & bimbingan tahfidz</Text>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.headmasterRoleTag}>
+                      <Text style={styles.headmasterRoleTagText}>PIMPINAN AKADEMIK & TAHFIDZ</Text>
+                    </View>
+                    <Text style={styles.headmasterName}>Ustadzah Maryam, S.Pd.I</Text>
+                    <Text style={styles.headmasterBio}>
+                      Alumnus Tarbiyah PAI, pemegang sanad tahsin Tilawati & penanggung jawab operasional harian TPA.
+                    </Text>
                     <TouchableOpacity
-                      style={styles.treeHeadWaBtn}
+                      style={styles.headmasterWaPill}
                       onPress={() => openWhatsApp('6285799001122', 'Ustadzah Maryam')}
                     >
                       <Ionicons name="logo-whatsapp" size={13} color={THEME.white} />
-                      <Text style={styles.treeHeadWaText}>Hubungi via WhatsApp (0857-9900-1122)</Text>
+                      <Text style={styles.headmasterWaPillText}>WhatsApp Kepala TPA (0857-9900-1122)</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               </View>
 
-              <View style={styles.treeConnectorVertical}>
-                <Ionicons name="arrow-down" size={16} color={THEME.silverBorder} />
+              {/* Connecting Flow Line */}
+              <View style={styles.connectingRail}>
+                <View style={styles.railLine} />
+                <View style={styles.railNode} />
+                <View style={styles.railLine} />
               </View>
 
-              {/* LEVEL 3: SEKRETARIS & BENDAHARA */}
-              <View style={styles.treeLevelBox}>
-                <View style={[styles.treeLevelBadge, { backgroundColor: THEME.paynesGray }]}>
-                  <Text style={styles.treeLevelBadgeText}>TINGKAT 3 • ADMINISTRASI & KEUANGAN OTONOM</Text>
+              {/* LEVEL 3: TATA USAHA & BENDAHARA (DUO HARMONY) */}
+              <View style={styles.flowTierWrap}>
+                <View style={styles.flowTierHeader}>
+                  <View style={[styles.flowTierDot, { backgroundColor: THEME.paynesGray }]} />
+                  <Text style={styles.flowTierTitle}>TINGKAT 3 • ADMINISTRASI & KEUANGAN MANDIRI</Text>
                 </View>
-                <View style={styles.treeNodeRow}>
-                  <View style={styles.treeNodeCard}>
-                    <Ionicons name="document-text" size={20} color={THEME.coral} />
-                    <View style={{ flex: 1, marginLeft: 8 }}>
-                      <Text style={styles.treeNodeName}>Ustadzah Siti Aisyah, S.Pd</Text>
-                      <Text style={styles.treeNodeRole}>Sekretaris & Tata Usaha Santri</Text>
-                      <Text style={styles.treeNodeDesc}>Pendaftaran, presensi, rapor santri</Text>
-                      <TouchableOpacity
-                        style={styles.treeMiniWa}
-                        onPress={() => openWhatsApp('6281299887766', 'Ustadzah Siti Aisyah')}
-                      >
-                        <Ionicons name="logo-whatsapp" size={11} color={THEME.white} />
-                        <Text style={styles.treeMiniWaText}>WA Tata Usaha</Text>
-                      </TouchableOpacity>
+                <View style={styles.duoPillRow}>
+                  <View style={styles.adminSeamlessCard}>
+                    <View style={styles.adminIconCircle}>
+                      <Ionicons name="document-text" size={18} color={THEME.coral} />
                     </View>
+                    <Text style={styles.adminCardName}>Ustadzah Siti Aisyah, S.Pd</Text>
+                    <Text style={styles.adminCardRole}>Sekretaris & Tata Usaha</Text>
+                    <Text style={styles.adminCardDesc}>Pendaftaran, presensi, & raport santri</Text>
+                    <TouchableOpacity
+                      style={styles.adminWaBtn}
+                      onPress={() => openWhatsApp('6281299887766', 'Ustadzah Siti Aisyah')}
+                    >
+                      <Ionicons name="logo-whatsapp" size={11} color={THEME.white} />
+                      <Text style={styles.adminWaBtnText}>WA Tata Usaha</Text>
+                    </TouchableOpacity>
                   </View>
 
-                  <View style={styles.treeNodeCard}>
-                    <Ionicons name="wallet" size={20} color={THEME.coral} />
-                    <View style={{ flex: 1, marginLeft: 8 }}>
-                      <Text style={styles.treeNodeName}>Ustadzah Fitri Handayani, S.E</Text>
-                      <Text style={styles.treeNodeRole}>Bendahara Keuangan Otonom</Text>
-                      <Text style={styles.treeNodeDesc}>Kas SPP, honor guru, & buku modul</Text>
-                      <TouchableOpacity
-                        style={styles.treeMiniWa}
-                        onPress={() => openWhatsApp('6281311223344', 'Ustadzah Fitri Handayani')}
-                      >
-                        <Ionicons name="logo-whatsapp" size={11} color={THEME.white} />
-                        <Text style={styles.treeMiniWaText}>WA Bendahara</Text>
-                      </TouchableOpacity>
+                  <View style={styles.adminSeamlessCard}>
+                    <View style={styles.adminIconCircle}>
+                      <Ionicons name="wallet" size={18} color={THEME.coral} />
                     </View>
+                    <Text style={styles.adminCardName}>Ustadzah Fitri Handayani, S.E</Text>
+                    <Text style={styles.adminCardRole}>Bendahara Kas Otonom</Text>
+                    <Text style={styles.adminCardDesc}>Kas SPP, honor guru, & buku modul</Text>
+                    <TouchableOpacity
+                      style={styles.adminWaBtn}
+                      onPress={() => openWhatsApp('6281311223344', 'Ustadzah Fitri Handayani')}
+                    >
+                      <Ionicons name="logo-whatsapp" size={11} color={THEME.white} />
+                      <Text style={styles.adminWaBtnText}>WA Bendahara</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
 
-              <View style={styles.treeConnectorVertical}>
-                <Ionicons name="arrow-down" size={16} color={THEME.silverBorder} />
+              {/* Connecting Flow Line */}
+              <View style={styles.connectingRail}>
+                <View style={styles.railLine} />
+                <View style={styles.railNode} />
+                <View style={styles.railLine} />
               </View>
 
-              {/* LEVEL 4: PENJAMIN MUTU & KURIKULUM */}
-              <View style={styles.treeLevelBox}>
-                <View style={[styles.treeLevelBadge, { backgroundColor: THEME.gunmetal }]}>
-                  <Text style={styles.treeLevelBadgeText}>TINGKAT 4 • KOORDINATOR KURIKULUM & MUTU TAHSIN</Text>
+              {/* LEVEL 4: KURIKULUM & TAHSIN */}
+              <View style={styles.flowTierWrap}>
+                <View style={styles.flowTierHeader}>
+                  <View style={[styles.flowTierDot, { backgroundColor: THEME.gunmetal }]} />
+                  <Text style={styles.flowTierTitle}>TINGKAT 4 • KOORDINATOR KURIKULUM & MUTU</Text>
                 </View>
-                <View style={styles.treeNodeCard}>
-                  <Ionicons name="ribbon" size={20} color={THEME.coral} />
-                  <View style={{ flex: 1, marginLeft: 8 }}>
-                    <Text style={styles.treeNodeName}>Ustadz Hafiz Al-Faruq, S.Ag</Text>
-                    <Text style={styles.treeNodeRole}>Koordinator Kurikulum & Tahfidz Al-Qur'an</Text>
-                    <Text style={styles.treeNodeDesc}>Penguji kenaikan jilid Iqro, makharijul huruf, dan pembina tartil</Text>
+                <View style={styles.curriculumBannerCard}>
+                  <View style={styles.curriculumIconCircle}>
+                    <Ionicons name="ribbon" size={20} color={THEME.coral} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.curriculumLeaderName}>Ustadz Hafiz Al-Faruq, S.Ag</Text>
+                    <Text style={styles.curriculumLeaderRole}>Penjamin Mutu Tahsin & Tartil Al-Qur'an</Text>
+                    <Text style={styles.curriculumLeaderDesc}>
+                      Hafizh 30 Juz, penguji kenaikan jilid Iqro, bimbingan makharijul huruf & tartil santri.
+                    </Text>
                   </View>
                 </View>
               </View>
 
-              <View style={styles.treeConnectorVertical}>
-                <Ionicons name="arrow-down" size={16} color={THEME.silverBorder} />
+              {/* Connecting Flow Line */}
+              <View style={styles.connectingRail}>
+                <View style={styles.railLine} />
+                <View style={styles.railNode} />
+                <View style={styles.railLine} />
               </View>
 
-              {/* LEVEL 5: DEWAN GURU / WALI KELAS */}
-              <View style={styles.treeLevelBox}>
-                <View style={[styles.treeLevelBadge, { backgroundColor: THEME.coral }]}>
-                  <Text style={styles.treeLevelBadgeText}>TINGKAT 5 • DEWAN GURU PENGAJAR / WALI KELAS</Text>
+              {/* LEVEL 5: DEWAN ASATIDZ / WALI KELAS */}
+              <View style={styles.flowTierWrap}>
+                <View style={styles.flowTierHeader}>
+                  <View style={[styles.flowTierDot, { backgroundColor: THEME.coral }]} />
+                  <Text style={styles.flowTierTitle}>TINGKAT 5 • DEWAN GURU / WALI KELAS BIMBINGAN</Text>
                 </View>
-                <View style={styles.treeTeachersGrid}>
-                  {TPA_STAFF_MEMBERS.filter((s) => s.roleCategory === 'PENGAJAR').map((teacher) => (
-                    <View key={teacher.id} style={styles.teacherMiniCard}>
-                      <View style={styles.teacherMiniIcon}>
-                        <Ionicons name="school" size={14} color={THEME.coral} />
+                <View style={styles.teachersStreamCanvas}>
+                  {TPA_STAFF_MEMBERS.filter((s) => s.roleCategory === 'PENGAJAR').map((teacher, index) => (
+                    <View key={teacher.id} style={styles.teacherStreamItem}>
+                      <View style={styles.teacherAvatarDot}>
+                        <Ionicons name="school" size={13} color={THEME.white} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.teacherMiniName}>{teacher.name}</Text>
-                        <Text style={styles.teacherMiniClass}>{teacher.assignedClass}</Text>
-                        <Text style={styles.teacherMiniBio}>{teacher.bio}</Text>
+                        <Text style={styles.teacherStreamName}>{teacher.name}</Text>
+                        <Text style={styles.teacherStreamClass}>{teacher.assignedClass}</Text>
+                        <Text style={styles.teacherStreamBio}>{teacher.bio}</Text>
                       </View>
+                      <TouchableOpacity
+                        style={styles.teacherWaMiniBtn}
+                        onPress={() => openWhatsApp(teacher.phone, teacher.name)}
+                      >
+                        <Ionicons name="logo-whatsapp" size={12} color="#25D366" />
+                      </TouchableOpacity>
                     </View>
                   ))}
                 </View>
@@ -449,45 +522,48 @@ export function OrganizationScreen() {
             </View>
           )}
 
-          {/* TAB 2: DAFTAR ASATIDZ / PENGURUS TPA */}
+          {/* TAB 2: DAFTAR ASATIDZ / PENGURUS TPA (UNIFIED SHOWCASE) */}
           {tpaSubTab === 'GURU' && (
             <View style={styles.tpaStaffSection}>
-              <Text style={styles.tpaSubSectionTitle}>Profil Lengkap Dewan Pengurus & Guru TPA:</Text>
-              <View style={styles.staffCardsGrid}>
-                {TPA_STAFF_MEMBERS.map((staff) => (
-                  <View key={staff.id} style={styles.staffProfileCard}>
-                    <View style={styles.staffProfileTop}>
-                      <View style={styles.staffAvatarCircle}>
-                        <Ionicons
-                          name={staff.roleCategory === 'PENGAJAR' ? 'school' : 'person'}
-                          size={18}
-                          color={THEME.white}
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.staffCardName}>{staff.name}</Text>
-                        <Text style={styles.staffCardRole}>{staff.role}</Text>
-                      </View>
-                      <View style={styles.staffRolePill}>
-                        <Text style={styles.staffRolePillText}>{staff.roleCategory}</Text>
-                      </View>
+              <Text style={styles.tpaSubSectionTitle}>Direktori Dewan Asatidz & Tenaga Pendidik:</Text>
+              <View style={styles.staffStreamCanvas}>
+                {TPA_STAFF_MEMBERS.map((staff, idx) => (
+                  <View
+                    key={staff.id}
+                    style={[
+                      styles.staffStreamRow,
+                      idx === TPA_STAFF_MEMBERS.length - 1 && { borderBottomWidth: 0 },
+                    ]}
+                  >
+                    <View style={styles.staffAvatarGlow}>
+                      <Ionicons
+                        name={staff.roleCategory === 'PENGAJAR' ? 'school' : 'person'}
+                        size={18}
+                        color={THEME.coral}
+                      />
                     </View>
-
-                    {staff.assignedClass && (
-                      <View style={styles.staffClassRow}>
-                        <Ionicons name="book-outline" size={13} color={THEME.coral} />
-                        <Text style={styles.staffClassText}>Mengampu: {staff.assignedClass}</Text>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.staffNameHeadingRow}>
+                        <Text style={styles.staffNameText}>{staff.name}</Text>
+                        <View style={styles.staffCategoryChip}>
+                          <Text style={styles.staffCategoryChipText}>{staff.roleCategory}</Text>
+                        </View>
                       </View>
-                    )}
-
-                    {staff.bio && <Text style={styles.staffBioText}>{staff.bio}</Text>}
-
+                      <Text style={styles.staffRoleSubtitle}>{staff.role}</Text>
+                      {staff.assignedClass && (
+                        <View style={styles.assignedClassChip}>
+                          <Ionicons name="book-outline" size={11} color={THEME.coral} />
+                          <Text style={styles.assignedClassChipText}>{staff.assignedClass}</Text>
+                        </View>
+                      )}
+                      {staff.bio && <Text style={styles.staffBioDescription}>{staff.bio}</Text>}
+                    </View>
                     <TouchableOpacity
-                      style={styles.staffWaActionBtn}
+                      style={styles.staffChatCircle}
                       onPress={() => openWhatsApp(staff.phone, staff.name)}
+                      activeOpacity={0.8}
                     >
-                      <Ionicons name="logo-whatsapp" size={14} color={THEME.white} />
-                      <Text style={styles.staffWaActionText}>Hubungi via WhatsApp ({staff.phone})</Text>
+                      <Ionicons name="logo-whatsapp" size={16} color={THEME.white} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -495,58 +571,50 @@ export function OrganizationScreen() {
             </View>
           )}
 
-          {/* TAB 3: DAFTAR KELAS & KURIKULUM PEMBELAJARAN */}
+          {/* TAB 3: DAFTAR KELAS & KURIKULUM (CURRICULAR STEPPER) */}
           {tpaSubTab === 'KELAS' && (
             <View style={styles.tpaClassSection}>
-              <Text style={styles.tpaSubSectionTitle}>Jenjang Kelas & Target Pembelajaran TPA:</Text>
-              <View style={styles.classListWrap}>
+              <Text style={styles.tpaSubSectionTitle}>Jenjang Kurikulum & Pembagian Kelas:</Text>
+              <View style={styles.curriculumStepperWrap}>
                 {TPA_CLASSES.map((cls, idx) => (
-                  <View key={cls.id} style={styles.classCard}>
-                    <View style={styles.classCardHeader}>
-                      <View style={styles.classIndexBadge}>
-                        <Text style={styles.classIndexText}>0{idx + 1}</Text>
+                  <View key={cls.id} style={styles.stepperItemCard}>
+                    {/* Stepper Level Header */}
+                    <View style={styles.stepperHeaderRow}>
+                      <View style={styles.stepperBadgeOrb}>
+                        <Text style={styles.stepperBadgeOrbText}>0{idx + 1}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.classCardTitle}>{cls.name}</Text>
-                        <Text style={styles.classCardLevel}>{cls.level}</Text>
+                        <Text style={styles.stepperTitle}>{cls.name}</Text>
+                        <Text style={styles.stepperLevelText}>{cls.level}</Text>
                       </View>
-                      <View style={styles.studentCountBadge}>
-                        <Ionicons name="people" size={13} color={THEME.coral} />
-                        <Text style={styles.studentCountText}>{cls.studentCount} Santri</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.classDetailsGrid}>
-                      <View style={styles.classDetailItem}>
-                        <Ionicons name="person-circle-outline" size={16} color={THEME.paynesGray} />
-                        <View style={{ marginLeft: 6 }}>
-                          <Text style={styles.classDetailLabel}>Wali Kelas / Guru Pengajar</Text>
-                          <Text style={styles.classDetailValue}>{cls.teacherName}</Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.classDetailItem}>
-                        <Ionicons name="time-outline" size={16} color={THEME.paynesGray} />
-                        <View style={{ marginLeft: 6 }}>
-                          <Text style={styles.classDetailLabel}>Jadwal KBM</Text>
-                          <Text style={styles.classDetailValue}>{cls.schedule}</Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.classDetailItem}>
-                        <Ionicons name="location-outline" size={16} color={THEME.paynesGray} />
-                        <View style={{ marginLeft: 6 }}>
-                          <Text style={styles.classDetailLabel}>Lokasi Ruang</Text>
-                          <Text style={styles.classDetailValue}>{cls.room}</Text>
-                        </View>
+                      <View style={styles.stepperStudentTag}>
+                        <Ionicons name="people" size={12} color={THEME.coral} />
+                        <Text style={styles.stepperStudentTagText}>{cls.studentCount} Santri</Text>
                       </View>
                     </View>
 
-                    <View style={styles.curriculumBox}>
-                      <Ionicons name="bulb-outline" size={16} color={THEME.coral} />
+                    {/* Stepper Quick Meta Rail */}
+                    <View style={styles.stepperMetaRail}>
+                      <View style={styles.stepperMetaItem}>
+                        <Ionicons name="person-outline" size={13} color={THEME.paynesGray} />
+                        <Text style={styles.stepperMetaText}>{cls.teacherName}</Text>
+                      </View>
+                      <View style={styles.stepperMetaItem}>
+                        <Ionicons name="time-outline" size={13} color={THEME.paynesGray} />
+                        <Text style={styles.stepperMetaText}>{cls.schedule}</Text>
+                      </View>
+                      <View style={styles.stepperMetaItem}>
+                        <Ionicons name="location-outline" size={13} color={THEME.paynesGray} />
+                        <Text style={styles.stepperMetaText}>{cls.room}</Text>
+                      </View>
+                    </View>
+
+                    {/* Stepper Competency Highlight */}
+                    <View style={styles.stepperCompetencyBox}>
+                      <Ionicons name="bulb" size={15} color={THEME.coral} />
                       <View style={{ flex: 1, marginLeft: 8 }}>
-                        <Text style={styles.curriculumLabel}>Target & Capaian Materi:</Text>
-                        <Text style={styles.curriculumText}>{cls.curriculum}</Text>
+                        <Text style={styles.stepperCompetencyLabel}>Target Capaian Santri:</Text>
+                        <Text style={styles.stepperCompetencyDesc}>{cls.curriculum}</Text>
                       </View>
                     </View>
                   </View>
@@ -555,66 +623,73 @@ export function OrganizationScreen() {
             </View>
           )}
 
-          {/* TAB 4: RINGKASAN KEUANGAN KAS OTONOM TPA */}
+          {/* TAB 4: RINGKASAN KAS OTONOM TPA (SEAMLESS LEDGER) */}
           {tpaSubTab === 'KEUANGAN' && (
             <View style={styles.tpaFinanceSection}>
-              <View style={styles.tpaFinanceHeader}>
-                <Ionicons name="wallet" size={22} color={THEME.coral} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.tpaFinanceTitle}>Pembukuan Kas Otonom TPA Nurul Ilmi</Text>
-                  <Text style={styles.tpaFinanceSubtitle}>
-                    Kas mandiri terpisah penuh dari kas DKM musholla demi transparansi & kepastian honor asatidz serta kegiatan santri:
-                  </Text>
+              <View style={styles.tpaFinanceHeroCard}>
+                <View style={styles.tpaFinanceHeroTop}>
+                  <View style={styles.tpaFinanceIconOrb}>
+                    <Ionicons name="wallet" size={20} color={THEME.white} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.tpaFinanceHeroLabel}>TOTAL SALDO KAS OTONOM TPA</Text>
+                    <Text style={styles.tpaFinanceHeroAmount}>{formatRupiah(getTPABalance())}</Text>
+                  </View>
                 </View>
-              </View>
-
-              <View style={styles.tpaTotalCard}>
-                <Text style={styles.tpaTotalLabel}>Total Saldo Kas Otonom TPA Saat Ini</Text>
-                <Text style={styles.tpaTotalValue}>{formatRupiah(getTPABalance())}</Text>
-                <Text style={styles.tpaTotalMeta}>
-                  Tercatat 4 Kantong Kas Khusus • Dikelola oleh Bendahara TPA (Ustadzah Fitri Handayani)
+                <Text style={styles.tpaFinanceHeroSub}>
+                  Dikelola mandiri oleh Bendahara TPA (Ustadzah Fitri Handayani) • Terpisah dari kas DKM
                 </Text>
               </View>
 
-              <Text style={styles.tpaPocketListHeading}>Rincian 4 Kantong Kas Otonom TPA:</Text>
-              <View style={styles.tpaPocketsGrid}>
-                {orgPockets.map((p) => (
-                  <View key={p.id} style={styles.tpaPocketCard}>
-                    <View style={styles.tpaPocketTop}>
-                      <View style={styles.tpaPocketIconBox}>
-                        <Ionicons name="cash-outline" size={18} color={THEME.coral} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.tpaPocketName}>{p.name}</Text>
-                        <Text style={styles.tpaPocketCategory}>{p.category}</Text>
+              <Text style={styles.tpaPocketListHeading}>4 Kantong Kas Otonom TPA:</Text>
+              <View style={styles.pocketsSeamlessCanvas}>
+                {orgPockets.map((p, pIdx) => (
+                  <View
+                    key={p.id}
+                    style={[
+                      styles.pocketStreamRow,
+                      pIdx === orgPockets.length - 1 && { borderBottomWidth: 0 },
+                    ]}
+                  >
+                    <View style={styles.pocketStreamIconCircle}>
+                      <Ionicons name="cash-outline" size={18} color={THEME.coral} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.pocketStreamName}>{p.name}</Text>
+                      <Text style={styles.pocketStreamDesc}>{p.description}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
+                      <Text style={styles.pocketStreamBalance}>{formatRupiah(p.balance)}</Text>
+                      <View style={styles.pocketCategoryMiniTag}>
+                        <Text style={styles.pocketCategoryMiniText}>{p.category}</Text>
                       </View>
                     </View>
-                    <Text style={styles.tpaPocketBalance}>{formatRupiah(p.balance)}</Text>
-                    <Text style={styles.tpaPocketDesc}>{p.description}</Text>
                   </View>
                 ))}
               </View>
             </View>
           )}
 
-          {/* Call-to-Action Pendaftaran Santri */}
-          <View style={styles.ctaCard}>
-            <View style={styles.ctaHeaderRow}>
-              <Ionicons name="school" size={24} color={THEME.coral} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.ctaTitle}>Penerimaan Santri Baru TPA Nurul Ilmi</Text>
-                <Text style={styles.ctaSubtitle}>Terbuka untuk anak usia 4 s.d. 14 tahun warga lingkungan sekitar</Text>
+          {/* Fluid Call-to-Action Pendaftaran Santri */}
+          <View style={styles.ctaFluidSurface}>
+            <View style={styles.ctaFluidTopRow}>
+              <View style={styles.ctaIconOrb}>
+                <Ionicons name="school" size={20} color={THEME.coral} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ctaFluidTitle}>Penerimaan Santri Baru TPA Nurul Ilmi</Text>
+                <Text style={styles.ctaFluidSubtitle}>Usia 4 s.d. 14 tahun • Bimbingan makharijul huruf & tahsin</Text>
               </View>
             </View>
-            <Text style={styles.ctaBodyText}>
-              Infaq pendaftaran santri baru Rp 50.000 (termasuk Buku Prestasi & Raport). Iuran SPP pendidikan Rp 35.000 / bulan. Bimbingan tahsin langsung oleh para asatidz berpengalaman.
+            <Text style={styles.ctaFluidDesc}>
+              Infaq pendaftaran santri baru Rp 50.000 (termasuk Buku Prestasi & Raport). Iuran SPP pendidikan mandiri Rp 35.000 / bulan.
             </Text>
             <TouchableOpacity
-              style={styles.ctaBtn}
+              style={styles.ctaFluidActionBtn}
               onPress={() => openWhatsApp('6281299887766', 'Ustadzah Siti Aisyah - Pendaftaran Santri TPA')}
             >
               <Ionicons name="logo-whatsapp" size={16} color={THEME.white} />
-              <Text style={styles.ctaBtnText}>Daftar Santri Baru via WhatsApp (Tata Usaha)</Text>
+              <Text style={styles.ctaFluidActionText}>Daftar Santri Baru via WhatsApp Tata Usaha</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -623,92 +698,82 @@ export function OrganizationScreen() {
         /* JIKA SUB-ORG LAIN (DKM / RISMA / TAKLIM / QURBAN) DIPILIH      */
         /* ============================================================== */
         <View>
-          {/* Detail Organisasi Terpilih */}
-          <View style={[styles.orgDetailCard, { borderTopColor: selectedOrg.color, borderTopWidth: 4 }]}>
-            <View style={styles.orgDetailTop}>
+          {/* Detail Organisasi Terpilih (Seamless Card) */}
+          <View style={styles.orgHeroDetailCard}>
+            <View style={styles.orgHeroDetailTop}>
+              <View style={[styles.orgLeadingAccentBar, { backgroundColor: selectedOrg.color }]} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.orgDetailTitle}>{selectedOrg.name}</Text>
-                <Text style={styles.orgDetailDesc}>{selectedOrg.description}</Text>
+                <Text style={styles.orgHeroDetailTitle}>{selectedOrg.name}</Text>
+                <Text style={styles.orgHeroDetailDesc}>{selectedOrg.description}</Text>
               </View>
             </View>
 
-            <View style={styles.metaGrid}>
-              <View style={styles.metaBox}>
-                <Ionicons name="person-circle-outline" size={20} color={THEME.coral} />
-                <View style={{ marginLeft: 8 }}>
-                  <Text style={styles.metaLabel}>Ketua / Penanggung Jawab</Text>
-                  <Text style={styles.metaValue}>{selectedOrg.leaderName}</Text>
-                </View>
+            {/* Seamless Metric Strip */}
+            <View style={styles.orgSeamlessMetaStrip}>
+              <View style={styles.orgSeamlessMetaItem}>
+                <Text style={styles.orgMetaItemLabel}>Ketua / PJ</Text>
+                <Text style={styles.orgMetaItemValue} numberOfLines={1}>{selectedOrg.leaderName}</Text>
               </View>
-
-              <View style={styles.metaBox}>
-                <Ionicons name="people-outline" size={20} color={THEME.paynesGray} />
-                <View style={{ marginLeft: 8 }}>
-                  <Text style={styles.metaLabel}>Anggota Aktif</Text>
-                  <Text style={styles.metaValue}>{selectedOrg.memberCount} Orang</Text>
-                </View>
+              <View style={styles.orgMetaItemDivider} />
+              <View style={styles.orgSeamlessMetaItem}>
+                <Text style={styles.orgMetaItemLabel}>Anggota Aktif</Text>
+                <Text style={styles.orgMetaItemValue}>{selectedOrg.memberCount} Orang</Text>
               </View>
-
-              <View style={styles.metaBox}>
-                <Ionicons name="call-outline" size={20} color={THEME.paynesGray} />
-                <View style={{ marginLeft: 8 }}>
-                  <Text style={styles.metaLabel}>Kontak WhatsApp</Text>
-                  <Text style={styles.metaValue}>{selectedOrg.contactPhone}</Text>
-                </View>
-              </View>
-
-              <View style={styles.metaBox}>
-                <Ionicons name="wallet-outline" size={20} color={THEME.coral} />
-                <View style={{ marginLeft: 8 }}>
-                  <Text style={styles.metaLabel}>Total Dana Dikelola</Text>
-                  <Text style={[styles.metaValue, { color: THEME.coral }]}>
-                    {formatRupiah(orgTotalBalance)}
-                  </Text>
-                </View>
+              <View style={styles.orgMetaItemDivider} />
+              <View style={styles.orgSeamlessMetaItem}>
+                <Text style={styles.orgMetaItemLabel}>Dana Terkelola</Text>
+                <Text style={[styles.orgMetaItemValue, { color: THEME.coral }]}>
+                  {formatRupiah(orgTotalBalance)}
+                </Text>
               </View>
             </View>
 
             {/* Kantong Kas Terkait */}
             {orgPockets.length > 0 && (
-              <View style={styles.pocketSubSection}>
-                <Text style={styles.pocketSubTitle}>Kantong Kas Unit Ini:</Text>
+              <View style={styles.orgPocketsSubList}>
+                <Text style={styles.orgPocketsSubTitle}>Kantong Kas Unit Ini:</Text>
                 {orgPockets.map((p) => (
-                  <View key={p.id} style={styles.pocketRow}>
-                    <Ionicons name="cash-outline" size={16} color={THEME.coral} />
-                    <Text style={styles.pocketRowName}>{p.name}</Text>
-                    <Text style={styles.pocketRowBalance}>{formatRupiah(p.balance)}</Text>
+                  <View key={p.id} style={styles.orgPocketRowItem}>
+                    <Ionicons name="cash-outline" size={15} color={THEME.coral} />
+                    <Text style={styles.orgPocketRowName}>{p.name}</Text>
+                    <Text style={styles.orgPocketRowBalance}>{formatRupiah(p.balance)}</Text>
                   </View>
                 ))}
               </View>
             )}
           </View>
 
-          {/* DKM Key Contact Persons */}
-          <View style={styles.contactCard}>
-            <View style={styles.contactHeader}>
-              <Ionicons name="people" size={20} color={THEME.coral} />
-              <Text style={styles.contactTitle}>Kontak Layanan Pengurus DKM</Text>
+          {/* DKM Key Contact Persons (Seamless Phonebook Canvas) */}
+          <View style={styles.contactCanvasCard}>
+            <View style={styles.contactCanvasHeader}>
+              <Ionicons name="people" size={18} color={THEME.coral} />
+              <Text style={styles.contactCanvasTitle}>Kontak Layanan Pengurus DKM</Text>
             </View>
-            <Text style={styles.contactDesc}>
-              Silakan hubungi perwakilan pengurus untuk keperluan perizinan mushola, pendaftaran santri,
-              atau konsultasi keagamaan:
+            <Text style={styles.contactCanvasDesc}>
+              Perwakilan pengurus untuk izin mushola, konsultasi keagamaan, atau pendaftaran:
             </Text>
-            <View style={styles.contactRowsWrap}>
+            <View style={styles.contactsStreamWrap}>
               {MUSHOLA_INFO.contacts.map((c, idx) => (
-                <View key={idx} style={styles.personRow}>
-                  <View style={styles.personIcon}>
-                    <Ionicons name="person" size={16} color={THEME.coral} />
+                <View
+                  key={idx}
+                  style={[
+                    styles.contactStreamRow,
+                    idx === MUSHOLA_INFO.contacts.length - 1 && { borderBottomWidth: 0 },
+                  ]}
+                >
+                  <View style={styles.contactAvatarOrb}>
+                    <Ionicons name="person" size={15} color={THEME.coral} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.personNameText}>{c.name}</Text>
-                    <Text style={styles.personRoleText}>{c.role} • {c.formattedPhone}</Text>
+                    <Text style={styles.contactPersonName}>{c.name}</Text>
+                    <Text style={styles.contactPersonMeta}>{c.role} • {c.formattedPhone}</Text>
                   </View>
                   <TouchableOpacity
-                    style={styles.personWaBtn}
+                    style={styles.contactWaPill}
                     onPress={() => openWhatsApp(c.phone, c.name)}
                   >
-                    <Ionicons name="logo-whatsapp" size={14} color={THEME.white} />
-                    <Text style={styles.personWaText}>WhatsApp</Text>
+                    <Ionicons name="logo-whatsapp" size={13} color={THEME.white} />
+                    <Text style={styles.contactWaPillText}>WhatsApp</Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -720,11 +785,11 @@ export function OrganizationScreen() {
       {/* Role-Based Access Control Info (Interactive Switcher) */}
       <View style={styles.rbacCard}>
         <View style={styles.rbacHeader}>
-          <Ionicons name="shield-checkmark" size={22} color={THEME.coral} />
+          <Ionicons name="shield-checkmark" size={20} color={THEME.coral} />
           <View style={{ flex: 1, marginLeft: 8 }}>
-            <Text style={styles.rbacTitle}>Matriks & Pengalihan Hak Akses (RBAC)</Text>
+            <Text style={styles.rbacTitle}>Matriks Hak Akses (RBAC)</Text>
             <Text style={styles.rbacDesc}>
-              Ketuk pada kartu peran di bawah untuk menguji & merasakan langsung alur kerja tiap divisi pengurus:
+              Sentuh kartu peran untuk beralih perspektif dan merasakan alur kerja divisi pengurus:
             </Text>
           </View>
         </View>
@@ -745,7 +810,7 @@ export function OrganizationScreen() {
                 <View style={styles.roleCardTop}>
                   <View style={styles.roleTitleGroup}>
                     <View style={[styles.roleIconCircle, { backgroundColor: r.badgeBg }]}>
-                      <Ionicons name={r.icon} size={18} color={r.badgeColor} />
+                      <Ionicons name={r.icon} size={16} color={r.badgeColor} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.roleCardTitle}>{r.title}</Text>
@@ -757,7 +822,7 @@ export function OrganizationScreen() {
 
                   {isActive && (
                     <View style={styles.activeCheckBadge}>
-                      <Ionicons name="checkmark-circle" size={14} color={THEME.coral} />
+                      <Ionicons name="checkmark-circle" size={13} color={THEME.coral} />
                       <Text style={styles.activeCheckText}>Aktif</Text>
                     </View>
                   )}
@@ -799,7 +864,7 @@ const styles = StyleSheet.create({
   },
   headerBox: {
     backgroundColor: THEME.white,
-    borderRadius: 14,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
@@ -844,65 +909,87 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 16,
   },
-  orgTabCard: {
-    backgroundColor: THEME.white,
-    borderRadius: 12,
-    padding: 12,
-    marginRight: 10,
-    width: 145,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-  },
-  orgTabCardTpa: {
-    borderColor: THEME.coral,
-  },
-  orgColorIndicator: {
-    width: 28,
-    height: 4,
-    borderRadius: 2,
-    marginBottom: 8,
-  },
-  orgTabNameRow: {
+
+  // ORGANIC CAPSULE SELECTOR TABS
+  orgPillTab: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 24,
+    backgroundColor: THEME.white,
+    borderWidth: 1,
+    borderColor: THEME.silverBorder,
+    marginRight: 10,
   },
-  orgTabName: {
+  orgPillTabActive: {
+    backgroundColor: THEME.gunmetal,
+    borderColor: THEME.gunmetal,
+    shadowColor: THEME.gunmetal,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  orgPillTabTpa: {
+    borderColor: 'rgba(239, 131, 84, 0.4)',
+  },
+  orgDotCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  orgPillName: {
     fontSize: 13,
     fontWeight: '700',
     color: THEME.gunmetal,
   },
-  tpaStarBadge: {
+  orgPillNameActive: {
+    color: THEME.white,
+  },
+  tpaBadgeMicro: {
     backgroundColor: THEME.coralSoftBg,
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
   },
-  tpaStarBadgeText: {
+  tpaBadgeMicroText: {
     fontSize: 9,
     fontWeight: '800',
     color: THEME.coral,
   },
-  orgTabCategory: {
+  orgPillCategory: {
     fontSize: 10,
     color: THEME.paynesGray,
     textTransform: 'uppercase',
+    marginTop: 1,
+  },
+  orgPillCategoryActive: {
+    color: 'rgba(255, 255, 255, 0.7)',
   },
 
-  // TPA STYLES
+  // TPA SEAMLESS HERO SURFACE & METRICS
   tpaMainContainer: {
     marginBottom: 20,
   },
-  tpaBannerCard: {
+  tpaHeroSurface: {
     backgroundColor: THEME.gunmetal,
-    borderRadius: 16,
+    borderRadius: 24,
     padding: 18,
     marginBottom: 16,
+    shadowColor: THEME.gunmetal,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  tpaBannerHeader: {
+  tpaHeroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
     marginBottom: 12,
   },
   tpaEmblemCircle: {
@@ -912,168 +999,167 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.coral,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  tpaOtonomTag: {
-    backgroundColor: 'rgba(239, 131, 84, 0.25)',
-    paddingHorizontal: 6,
+  tpaOtonomBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(239, 131, 84, 0.22)',
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
     alignSelf: 'flex-start',
-    marginBottom: 3,
+    marginBottom: 4,
   },
-  tpaOtonomTagText: {
+  tpaOtonomBadgeText: {
     fontSize: 9,
     fontWeight: '800',
     color: THEME.coral,
     letterSpacing: 0.5,
   },
-  tpaBannerTitle: {
+  tpaHeroTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: THEME.white,
   },
-  tpaBannerSubtitle: {
+  tpaHeroLocation: {
     fontSize: 11,
     color: THEME.silver,
     marginTop: 1,
   },
-  tpaBannerDesc: {
+  tpaHeroDescription: {
     fontSize: 12,
-    color: THEME.silver,
+    color: 'rgba(255, 255, 255, 0.85)',
     lineHeight: 18,
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  tpaStatsGrid: {
+  tpaMetricRibbon: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    marginBottom: 14,
   },
-  tpaStatBox: {
+  metricRibbonItem: {
     flex: 1,
-    minWidth: '45%',
-    backgroundColor: THEME.gunmetalHover,
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(191, 192, 192, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  tpaStatNum: {
-    fontSize: 16,
+  metricRibbonNum: {
+    fontSize: 15,
     fontWeight: '800',
     color: THEME.white,
   },
-  tpaStatLabel: {
-    fontSize: 11,
+  metricRibbonLabel: {
+    fontSize: 10,
     fontWeight: '600',
     color: THEME.silver,
     marginTop: 2,
   },
-  tpaStatSub: {
-    fontSize: 10,
-    color: 'rgba(191, 192, 192, 0.8)',
+  metricRibbonSub: {
+    fontSize: 9,
+    color: 'rgba(255, 255, 255, 0.6)',
     marginTop: 1,
   },
-  tpaSubTabRow: {
+  metricRibbonDivider: {
+    width: 1,
+    height: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  tpaCapsuleNav: {
     flexDirection: 'row',
-    backgroundColor: THEME.gunmetalDark,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
     padding: 4,
-    borderRadius: 10,
+    borderRadius: 20,
     gap: 4,
   },
-  tpaSubTabBtn: {
+  tpaCapsuleItem: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
     paddingVertical: 8,
-    borderRadius: 7,
+    borderRadius: 16,
   },
-  tpaSubTabBtnActive: {
+  tpaCapsuleItemActive: {
     backgroundColor: THEME.coral,
   },
-  tpaSubTabBtnText: {
+  tpaCapsuleText: {
     fontSize: 11,
     fontWeight: '600',
     color: THEME.silver,
   },
-  tpaSubTabBtnTextActive: {
-    color: THEME.white,
+  tpaCapsuleTextActive: {
+    fontSize: 11,
     fontWeight: '700',
+    color: THEME.white,
   },
 
-  // TREE STYLES
-  tpaTreeCard: {
+  // FLOW & HIERARCHY CANVAS (TAB 1: STRUKTUR)
+  tpaFlowCanvas: {
     backgroundColor: THEME.white,
-    borderRadius: 16,
+    borderRadius: 22,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: THEME.silverBorder,
   },
-  tpaTreeHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 16,
-    paddingBottom: 12,
+  flowCanvasHeader: {
+    marginBottom: 14,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderColor: THEME.silverLine,
   },
-  tpaTreeHeaderTitle: {
+  flowCanvasTitle: {
     fontSize: 15,
     fontWeight: '800',
     color: THEME.gunmetal,
   },
-  tpaTreeHeaderSubtitle: {
+  flowCanvasSubtitle: {
     fontSize: 11,
     color: THEME.paynesGray,
     marginTop: 2,
   },
-  treeLevelBox: {
-    backgroundColor: THEME.silverLight,
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: THEME.silverLine,
+  flowTierWrap: {
+    marginBottom: 12,
   },
-  treeLevelBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginBottom: 10,
+  flowTierHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
   },
-  treeLevelBadgeText: {
-    fontSize: 9,
+  flowTierDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: THEME.coral,
+  },
+  flowTierTitle: {
+    fontSize: 11,
     fontWeight: '800',
-    color: THEME.white,
+    color: THEME.paynesGray,
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  treeNodeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  treeNodeCard: {
-    flex: 1,
-    minWidth: '45%',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: THEME.white,
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-  },
-  treeNodeHeadCard: {
+  headmasterHeroSurface: {
+    backgroundColor: THEME.gunmetal,
+    borderRadius: 16,
     padding: 14,
-    borderColor: THEME.coral,
-    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  treeAvatarCircle: {
+  headmasterLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  headmasterAvatarRing: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -1081,564 +1167,698 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  treeHeadName: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: THEME.gunmetal,
-  },
-  treeHeadRole: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: THEME.coral,
-    marginTop: 1,
-  },
-  treeHeadBio: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    marginTop: 3,
-    lineHeight: 16,
-  },
-  treeHeadWaBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#25D366',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginTop: 8,
-  },
-  treeHeadWaText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.white,
-  },
-  treeNodeName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-  },
-  treeNodeRole: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: THEME.coral,
-    marginTop: 1,
-  },
-  treeNodePhone: {
-    fontSize: 10,
-    color: THEME.paynesGray,
-    marginTop: 2,
-  },
-  treeNodeDesc: {
-    fontSize: 10,
-    color: THEME.paynesGray,
-    marginTop: 2,
-  },
-  treeMiniWa: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#25D366',
+  headmasterRoleTag: {
+    backgroundColor: 'rgba(239, 131, 84, 0.2)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
     alignSelf: 'flex-start',
-    marginTop: 6,
+    marginBottom: 2,
   },
-  treeMiniWaText: {
-    fontSize: 10,
+  headmasterRoleTagText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: THEME.coral,
+  },
+  headmasterName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: THEME.white,
+  },
+  headmasterBio: {
+    fontSize: 11,
+    color: THEME.silver,
+    marginTop: 2,
+  },
+  headmasterWaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#25D366',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 8,
+  },
+  headmasterWaPillText: {
+    fontSize: 11,
     fontWeight: '700',
     color: THEME.white,
   },
-  treeConnectorVertical: {
+  connectingRail: {
     alignItems: 'center',
     paddingVertical: 6,
   },
-  treeTeachersGrid: {
-    gap: 8,
+  railLine: {
+    width: 2,
+    height: 14,
+    backgroundColor: THEME.silverLine,
   },
-  teacherMiniCard: {
+  railNode: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: THEME.coral,
+    marginVertical: 2,
+  },
+  duoPillRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: THEME.white,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
+    gap: 10,
   },
-  teacherMiniIcon: {
+  duoPillCard: {
+    flex: 1,
+    backgroundColor: THEME.silverLight,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: THEME.silverLine,
+  },
+  duoPillIcon: {
     width: 28,
     height: 28,
     borderRadius: 14,
     backgroundColor: THEME.coralSoftBg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginBottom: 6,
   },
-  teacherMiniName: {
+  duoPillRole: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: THEME.coral,
+    textTransform: 'uppercase',
+  },
+  duoPillName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: THEME.gunmetal,
+    marginTop: 2,
+  },
+  duoPillMeta: {
+    fontSize: 10,
+    color: THEME.paynesGray,
+    marginTop: 2,
+  },
+  adminSeamlessCard: {
+    backgroundColor: THEME.silverLight,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: THEME.silverLine,
+  },
+  adminCardRole: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: THEME.coral,
+    textTransform: 'uppercase',
+  },
+  adminCardName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.gunmetal,
+    marginTop: 2,
+  },
+  adminCardDesc: {
+    fontSize: 11,
+    color: THEME.paynesGray,
+    marginTop: 2,
+  },
+  adminIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: THEME.coralSoftBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminWaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#25D366',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  adminWaBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: THEME.white,
+  },
+  curriculumBannerCard: {
+    backgroundColor: THEME.coralSoftBg,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: THEME.coralBorder,
+    marginBottom: 12,
+  },
+  curriculumIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: THEME.coral,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  curriculumLeaderRole: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: THEME.coral,
+    textTransform: 'uppercase',
+  },
+  curriculumLeaderName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.gunmetal,
+    marginTop: 2,
+  },
+  curriculumLeaderDesc: {
+    fontSize: 11,
+    color: THEME.paynesGray,
+    marginTop: 2,
+  },
+  teachersStreamCanvas: {
+    backgroundColor: THEME.silverLight,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: THEME.silverLine,
+  },
+  teacherStreamItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(191, 192, 192, 0.25)',
+  },
+  teacherAvatarDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: THEME.gunmetal,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  teacherStreamName: {
     fontSize: 12,
     fontWeight: '700',
     color: THEME.gunmetal,
   },
-  teacherMiniClass: {
-    fontSize: 11,
+  teacherStreamClass: {
+    fontSize: 10,
     fontWeight: '600',
     color: THEME.coral,
   },
-  teacherMiniBio: {
+  teacherStreamBio: {
     fontSize: 10,
     color: THEME.paynesGray,
-    marginTop: 1,
+  },
+  teacherWaMiniBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(37, 211, 102, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  // STAFF PROFILES
+  // STAFF DIRECTORY (TAB 2: GURU)
   tpaStaffSection: {
     marginBottom: 16,
   },
   tpaSubSectionTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: THEME.gunmetal,
     marginBottom: 10,
   },
-  staffCardsGrid: {
-    gap: 10,
-  },
-  staffProfileCard: {
+  staffStreamCanvas: {
     backgroundColor: THEME.white,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
     borderWidth: 1,
     borderColor: THEME.silverBorder,
   },
-  staffProfileTop: {
+  staffStreamRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: THEME.silverLine,
   },
-  staffAvatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: THEME.gunmetal,
+  staffAvatarGlow: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: THEME.coralSoftBg,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 2,
   },
-  staffCardName: {
+  staffNameHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  staffNameText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: THEME.gunmetal,
   },
-  staffCardRole: {
-    fontSize: 11,
-    color: THEME.coral,
-    fontWeight: '600',
-  },
-  staffRolePill: {
+  staffCategoryChip: {
     backgroundColor: THEME.silverLight,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
   },
-  staffRolePillText: {
+  staffCategoryChipText: {
     fontSize: 9,
     fontWeight: '700',
     color: THEME.paynesGray,
   },
-  staffClassRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: THEME.coralSoftBg,
-    padding: 6,
-    borderRadius: 6,
-    marginBottom: 6,
-  },
-  staffClassText: {
+  staffRoleSubtitle: {
     fontSize: 11,
     fontWeight: '600',
     color: THEME.coral,
+    marginTop: 2,
   },
-  staffBioText: {
+  assignedClassChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: THEME.coralSoftBg,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  assignedClassChipText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: THEME.coral,
+  },
+  staffBioDescription: {
     fontSize: 11,
     color: THEME.paynesGray,
     lineHeight: 16,
-    marginBottom: 10,
+    marginTop: 4,
   },
-  staffWaActionBtn: {
-    flexDirection: 'row',
+  staffChatCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#25D366',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#25D366',
-    paddingVertical: 7,
-    borderRadius: 8,
-  },
-  staffWaActionText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.white,
+    alignSelf: 'center',
+    marginLeft: 6,
   },
 
-  // CLASSES
+  // CURRICULAR STEPPER (TAB 3: KELAS)
   tpaClassSection: {
     marginBottom: 16,
   },
-  classListWrap: {
+  curriculumStepperWrap: {
     gap: 12,
   },
-  classCard: {
+  stepperItemCard: {
     backgroundColor: THEME.white,
-    borderRadius: 14,
+    borderRadius: 20,
     padding: 14,
     borderWidth: 1,
     borderColor: THEME.silverBorder,
   },
-  classCardHeader: {
+  stepperHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  classIndexBadge: {
+  stepperBadgeOrb: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: 16,
     backgroundColor: THEME.gunmetal,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  classIndexText: {
+  stepperBadgeOrbText: {
     fontSize: 12,
     fontWeight: '800',
     color: THEME.white,
   },
-  classCardTitle: {
+  stepperTitle: {
     fontSize: 14,
     fontWeight: '800',
     color: THEME.gunmetal,
   },
-  classCardLevel: {
+  stepperLevelText: {
     fontSize: 11,
     color: THEME.paynesGray,
   },
-  studentCountBadge: {
+  stepperStudentTag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: THEME.coralSoftBg,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  studentCountText: {
+  stepperStudentTagText: {
     fontSize: 11,
     fontWeight: '700',
     color: THEME.coral,
   },
-  classDetailsGrid: {
+  stepperMetaRail: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
     backgroundColor: THEME.silverLight,
+    borderRadius: 12,
     padding: 10,
-    borderRadius: 8,
-    gap: 6,
     marginBottom: 10,
   },
-  classDetailItem: {
+  stepperMetaItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
   },
-  classDetailLabel: {
-    fontSize: 10,
+  stepperMetaText: {
+    fontSize: 11,
     color: THEME.paynesGray,
+    fontWeight: '500',
   },
-  classDetailValue: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-  },
-  curriculumBox: {
+  stepperCompetencyBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: THEME.coralSoftBg,
+    backgroundColor: 'rgba(239, 131, 84, 0.08)',
+    borderRadius: 12,
     padding: 10,
-    borderRadius: 8,
     borderWidth: 1,
     borderColor: THEME.coralBorder,
   },
-  curriculumLabel: {
+  stepperCompetencyLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: THEME.coral,
   },
-  curriculumText: {
+  stepperCompetencyDesc: {
     fontSize: 11,
     color: THEME.gunmetal,
     marginTop: 2,
     lineHeight: 16,
   },
 
-  // TPA FINANCE SECTION
+  // TPA AUTONOMOUS LEDGER (TAB 4: KEUANGAN)
   tpaFinanceSection: {
     marginBottom: 16,
   },
-  tpaFinanceHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: THEME.white,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-    marginBottom: 12,
-  },
-  tpaFinanceTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: THEME.gunmetal,
-  },
-  tpaFinanceSubtitle: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  tpaTotalCard: {
+  tpaFinanceHeroCard: {
     backgroundColor: THEME.gunmetal,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: 22,
+    padding: 18,
     marginBottom: 14,
   },
-  tpaTotalLabel: {
-    fontSize: 12,
-    color: THEME.silver,
+  tpaFinanceHeroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 6,
   },
-  tpaTotalValue: {
+  tpaFinanceIconOrb: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: THEME.coral,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tpaFinanceHeroLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: THEME.silver,
+    letterSpacing: 0.5,
+  },
+  tpaFinanceHeroAmount: {
     fontSize: 24,
     fontWeight: '900',
     color: THEME.coral,
-    marginVertical: 4,
+    marginTop: 2,
   },
-  tpaTotalMeta: {
-    fontSize: 10,
-    color: THEME.silver,
+  tpaFinanceHeroSub: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.75)',
+    lineHeight: 16,
   },
   tpaPocketListHeading: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     color: THEME.gunmetal,
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  tpaPocketsGrid: {
-    gap: 8,
-  },
-  tpaPocketCard: {
+  pocketsSeamlessCanvas: {
     backgroundColor: THEME.white,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 20,
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: THEME.silverBorder,
   },
-  tpaPocketTop: {
+  pocketStreamRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderColor: THEME.silverLine,
   },
-  tpaPocketIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  pocketStreamIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: THEME.coralSoftBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  pocketStreamName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.gunmetal,
+  },
+  pocketStreamDesc: {
+    fontSize: 11,
+    color: THEME.paynesGray,
+    marginTop: 2,
+  },
+  pocketStreamBalance: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: THEME.coral,
+  },
+  pocketCategoryMiniTag: {
+    backgroundColor: THEME.silverLight,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  pocketCategoryMiniText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: THEME.paynesGray,
+    textTransform: 'uppercase',
+  },
+
+  // CTA FLUID SURFACE
+  ctaFluidSurface: {
+    backgroundColor: THEME.white,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: THEME.coralBorder,
+    marginTop: 8,
+  },
+  ctaFluidTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  ctaIconOrb: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: THEME.coralSoftBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tpaPocketName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-  },
-  tpaPocketCategory: {
-    fontSize: 9,
-    color: THEME.paynesGray,
-    textTransform: 'uppercase',
-  },
-  tpaPocketBalance: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: THEME.coral,
-    marginBottom: 4,
-  },
-  tpaPocketDesc: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    lineHeight: 16,
-  },
-
-  // CTA
-  ctaCard: {
-    backgroundColor: THEME.white,
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: THEME.coral,
-  },
-  ctaHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  ctaTitle: {
+  ctaFluidTitle: {
     fontSize: 14,
     fontWeight: '800',
     color: THEME.gunmetal,
   },
-  ctaSubtitle: {
+  ctaFluidSubtitle: {
     fontSize: 11,
     color: THEME.paynesGray,
   },
-  ctaBodyText: {
+  ctaFluidDesc: {
     fontSize: 11,
     color: THEME.paynesGray,
     lineHeight: 17,
     marginBottom: 12,
   },
-  ctaBtn: {
+  ctaFluidActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: '#25D366',
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingVertical: 11,
+    borderRadius: 14,
   },
-  ctaBtnText: {
+  ctaFluidActionText: {
     fontSize: 12,
     fontWeight: '700',
     color: THEME.white,
   },
 
-  // NON-TPA STYLES
-  orgDetailCard: {
+  // NON-TPA VIEW & CONTACT CANVAS
+  orgHeroDetailCard: {
     backgroundColor: THEME.white,
-    borderRadius: 14,
+    borderRadius: 22,
     padding: 18,
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: THEME.silverBorder,
   },
-  orgDetailTop: {
+  orgHeroDetailTop: {
+    flexDirection: 'row',
+    gap: 12,
     marginBottom: 14,
   },
-  orgDetailTitle: {
-    fontSize: 18,
+  orgLeadingAccentBar: {
+    width: 4,
+    borderRadius: 2,
+  },
+  orgHeroDetailTitle: {
+    fontSize: 17,
     fontWeight: '800',
     color: THEME.gunmetal,
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  orgDetailDesc: {
-    fontSize: 13,
+  orgHeroDetailDesc: {
+    fontSize: 12,
     color: THEME.paynesGray,
-    lineHeight: 20,
+    lineHeight: 18,
   },
-  metaGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 16,
-  },
-  metaBox: {
+  orgSeamlessMetaStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: THEME.silverLight,
-    borderRadius: 10,
-    padding: 10,
-    width: '48%',
-    borderWidth: 1,
-    borderColor: THEME.silverLine,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 14,
   },
-  metaLabel: {
+  orgSeamlessMetaItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  orgMetaItemLabel: {
     fontSize: 10,
     color: THEME.paynesGray,
   },
-  metaValue: {
-    fontSize: 13,
+  orgMetaItemValue: {
+    fontSize: 12,
     fontWeight: '700',
     color: THEME.gunmetal,
     marginTop: 2,
   },
-  pocketSubSection: {
+  orgMetaItemDivider: {
+    width: 1,
+    height: 22,
+    backgroundColor: THEME.silverLine,
+  },
+  orgPocketsSubList: {
     backgroundColor: THEME.coralSoftBg,
-    borderRadius: 10,
+    borderRadius: 14,
     padding: 12,
     borderWidth: 1,
     borderColor: THEME.coralBorder,
   },
-  pocketSubTitle: {
-    fontSize: 12,
+  orgPocketsSubTitle: {
+    fontSize: 11,
     fontWeight: '700',
     color: THEME.gunmetal,
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  pocketRow: {
+  orgPocketRowItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 3,
   },
-  pocketRowName: {
+  orgPocketRowName: {
     flex: 1,
     marginLeft: 6,
     fontSize: 12,
     color: THEME.gunmetal,
     fontWeight: '500',
   },
-  pocketRowBalance: {
-    fontSize: 13,
+  orgPocketRowBalance: {
+    fontSize: 12,
     fontWeight: '700',
     color: THEME.coral,
   },
-  contactCard: {
+  contactCanvasCard: {
     backgroundColor: THEME.white,
-    borderRadius: 16,
+    borderRadius: 22,
     padding: 16,
     borderWidth: 1,
     borderColor: THEME.silverBorder,
     marginBottom: 16,
   },
-  contactHeader: {
+  contactCanvasHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  contactTitle: {
+  contactCanvasTitle: {
     fontSize: 14,
     fontWeight: '800',
     color: THEME.gunmetal,
   },
-  contactDesc: {
-    fontSize: 12,
+  contactCanvasDesc: {
+    fontSize: 11,
     color: THEME.paynesGray,
-    marginBottom: 12,
-    lineHeight: 18,
+    lineHeight: 16,
+    marginBottom: 10,
   },
-  contactRowsWrap: {
-    gap: 8,
-  },
-  personRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  contactsStreamWrap: {
     backgroundColor: THEME.silverLight,
-    padding: 10,
-    borderRadius: 12,
+    borderRadius: 16,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: THEME.silverLine,
   },
-  personIcon: {
+  contactStreamRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(191, 192, 192, 0.25)',
+  },
+  contactAvatarOrb: {
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -1647,33 +1867,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 10,
   },
-  personNameText: {
+  contactPersonName: {
     fontSize: 13,
     fontWeight: '700',
     color: THEME.gunmetal,
   },
-  personRoleText: {
+  contactPersonMeta: {
     fontSize: 11,
     color: THEME.paynesGray,
     marginTop: 1,
   },
-  personWaBtn: {
+  contactWaPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: '#25D366',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 8,
   },
-  personWaText: {
+  contactWaPillText: {
     color: THEME.white,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
   },
+
+  // ROLE-BASED ACCESS CONTROL (RBAC)
   rbacCard: {
     backgroundColor: THEME.white,
-    borderRadius: 14,
+    borderRadius: 22,
     padding: 16,
     borderWidth: 1,
     borderColor: THEME.silverBorder,
@@ -1685,7 +1907,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   rbacTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: THEME.gunmetal,
     marginBottom: 4,
@@ -1700,7 +1922,7 @@ const styles = StyleSheet.create({
   },
   roleCardInteractive: {
     backgroundColor: THEME.silverLight,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1.5,
     borderColor: THEME.silverBorder,
