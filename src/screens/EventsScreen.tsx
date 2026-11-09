@@ -1,719 +1,586 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  Platform,
-  Alert,
-} from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMushola } from '../store/useMusholaStore';
 import { formatDateIndo } from '../utils/formatters';
 import { EventItem } from '../types';
+import { C, R, SP } from '../theme/colors';
+import { NATIVE, Press, Sheet, dur } from '../theme/motion';
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Col,
+  EmptyState,
+  Field,
+  IconName,
+  IconTile,
+  ListRow,
+  PageHeader,
+  Row,
+  Screen,
+  Segmented,
+  Stat,
+  T,
+  useBreakpoint,
+} from '../ui/kit';
 
-export function EventsScreen() {
-  const { events, addEvent, fridaySchedule, updateFridaySchedule, subOrgs, currentRole, permissions } = useMushola();
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+/* ---------- Data bantu ---------- */
 
-  // Modal Tambah Agenda
-  const [modalVisible, setModalVisible] = useState(false);
-  const [title, setTitle] = useState('');
-  const [speaker, setSpeaker] = useState('');
-  const [theme, setTheme] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [timeStart, setTimeStart] = useState('05:00');
-  const [timeEnd, setTimeEnd] = useState('06:30');
-  const [location, setLocation] = useState('Ruang Utama Mushola Al-Muttaqin');
+type Category = EventItem['category'];
 
-  // Sub-org yang dapat dipilih (jika Bendahara Sub, hanya unitnya)
-  const availableSubOrgs = subOrgs.filter((s) => {
-    if (currentRole === 'BENDAHARA_SUB') {
-      return s.id !== 'org-dkm';
-    }
-    return true;
-  });
+const CAT: Record<Category, { label: string; icon: IconName }> = {
+  KAJIAN_RUTIN: { label: 'Kajian rutin', icon: 'book-outline' },
+  KAJIAN_AKBAR: { label: 'Kajian akbar', icon: 'people-outline' },
+  SHOLAT_JUMAT: { label: 'Sholat Jumat', icon: 'moon-outline' },
+  TPA: { label: 'TPA', icon: 'school-outline' },
+  KERJA_BAKTI: { label: 'Kerja bakti', icon: 'construct-outline' },
+  PHBI: { label: 'PHBI', icon: 'star-outline' },
+};
+const CAT_ORDER: Category[] = ['KAJIAN_RUTIN', 'KAJIAN_AKBAR', 'KERJA_BAKTI', 'SHOLAT_JUMAT', 'TPA', 'PHBI'];
+/** Filter yang selalu tampil; kategori lain tampil bila ada datanya. */
+const CAT_ALWAYS: Category[] = ['KAJIAN_RUTIN', 'KAJIAN_AKBAR', 'KERJA_BAKTI'];
 
-  const [subOrgId, setSubOrgId] = useState(availableSubOrgs[0]?.id || 'org-dkm');
+const pad = (n: number) => String(n).padStart(2, '0');
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function parseLocal(iso: string) {
+  const d = new Date(`${iso}T00:00:00`);
+  return isNaN(d.getTime()) ? null : d;
+}
+function shortDate(iso: string) {
+  const d = parseLocal(iso);
+  return d ? d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }) : iso;
+}
+const isISODate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !!parseLocal(v);
+const isTime = (v: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
 
-  // Modal Edit Petugas Jumat
-  const [fridayModalVisible, setFridayModalVisible] = useState(false);
-  const [editKhotib, setEditKhotib] = useState(fridaySchedule.khotib);
-  const [editImam, setEditImam] = useState(fridaySchedule.imam);
-  const [editMuadzin, setEditMuadzin] = useState(fridaySchedule.muadzin);
-  const [editBilal, setEditBilal] = useState(fridaySchedule.bilal);
-  const [editTheme, setEditTheme] = useState(fridaySchedule.theme);
+/* ---------- Komponen lokal (belum ada di kit) ---------- */
 
-  const filteredEvents = events.filter((ev) => {
-    if (selectedCategory === 'ALL') return true;
-    return ev.category === selectedCategory;
-  });
-
-  const handleSaveEvent = () => {
-    if (!permissions.canAddEvent) {
-      alertMsg('Akses Ditolak', `Peran ${permissions.roleTitle} tidak memiliki izin menambah agenda.`);
-      return;
-    }
-    if (!title.trim()) {
-      alertMsg('Peringatan', 'Judul agenda / kajian wajib diisi');
-      return;
-    }
-
-    addEvent({
-      subOrgId,
-      title: title.trim(),
-      category: 'KAJIAN_RUTIN',
-      date,
-      timeStart,
-      timeEnd,
-      speakerOrOfficer: speaker.trim(),
-      theme: theme.trim(),
-      location,
-      isPublic: true,
-    });
-
-    // Reset
-    setTitle('');
-    setSpeaker('');
-    setTheme('');
-    setModalVisible(false);
-    alertMsg('Berhasil', 'Agenda kajian baru telah ditambahkan!');
-  };
-
-  const handleSaveFridaySchedule = () => {
-    if (!permissions.canEditFridaySchedule) {
-      alertMsg('Akses Ditolak', 'Hanya Sekretaris dan Ketua DKM yang dapat mengedit petugas Jumat.');
-      return;
-    }
-    updateFridaySchedule({
-      ...fridaySchedule,
-      khotib: editKhotib.trim() || fridaySchedule.khotib,
-      imam: editImam.trim() || fridaySchedule.imam,
-      muadzin: editMuadzin.trim() || fridaySchedule.muadzin,
-      bilal: editBilal.trim() || fridaySchedule.bilal,
-      theme: editTheme.trim() || fridaySchedule.theme,
-    });
-    setFridayModalVisible(false);
-    alertMsg('Berhasil', 'Jadwal petugas sholat Jumat telah diperbarui!');
-  };
-
-  const alertMsg = (title: string, msg: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}: ${msg}`);
-    } else {
-      Alert.alert(title, msg);
-    }
-  };
-
+/** Pilihan pil yang membungkus (radio), untuk form di dalam Sheet. */
+function ChoiceGroup<K extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { key: K; label: string }[];
+  value: K;
+  onChange: (k: K) => void;
+}) {
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Banner Sholat Jumat */}
-        <View style={styles.fridayBanner}>
-          <View style={styles.fridayBadge}>
-            <Ionicons name="sparkles" size={14} color="#EF8354" />
-            <Text style={styles.fridayBadgeText}>JADWAL SHOLAT JUMAT PEKAN INI</Text>
-          </View>
-          <Text style={styles.fridayDate}>{fridaySchedule.date}</Text>
-          <Text style={styles.fridayTheme}>"{fridaySchedule.theme}"</Text>
-
-          <View style={styles.officerRow}>
-            <View style={styles.officerPill}>
-              <Text style={styles.officerRoleLabel}>Khotib</Text>
-              <Text style={styles.officerNameText}>{fridaySchedule.khotib}</Text>
-            </View>
-            <View style={styles.officerPill}>
-              <Text style={styles.officerRoleLabel}>Imam</Text>
-              <Text style={styles.officerNameText}>{fridaySchedule.imam}</Text>
-            </View>
-          </View>
-
-          <View style={[styles.officerRow, { marginTop: 6 }]}>
-            <View style={styles.officerPill}>
-              <Text style={styles.officerRoleLabel}>Muadzin</Text>
-              <Text style={styles.officerNameText}>{fridaySchedule.muadzin}</Text>
-            </View>
-            <View style={styles.officerPill}>
-              <Text style={styles.officerRoleLabel}>Bilal</Text>
-              <Text style={styles.officerNameText}>{fridaySchedule.bilal}</Text>
-            </View>
-          </View>
-
-          {permissions.canEditFridaySchedule && (
-            <TouchableOpacity
-              style={styles.editFridayBtn}
-              onPress={() => setFridayModalVisible(true)}
-              activeOpacity={0.8}
+    <View style={{ gap: 6 }}>
+      <T v="label">{label}</T>
+      <View style={st.choiceWrap} accessibilityRole="radiogroup" accessibilityLabel={label}>
+        {options.map((o) => {
+          const on = o.key === value;
+          return (
+            <Press
+              key={o.key}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on }}
+              onPress={() => onChange(o.key)}
+              hitSlop={4}
+              style={[st.choice, on && st.choiceOn]}
+              hoverStyle={on ? undefined : { backgroundColor: C.g50 }}
             >
-              <Ionicons name="create-outline" size={13} color="#EF8354" />
-              <Text style={styles.editFridayBtnText}>Edit Petugas Sholat Jumat</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Action Header Agenda */}
-        <View style={styles.actionHeader}>
-          <Text style={styles.actionHeaderTitle}>Kalender Kajian & Kegiatan</Text>
-          {permissions.canAddEvent ? (
-            <TouchableOpacity
-              style={styles.addBtn}
-              onPress={() => setModalVisible(true)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="add" size={16} color="#FFFFFF" />
-              <Text style={styles.addBtnText}>Tambah Agenda</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.readOnlyRoleBadge}>
-              <Ionicons name="eye-outline" size={13} color="#64748B" />
-              <Text style={styles.readOnlyRoleText}>
-                Mode Terbuka Umum ({permissions.roleTitle})
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Filter Kategori */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
-          {[
-            { id: 'ALL', label: 'Semua Kegiatan' },
-            { id: 'KAJIAN_RUTIN', label: 'Kajian Rutin' },
-            { id: 'KAJIAN_AKBAR', label: 'Kajian Akbar' },
-            { id: 'KERJA_BAKTI', label: 'Kerja Bakti' },
-          ].map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              style={[
-                styles.filterChip,
-                selectedCategory === cat.id && styles.filterChipActive,
-              ]}
-              onPress={() => setSelectedCategory(cat.id)}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  selectedCategory === cat.id && styles.filterChipTextActive,
-                ]}
-              >
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Daftar Agenda */}
-        {filteredEvents.map((item) => (
-          <View key={item.id} style={styles.eventCard}>
-            <View style={styles.cardHeader}>
-              <View style={styles.dateTag}>
-                <Ionicons name="calendar-outline" size={13} color="#EF8354" />
-                <Text style={styles.dateTagText}>{formatDateIndo(item.date)}</Text>
-              </View>
-              <View style={styles.timeTag}>
-                <Ionicons name="time-outline" size={13} color="#475569" />
-                <Text style={styles.timeTagText}>
-                  {item.timeStart} - {item.timeEnd} WIB
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.cardTitle}>{item.title}</Text>
-
-            {item.theme ? (
-              <Text style={styles.cardTheme}>Tema: "{item.theme}"</Text>
-            ) : null}
-
-            {item.speakerOrOfficer ? (
-              <View style={styles.speakerBox}>
-                <Ionicons name="mic-outline" size={14} color="#EF8354" />
-                <Text style={styles.speakerText}>Narasumber: {item.speakerOrOfficer}</Text>
-              </View>
-            ) : null}
-
-            <View style={styles.cardFooter}>
-              <View style={styles.locationBox}>
-                <Ionicons name="location-outline" size={13} color="#64748B" />
-                <Text style={styles.locationText}>{item.location}</Text>
-              </View>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* Modal Tambah Agenda */}
-      <Modal visible={modalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Tambah Agenda / Kajian Baru</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={{ maxHeight: 420 }}>
-              <Text style={styles.inputLabel}>Judul Agenda:</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="cth: Kajian Ahad Shubuh: Tazkiyatun Nafs"
-                value={title}
-                onChangeText={setTitle}
-              />
-
-              <Text style={styles.inputLabel}>Narasumber / Penceramah:</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="cth: Ustadz Dr. H. Khalid Basalamah, M.A."
-                value={speaker}
-                onChangeText={setSpeaker}
-              />
-
-              <Text style={styles.inputLabel}>Tema / Pembahasan:</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="cth: Meraih Ketenangan Hati dalam Sholat"
-                value={theme}
-                onChangeText={setTheme}
-              />
-
-              <Text style={styles.inputLabel}>Tanggal (YYYY-MM-DD):</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="2026-10-25"
-                value={date}
-                onChangeText={setDate}
-              />
-
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Jam Mulai:</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="05:00"
-                    value={timeStart}
-                    onChangeText={setTimeStart}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Jam Selesai:</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="06:30"
-                    value={timeEnd}
-                    onChangeText={setTimeEnd}
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.inputLabel}>Lokasi:</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Ruang Utama Mushola Al-Muttaqin"
-                value={location}
-                onChangeText={setLocation}
-              />
-            </ScrollView>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.cancelBtnText}>Batal</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEvent}>
-                <Text style={styles.submitBtnText}>Simpan Agenda</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal Edit Petugas Sholat Jumat (Khusus Sekretaris & Ketua DKM) */}
-      <Modal visible={fridayModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Petugas Sholat Jumat</Text>
-              <TouchableOpacity onPress={() => setFridayModalVisible(false)}>
-                <Ionicons name="close" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={{ maxHeight: 420 }}>
-              <Text style={styles.inputLabel}>Tema Khutbah Jumat:</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editTheme}
-                onChangeText={setEditTheme}
-                placeholder="Tema Khutbah"
-              />
-
-              <Text style={styles.inputLabel}>Nama Khotib:</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editKhotib}
-                onChangeText={setEditKhotib}
-                placeholder="Nama Khotib"
-              />
-
-              <Text style={styles.inputLabel}>Nama Imam:</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editImam}
-                onChangeText={setEditImam}
-                placeholder="Nama Imam"
-              />
-
-              <Text style={styles.inputLabel}>Nama Muadzin:</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editMuadzin}
-                onChangeText={setEditMuadzin}
-                placeholder="Nama Muadzin"
-              />
-
-              <Text style={styles.inputLabel}>Nama Bilal:</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editBilal}
-                onChangeText={setEditBilal}
-                placeholder="Nama Bilal"
-              />
-            </ScrollView>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => setFridayModalVisible(false)}
-              >
-                <Text style={styles.cancelBtnText}>Batal</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.submitBtn} onPress={handleSaveFridaySchedule}>
-                <Text style={styles.submitBtnText}>Simpan Perubahan</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+              <T v="label" color={on ? C.onDark : C.inkMuted}>
+                {o.label}
+              </T>
+            </Press>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  fridayBanner: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 18,
+/** Baris info ikon + label + nilai di dalam sheet rincian. */
+function InfoLine({ icon, label, value }: { icon: IconName; label: string; value: string }) {
+  return (
+    <View style={st.info}>
+      <Ionicons name={icon} size={18} color={C.inkMuted} aria-hidden />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <T v="small" color={C.inkMuted}>
+          {label}
+        </T>
+        <T v="bodyStrong">{value}</T>
+      </View>
+    </View>
+  );
+}
+
+/** Konfirmasi singkat yang memudar setelah sekitar 2 detik (DESIGN.md bagian 7). */
+function useNotice<W extends string>() {
+  const [msg, setMsg] = useState<{ text: string; where: W } | null>(null);
+  const v = useRef(new Animated.Value(0)).current;
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const show = useCallback(
+    (text: string, where: W) => {
+      setMsg({ text, where });
+      v.setValue(0);
+      Animated.timing(v, { toValue: 1, duration: dur(150), useNativeDriver: NATIVE }).start();
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => {
+        Animated.timing(v, { toValue: 0, duration: dur(300), useNativeDriver: NATIVE }).start(() => setMsg(null));
+      }, 2200);
+    },
+    [v]
+  );
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+  const render = (where: W) =>
+    msg && msg.where === where ? (
+      <Animated.View style={[st.notice, { opacity: v }]} accessibilityLiveRegion="polite">
+        <Ionicons name="checkmark-circle" size={18} color={C.g700} aria-hidden />
+        <T v="bodyStrong" color={C.g800} style={{ flex: 1 }}>
+          {msg.text}
+        </T>
+      </Animated.View>
+    ) : null;
+  return { show, render };
+}
+
+/** Kartu ringkasan: HP hero selebar penuh lalu 2 per baris, tablet 2 per baris, desktop 4 sebaris. */
+function StatGrid({ items }: { items: React.ReactNode[] }) {
+  const { isPhone, isDesktop } = useBreakpoint();
+  if (isDesktop) return <Row stackBelow={0}>{items}</Row>;
+  const [first, ...rest] = items;
+  const head = isPhone ? [[first]] : [];
+  const pool = isPhone ? rest : items;
+  const rows: React.ReactNode[][] = [...head];
+  for (let i = 0; i < pool.length; i += 2) rows.push(pool.slice(i, i + 2));
+  return (
+    <View style={{ gap: isPhone ? SP.m : SP.l }}>
+      {rows.map((r, i) => (
+        <Row key={i} stackBelow={0} gap={isPhone ? SP.m : SP.l}>
+          {r}
+        </Row>
+      ))}
+    </View>
+  );
+}
+
+/* ---------- Layar ---------- */
+
+type NoticeWhere = 'top' | 'friday';
+
+export function EventsScreen() {
+  const { events, addEvent, fridaySchedule, updateFridaySchedule, subOrgs, currentRole, permissions } = useMushola();
+  const { isDesktop } = useBreakpoint();
+  const notice = useNotice<NoticeWhere>();
+  const today = todayISO();
+
+  const [filter, setFilter] = useState<'ALL' | Category>('ALL');
+  const [detail, setDetail] = useState<EventItem | null>(null);
+
+  // Sub-organisasi yang boleh dipilih (Bendahara Sub tidak bisa memilih DKM pusat).
+  const availableSubOrgs = useMemo(
+    () => subOrgs.filter((o) => (currentRole === 'BENDAHARA_SUB' ? o.id !== 'org-dkm' : true)),
+    [subOrgs, currentRole]
+  );
+
+  /* Form tambah agenda */
+  const [addOpen, setAddOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState<Category>('KAJIAN_RUTIN');
+  const [subOrgId, setSubOrgId] = useState('');
+  const [speaker, setSpeaker] = useState('');
+  const [theme, setTheme] = useState('');
+  const [date, setDate] = useState(today);
+  const [timeStart, setTimeStart] = useState('05:00');
+  const [timeEnd, setTimeEnd] = useState('06:30');
+  const [location, setLocation] = useState('Ruang utama Musholla Al Muttaqin');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const openAdd = () => {
+    if (!availableSubOrgs.some((o) => o.id === subOrgId)) setSubOrgId(availableSubOrgs[0]?.id ?? 'org-dkm');
+    setErrors({});
+    setAddOpen(true);
+  };
+
+  const saveEvent = () => {
+    if (!permissions.canAddEvent) return;
+    const e: Record<string, string> = {};
+    if (!title.trim()) e.title = 'Judul agenda wajib diisi.';
+    if (!isISODate(date.trim())) e.date = 'Tulis tanggal dengan format TTTT-BB-HH, contoh 2026-11-20.';
+    if (!isTime(timeStart.trim())) e.timeStart = 'Format jam JJ:MM, contoh 05:00.';
+    if (!isTime(timeEnd.trim())) e.timeEnd = 'Format jam JJ:MM, contoh 06:30.';
+    else if (isTime(timeStart.trim()) && timeEnd.trim() <= timeStart.trim()) e.timeEnd = 'Jam selesai harus setelah jam mulai.';
+    if (!location.trim()) e.location = 'Lokasi wajib diisi.';
+    setErrors(e);
+    if (Object.keys(e).length) return;
+
+    addEvent({
+      subOrgId: subOrgId || availableSubOrgs[0]?.id || 'org-dkm',
+      title: title.trim(),
+      category,
+      date: date.trim(),
+      timeStart: timeStart.trim(),
+      timeEnd: timeEnd.trim(),
+      speakerOrOfficer: speaker.trim(),
+      theme: theme.trim(),
+      location: location.trim(),
+      isPublic: true,
+    });
+    setTitle('');
+    setSpeaker('');
+    setTheme('');
+    setAddOpen(false);
+    notice.show('Agenda ditambahkan ke kalender.', 'top');
+  };
+
+  /* Form petugas Jumat */
+  const [fridayOpen, setFridayOpen] = useState(false);
+  const [fKhotib, setFKhotib] = useState('');
+  const [fImam, setFImam] = useState('');
+  const [fMuadzin, setFMuadzin] = useState('');
+  const [fBilal, setFBilal] = useState('');
+  const [fTheme, setFTheme] = useState('');
+  const [fErrors, setFErrors] = useState<Record<string, string>>({});
+
+  const openFriday = () => {
+    setFKhotib(fridaySchedule.khotib);
+    setFImam(fridaySchedule.imam);
+    setFMuadzin(fridaySchedule.muadzin);
+    setFBilal(fridaySchedule.bilal);
+    setFTheme(fridaySchedule.theme);
+    setFErrors({});
+    setFridayOpen(true);
+  };
+
+  const saveFriday = () => {
+    if (!permissions.canEditFridaySchedule) return;
+    const e: Record<string, string> = {};
+    if (!fKhotib.trim()) e.khotib = 'Nama khotib wajib diisi.';
+    if (!fImam.trim()) e.imam = 'Nama imam wajib diisi.';
+    if (!fMuadzin.trim()) e.muadzin = 'Nama muadzin wajib diisi.';
+    if (!fBilal.trim()) e.bilal = 'Nama bilal wajib diisi.';
+    setFErrors(e);
+    if (Object.keys(e).length) return;
+    updateFridaySchedule({
+      ...fridaySchedule,
+      khotib: fKhotib.trim(),
+      imam: fImam.trim(),
+      muadzin: fMuadzin.trim(),
+      bilal: fBilal.trim(),
+      theme: fTheme.trim() || fridaySchedule.theme,
+    });
+    setFridayOpen(false);
+    notice.show('Petugas sholat Jumat diperbarui.', 'friday');
+  };
+
+  /* Turunan data */
+  const upcoming = useMemo(
+    () => events.filter((e) => e.date >= today).sort((a, b) => (a.date + a.timeStart).localeCompare(b.date + b.timeStart)),
+    [events, today]
+  );
+  const past = useMemo(
+    () => events.filter((e) => e.date < today).sort((a, b) => (b.date + b.timeStart).localeCompare(a.date + a.timeStart)),
+    [events, today]
+  );
+  const match = (e: EventItem) => filter === 'ALL' || e.category === filter;
+  const upcomingShown = upcoming.filter(match);
+  const pastShown = past.filter(match);
+
+  const countBy = (c: Category) => events.filter((e) => e.category === c).length;
+  const kajianCount = countBy('KAJIAN_RUTIN') + countBy('KAJIAN_AKBAR');
+  const monthKey = today.slice(0, 7);
+  const monthCount = events.filter((e) => e.date.startsWith(monthKey)).length;
+  const monthName = new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  const next = upcoming[0];
+
+  const filterOptions = [
+    { key: 'ALL' as const, label: `Semua (${events.length})` },
+    ...CAT_ORDER.filter((c) => CAT_ALWAYS.includes(c) || countBy(c) > 0).map((c) => ({
+      key: c,
+      label: `${CAT[c].label} (${countBy(c)})`,
+    })),
+  ];
+
+  const subOrgName = (id: string) => subOrgs.find((o) => o.id === id)?.name;
+
+  const renderEvent = (e: EventItem, i: number, arr: EventItem[], isPast: boolean) => {
+    const meta = [shortDate(e.date), `${e.timeStart}${e.timeEnd ? ` - ${e.timeEnd}` : ""} WIB`, e.speakerOrOfficer].filter(Boolean).join(' · ');
+    const badge =
+      e.date === today ? (
+        <Badge label="Hari ini" tone="success" />
+      ) : isPast ? (
+        <Badge label="Selesai" tone="neutral" />
+      ) : (
+        <Badge label={CAT[e.category]?.label ?? 'Agenda'} tone="neutral" />
+      );
+    return (
+      <ListRow
+        key={e.id}
+        leading={<IconTile icon={CAT[e.category]?.icon ?? 'calendar-outline'} tone={isPast ? 'neutral' : 'green'} />}
+        title={e.title}
+        subtitle={meta}
+        trailing={badge}
+        onPress={() => setDetail(e)}
+        accessibilityLabel={`Buka rincian ${e.title}, ${formatDateIndo(e.date)}`}
+        last={i === arr.length - 1}
+      />
+    );
+  };
+
+  const officers: { role: string; name: string }[] = [
+    { role: 'Khotib', name: fridaySchedule.khotib },
+    { role: 'Imam', name: fridaySchedule.imam },
+    { role: 'Muadzin', name: fridaySchedule.muadzin },
+    { role: 'Bilal', name: fridaySchedule.bilal },
+  ];
+
+  const fridayCard = (
+    <Card delay={160}>
+      <CardHeader
+        title="Petugas sholat Jumat"
+        subtitle={fridaySchedule.date || 'Tanggal belum diatur'}
+        action={
+          permissions.canEditFridaySchedule ? (
+            <Button compact variant="outline" icon="create-outline" label="Ubah" accessibilityLabel="Ubah petugas sholat Jumat" onPress={openFriday} />
+          ) : undefined
+        }
+      />
+      {notice.render('friday')}
+      {fridaySchedule.theme ? (
+        <View style={st.themeBox}>
+          <T v="small" color={C.inkMuted}>
+            Tema khutbah
+          </T>
+          <T v="bodyStrong">{fridaySchedule.theme}</T>
+        </View>
+      ) : null}
+      {officers.map((o, i) => (
+        <ListRow
+          key={o.role}
+          leading={<Avatar name={o.name || o.role} size={40} dark={i === 0} />}
+          title={o.name || 'Belum ditentukan'}
+          subtitle={o.role}
+          last={i === officers.length - 1}
+        />
+      ))}
+    </Card>
+  );
+
+  const accessCard = !permissions.canAddEvent ? (
+    <Card tone="sunken" delay={220}>
+      <View style={st.info}>
+        <Ionicons name="eye-outline" size={18} color={C.inkMuted} aria-hidden />
+        <T v="body" color={C.inkMuted} style={{ flex: 1 }}>
+          Anda melihat sebagai {permissions.roleTitle}. Agenda baru dicatat oleh pengurus DKM, sekretaris, atau bendahara unit.
+        </T>
+      </View>
+    </Card>
+  ) : null;
+
+  const filterEmpty = upcomingShown.length === 0 && pastShown.length === 0;
+
+  return (
+    <Screen>
+      <PageHeader
+        title="Agenda"
+        subtitle="Kalender kajian, kegiatan warga, dan petugas sholat Jumat."
+        actions={
+          <>
+            {permissions.canEditFridaySchedule ? (
+              <Button variant="outline" icon="people-outline" label="Atur petugas Jumat" onPress={openFriday} />
+            ) : null}
+            {permissions.canAddEvent ? <Button icon="add" label="Tambah agenda" onPress={openAdd} /> : null}
+          </>
+        }
+      />
+      {notice.render('top')}
+
+      <StatGrid
+        items={[
+          <Stat
+            key="up"
+            hero
+            label="Agenda mendatang"
+            value={String(upcoming.length)}
+            note={next ? `Berikutnya: ${next.title}, ${shortDate(next.date)}` : 'Belum ada agenda terjadwal'}
+          />,
+          <Stat key="kajian" delay={50} label="Kajian" value={String(kajianCount)} note="Kajian rutin dan akbar tercatat" />,
+          <Stat key="bakti" delay={100} label="Kerja bakti" value={String(countBy('KERJA_BAKTI'))} note="Kegiatan kerja bakti tercatat" />,
+          <Stat key="bulan" delay={150} label="Bulan ini" value={String(monthCount)} note={`Agenda pada ${monthName}`} />,
+        ]}
+      />
+
+      <Row>
+        <Col flex={isDesktop ? 3 : 1}>
+          <Card delay={120}>
+            <CardHeader title="Kalender kajian & kegiatan" subtitle="Ketuk agenda untuk melihat tema, narasumber, dan lokasi." />
+            <Segmented label="Saring kategori agenda" options={filterOptions} value={filter} onChange={setFilter} />
+            <View style={{ marginTop: SP.m }}>
+              {events.length === 0 ? (
+                <EmptyState
+                  icon="calendar-outline"
+                  title="Belum ada agenda"
+                  text={
+                    permissions.canAddEvent
+                      ? 'Kalender masih kosong. Catat kajian atau kegiatan pertama lewat tombol Tambah agenda.'
+                      : 'Kalender masih kosong. Pengurus DKM akan mengumumkan kajian dan kegiatan di sini.'
+                  }
+                  action={permissions.canAddEvent ? <Button label="Tambah agenda" icon="add" onPress={openAdd} /> : undefined}
+                />
+              ) : filterEmpty ? (
+                <EmptyState
+                  icon="funnel-outline"
+                  title="Tidak ada agenda di kategori ini"
+                  text="Belum ada agenda dengan kategori yang dipilih. Pilih Semua untuk melihat seluruh kalender."
+                  action={<Button variant="outline" label="Tampilkan semua" onPress={() => setFilter('ALL')} />}
+                />
+              ) : (
+                <>
+                  <T v="h3" style={st.groupHead}>
+                    Mendatang
+                  </T>
+                  {upcomingShown.length ? (
+                    upcomingShown.map((e, i, a) => renderEvent(e, i, a, false))
+                  ) : (
+                    <T v="body" color={C.inkMuted} style={st.groupEmpty}>
+                      Belum ada agenda mendatang di kategori ini.
+                    </T>
+                  )}
+                  {pastShown.length ? (
+                    <>
+                      <T v="h3" style={[st.groupHead, { marginTop: SP.xl }]}>
+                        Sudah lewat
+                      </T>
+                      {pastShown.map((e, i, a) => renderEvent(e, i, a, true))}
+                    </>
+                  ) : null}
+                </>
+              )}
+            </View>
+          </Card>
+        </Col>
+        <Col flex={1}>
+          {fridayCard}
+          {accessCard}
+        </Col>
+      </Row>
+
+      {/* Rincian agenda */}
+      <Sheet
+        visible={!!detail}
+        onClose={() => setDetail(null)}
+        title={detail?.title ?? ''}
+        subtitle={detail ? CAT[detail.category]?.label : undefined}
+      >
+        {detail ? (
+          <View style={{ gap: SP.m }}>
+            <InfoLine icon="calendar-outline" label="Tanggal" value={formatDateIndo(detail.date)} />
+            <InfoLine icon="time-outline" label="Waktu" value={`${detail.timeStart}${detail.timeEnd ? ` - ${detail.timeEnd}` : ""} WIB`} />
+            {detail.speakerOrOfficer ? <InfoLine icon="mic-outline" label="Narasumber" value={detail.speakerOrOfficer} /> : null}
+            {detail.theme ? <InfoLine icon="chatbubble-ellipses-outline" label="Tema" value={detail.theme} /> : null}
+            <InfoLine icon="location-outline" label="Lokasi" value={detail.location} />
+            {subOrgName(detail.subOrgId) ? (
+              <InfoLine icon="business-outline" label="Penyelenggara" value={subOrgName(detail.subOrgId) as string} />
+            ) : null}
+            {detail.notes ? <InfoLine icon="document-text-outline" label="Catatan" value={detail.notes} /> : null}
+          </View>
+        ) : null}
+      </Sheet>
+
+      {/* Tambah agenda */}
+      <Sheet visible={addOpen} onClose={() => setAddOpen(false)} title="Tambah agenda" subtitle="Agenda tampil untuk semua warga setelah disimpan.">
+        <View style={st.form}>
+          <Field label="Judul agenda" value={title} onChangeText={setTitle} placeholder="Contoh: Kajian Ahad subuh" error={errors.title} />
+          <ChoiceGroup
+            label="Kategori"
+            value={category}
+            onChange={setCategory}
+            options={CAT_ORDER.map((c) => ({ key: c, label: CAT[c].label }))}
+          />
+          {availableSubOrgs.length > 1 ? (
+            <ChoiceGroup
+              label="Penyelenggara"
+              value={subOrgId}
+              onChange={setSubOrgId}
+              options={availableSubOrgs.map((o) => ({ key: o.id, label: o.shortName || o.name }))}
+            />
+          ) : null}
+          <Field label="Narasumber atau penceramah" value={speaker} onChangeText={setSpeaker} placeholder="Opsional" />
+          <Field label="Tema atau pembahasan" value={theme} onChangeText={setTheme} placeholder="Opsional" />
+          <Field label="Tanggal" value={date} onChangeText={setDate} placeholder="TTTT-BB-HH" error={errors.date} hint="Format TTTT-BB-HH" />
+          <View style={st.pair}>
+            <Field style={{ flex: 1 }} label="Jam mulai" value={timeStart} onChangeText={setTimeStart} placeholder="05:00" error={errors.timeStart} />
+            <Field style={{ flex: 1 }} label="Jam selesai" value={timeEnd} onChangeText={setTimeEnd} placeholder="06:30" error={errors.timeEnd} />
+          </View>
+          <Field label="Lokasi" value={location} onChangeText={setLocation} error={errors.location} />
+          <View style={st.formActions}>
+            <Button variant="ghost" label="Batal" onPress={() => setAddOpen(false)} />
+            <Button icon="checkmark" label="Simpan agenda" onPress={saveEvent} />
+          </View>
+        </View>
+      </Sheet>
+
+      {/* Petugas Jumat */}
+      <Sheet
+        visible={fridayOpen}
+        onClose={() => setFridayOpen(false)}
+        title="Atur petugas sholat Jumat"
+        subtitle={fridaySchedule.date || undefined}
+      >
+        <View style={st.form}>
+          <Field label="Tema khutbah" value={fTheme} onChangeText={setFTheme} placeholder="Tema khutbah Jumat" />
+          <Field label="Khotib" value={fKhotib} onChangeText={setFKhotib} error={fErrors.khotib} />
+          <Field label="Imam" value={fImam} onChangeText={setFImam} error={fErrors.imam} />
+          <Field label="Muadzin" value={fMuadzin} onChangeText={setFMuadzin} error={fErrors.muadzin} />
+          <Field label="Bilal" value={fBilal} onChangeText={setFBilal} error={fErrors.bilal} />
+          <View style={st.formActions}>
+            <Button variant="ghost" label="Batal" onPress={() => setFridayOpen(false)} />
+            <Button icon="checkmark" label="Simpan petugas" onPress={saveFriday} />
+          </View>
+        </View>
+      </Sheet>
+    </Screen>
+  );
+}
+
+const st = StyleSheet.create({
+  choiceWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: SP.s },
+  choice: {
+    minHeight: 36,
+    paddingHorizontal: SP.l,
+    borderRadius: R.pill,
     borderWidth: 1,
-    borderColor: 'rgba(191, 192, 192, 0.4)',
-    marginBottom: 18,
-    shadowColor: '#2D3142',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  fridayBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 6,
-  },
-  fridayBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#EF8354',
-    letterSpacing: 0.5,
-  },
-  fridayDate: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#2D3142',
-    marginBottom: 4,
-  },
-  fridayTheme: {
-    fontSize: 13,
-    fontStyle: 'italic',
-    color: '#4F5D75',
-    marginBottom: 12,
-  },
-  officerRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  officerPill: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(191, 192, 192, 0.25)',
-  },
-  officerRoleLabel: {
-    fontSize: 10,
-    color: '#4F5D75',
-    textTransform: 'uppercase',
-    fontWeight: '600',
-  },
-  officerNameText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2D3142',
-    marginTop: 2,
-  },
-  editFridayBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderColor: C.line,
+    backgroundColor: C.sunken,
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#FFFFFF',
+  },
+  choiceOn: { backgroundColor: C.g700, borderColor: C.g700 },
+  info: { flexDirection: 'row', alignItems: 'flex-start', gap: SP.m },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SP.s,
+    backgroundColor: C.g50,
     borderWidth: 1,
-    borderColor: '#BFC0C0',
-    paddingVertical: 7,
-    borderRadius: 8,
-    marginTop: 10,
+    borderColor: C.g100,
+    borderRadius: R.inner,
+    paddingHorizontal: SP.l,
+    paddingVertical: SP.m,
+    marginBottom: SP.s,
   },
-  editFridayBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#EF8354',
+  themeBox: {
+    backgroundColor: C.sunken,
+    borderRadius: R.inner,
+    padding: SP.m,
+    gap: 2,
+    marginBottom: SP.xs,
   },
-  readOnlyRoleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  readOnlyRoleText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  actionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  actionHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  addBtn: {
-    backgroundColor: '#EF8354',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 4,
-  },
-  addBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  filterRow: {
-    flexDirection: 'row',
-    marginBottom: 14,
-  },
-  filterChip: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginRight: 8,
-  },
-  filterChipActive: {
-    backgroundColor: '#EF8354',
-    borderColor: '#EF8354',
-  },
-  filterChipText: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  filterChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  eventCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#EF8354',
-    borderTopWidth: 1,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(191, 192, 192, 0.25)',
-    shadowColor: '#2D3142',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  dateTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  dateTagText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#EF8354',
-  },
-  timeTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  timeTagText: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  cardTheme: {
-    fontSize: 12,
-    color: '#475569',
-    fontStyle: 'italic',
-    marginBottom: 8,
-  },
-  speakerBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0FDF4',
-    padding: 8,
-    borderRadius: 6,
-    gap: 6,
-    marginBottom: 8,
-  },
-  speakerText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#166534',
-  },
-  cardFooter: {
-    borderTopWidth: 1,
-    borderColor: '#F1F5F9',
-    paddingTop: 8,
-    marginTop: 4,
-  },
-  locationBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  locationText: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  modalContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    width: '100%',
-    maxWidth: 500,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
-    backgroundColor: '#FFFFFF',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 18,
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    alignItems: 'center',
-  },
-  cancelBtnText: {
-    color: '#64748B',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  submitBtn: {
-    flex: 1,
-    backgroundColor: '#EF8354',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  submitBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13,
-  },
+  groupHead: { marginBottom: SP.xs },
+  groupEmpty: { paddingVertical: SP.m },
+  form: { gap: SP.l },
+  pair: { flexDirection: 'row', gap: SP.m },
+  formActions: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: SP.s, marginTop: SP.xs },
 });

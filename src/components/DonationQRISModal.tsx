@@ -1,27 +1,31 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  TextInput,
-  Platform,
-  Alert,
-  Image,
-  ScrollView,
-  Linking,
-} from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Image, Linking, Platform, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMushola } from '../store/useMusholaStore';
 import { formatRupiah } from '../utils/formatters';
 import { MUSHOLA_INFO } from '../store/mockData';
+import { C, R, SP, TYPE } from '../theme/colors';
+import { NATIVE, Sheet, dur } from '../theme/motion';
+import { Avatar, Button, Field, IconButton, IconTile, ListRow, Segmented, T } from '../ui/kit';
 
 interface DonationQRISModalProps {
   visible: boolean;
   onClose: () => void;
   defaultPocketId?: string;
 }
+
+const QR_SIZE = 240;
+// assets/qris-square.png berukuran 714 x 728
+const QR_HEIGHT = Math.round((QR_SIZE * 728) / 714);
+
+const STEPS = [
+  'Buka aplikasi m-Banking atau e-Wallet yang mendukung QRIS.',
+  'Pilih menu Scan QRIS, lalu arahkan kamera ke kode QR di atas.',
+  'Ketik nominal infaq seikhlasnya langsung di aplikasi Anda.',
+  `Pastikan nama penerima adalah ${MUSHOLA_INFO.qris.merchantName}, lalu konfirmasi dengan PIN.`,
+];
+
+type CopyState = 'idle' | 'copied' | 'manual';
 
 export function DonationQRISModal({
   visible,
@@ -33,66 +37,100 @@ export function DonationQRISModal({
   const [showLogForm, setShowLogForm] = useState(false);
   const [confirmedAmount, setConfirmedAmount] = useState('');
   const [donorName, setDonorName] = useState('');
+  const [amountError, setAmountError] = useState<string | undefined>();
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [linkError, setLinkError] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [copiedFeedback, setCopiedFeedback] = useState(false);
+  const [copyState, setCopyState] = useState<CopyState>('idle');
+  const [copyFade] = useState(() => new Animated.Value(0));
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Saat dibuka, kantong mengikuti pemanggil (mis. kartu kantong di Dashboard).
+  const [openedWith, setOpenedWith] = useState<string | null>(visible ? defaultPocketId : null);
+  const openKey = visible ? defaultPocketId : null;
+  if (openKey !== openedWith) {
+    setOpenedWith(openKey);
+    if (openKey) setSelectedPocketId(openKey);
+  }
+
+  useEffect(() => () => {
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+  }, []);
 
   const selectedPocket = pockets.find((p) => p.id === selectedPocketId) || pockets[0];
+  const { merchantName, nmid, tip } = MUSHOLA_INFO.qris;
 
-  const handleCopyNMID = () => {
-    const nmid = 'ID1026504038674';
-    if (Platform.OS === 'web' && navigator?.clipboard) {
-      navigator.clipboard.writeText(nmid);
-    }
-    setCopiedFeedback(true);
-    setTimeout(() => setCopiedFeedback(false), 2500);
+  const showCopyFeedback = (state: CopyState) => {
+    setCopyState(state);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    Animated.timing(copyFade, { toValue: 1, duration: dur(150), useNativeDriver: NATIVE }).start();
+    copyTimer.current = setTimeout(() => {
+      Animated.timing(copyFade, { toValue: 0, duration: dur(300), useNativeDriver: NATIVE }).start(() =>
+        setCopyState('idle')
+      );
+    }, 2200);
   };
 
-  const handleOpenWhatsApp = (phone: string, ustadzName: string) => {
-    const message = encodeURIComponent(
-      `Assalamu'alaikum ${ustadzName},\nSaya ingin bertanya / konfirmasi terkait infaq di Musholla Al Muttaqin (Perumahan Mutiara Puri Harmoni, Rajeg).`
-    );
-    const url = `https://wa.me/${phone}?text=${message}`;
-    if (Platform.OS === 'web') {
-      window.open(url, '_blank');
-    } else {
-      Linking.openURL(url);
-    }
-  };
-
-  const handleCall = (phone: string) => {
-    const url = `tel:+${phone}`;
-    if (Platform.OS === 'web') {
-      window.location.href = url;
-    } else {
-      Linking.openURL(url);
-    }
-  };
-
-  const handleSaveConfirmation = () => {
-    const parsedAmount = parseInt(confirmedAmount.replace(/[^0-9]/g, ''), 10);
-    if (!parsedAmount || parsedAmount < 1000) {
-      if (Platform.OS === 'web') {
-        window.alert('Mohon masukkan nominal yang valid');
-      } else {
-        Alert.alert('Perhatian', 'Mohon masukkan nominal yang valid');
+  const handleCopyNMID = async () => {
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(nmid);
+        showCopyFeedback('copied');
+        return;
+      } catch {
+        // jatuh ke petunjuk salin manual
       }
+    }
+    showCopyFeedback('manual');
+  };
+
+  const openUrl = (url: string) => {
+    setLinkError(false);
+    Linking.openURL(url).catch(() => setLinkError(true));
+  };
+
+  const handleOpenWhatsApp = (phone: string, name: string) => {
+    const message = encodeURIComponent(
+      `Assalamu'alaikum ${name},\nSaya ingin bertanya / konfirmasi terkait infaq di Musholla Al Muttaqin (Perumahan Mutiara Puri Harmoni, Rajeg).`
+    );
+    openUrl(`https://wa.me/${phone}?text=${message}`);
+  };
+
+  const handleCall = (phone: string) => openUrl(`tel:+${phone}`);
+
+  const parsedAmount = parseInt(confirmedAmount.replace(/[^0-9]/g, ''), 10) || 0;
+
+  const handleSaveConfirmation = async () => {
+    if (!parsedAmount || parsedAmount < 1000) {
+      setAmountError('Isi nominal yang sudah ditransfer, minimal Rp 1.000.');
       return;
     }
-
-    addTransaction({
-      pocketId: selectedPocket.id,
-      subOrgId: selectedPocket.subOrgId,
-      type: 'INCOME',
-      amount: parsedAmount,
-      title: `Infaq QRIS: ${selectedPocket.name}`,
-      category: 'Donasi QRIS',
-      date: new Date().toISOString().split('T')[0],
-      recordedBy: 'QRIS Gopay (FAHRIAJI ANJASTRIVINATA)',
-      donorName: donorName.trim() || 'Hamba Allah',
-      notes: `Infaq QRIS tanpa perantara untuk ${selectedPocket.name}`,
-    });
-
-    setIsSuccess(true);
+    if (!selectedPocket) {
+      setSaveError('Kantong kas belum tersedia. Muat ulang aplikasi lalu coba lagi.');
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await addTransaction({
+        pocketId: selectedPocket.id,
+        subOrgId: selectedPocket.subOrgId,
+        type: 'INCOME',
+        amount: parsedAmount,
+        title: `Infaq QRIS: ${selectedPocket.name}`,
+        category: 'Donasi QRIS',
+        date: new Date().toISOString().split('T')[0],
+        recordedBy: 'QRIS Gopay (FAHRIAJI ANJASTRIVINATA)',
+        donorName: donorName.trim() || 'Hamba Allah',
+        notes: `Infaq QRIS tanpa perantara untuk ${selectedPocket.name}`,
+      });
+      setIsSuccess(true);
+    } catch (err: any) {
+      setSaveError(`${err?.message || 'Gagal menyimpan ke buku kas.'} Periksa koneksi lalu coba lagi.`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleResetAndClose = () => {
@@ -100,832 +138,331 @@ export function DonationQRISModal({
     setIsSuccess(false);
     setConfirmedAmount('');
     setDonorName('');
-    setCopiedFeedback(false);
+    setAmountError(undefined);
+    setSaveError(null);
+    setLinkError(false);
+    setCopyState('idle');
+    copyFade.setValue(0);
     onClose();
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleResetAndClose}>
-      <View style={styles.overlay}>
-        <View style={styles.cardContainer}>
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <View style={styles.headerLeft}>
-              <View style={styles.iconCircle}>
-                <Ionicons name="qr-code" size={20} color="#EF8354" />
-              </View>
-              <View>
-                <Text style={styles.headerTitle}>Kotak Infaq Digital QRIS</Text>
-                <Text style={styles.headerSub}>Musholla Al Muttaqin • Bebas Nominal</Text>
-              </View>
+    <Sheet visible={visible} onClose={handleResetAndClose} title="Infaq QRIS" subtitle="Musholla Al Muttaqin, bebas nominal">
+      {isSuccess ? (
+        <View style={styles.success} accessibilityLiveRegion="polite">
+          <IconTile icon="checkmark-circle-outline" size={56} />
+          <Text style={styles.successTitle} accessibilityRole="header">
+            Infaq tercatat
+          </Text>
+          <T color={C.inkMuted} style={styles.center}>
+            Infaq sebesar <T v="bodyStrong">{formatRupiah(parsedAmount)}</T> sudah dibukukan ke kas{' '}
+            <T v="bodyStrong">{selectedPocket?.name}</T>.
+          </T>
+          <View style={styles.blessing}>
+            <Text style={styles.arabic}>جَزَاكُمُ اللَّهُ خَيْرًا كَثِيرًا</Text>
+            <T v="small" color={C.inkMuted} style={styles.center}>
+              Semoga Allah membalas kebaikan Anda dengan kebaikan yang banyak.
+            </T>
+          </View>
+          <Button label="Selesai" onPress={handleResetAndClose} style={styles.fullBtn} />
+        </View>
+      ) : (
+        <View style={styles.body}>
+          <View style={styles.infoBox}>
+            <Ionicons name="information-circle-outline" size={18} color={C.g700} aria-hidden />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <T v="bodyStrong">Bebas nominal</T>
+              <T v="small" color={C.inkMuted}>
+                {tip}
+              </T>
             </View>
-            <TouchableOpacity onPress={handleResetAndClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color="#64748B" />
-            </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent}>
-            {isSuccess ? (
-              <View style={styles.successContainer}>
-                <View style={styles.successIconBubble}>
-                  <Ionicons name="checkmark-circle" size={56} color="#EF8354" />
-                </View>
-                <Text style={styles.successHeading}>Alhamdulillah, Infaq Tercatat!</Text>
-                <Text style={styles.successDesc}>
-                  Konfirmasi infaq sebesar{' '}
-                  <Text style={styles.boldGreen}>
-                    {formatRupiah(parseInt(confirmedAmount.replace(/[^0-9]/g, ''), 10) || 0)}
-                  </Text>{' '}
-                  telah berhasil dibukukan ke dalam kas{' '}
-                  <Text style={styles.boldGreen}>{selectedPocket.name}</Text>.
-                </Text>
+          <View style={styles.qrFrame}>
+            <Image
+              source={require('../../assets/qris-square.png')}
+              style={{ width: QR_SIZE, height: QR_HEIGHT, maxWidth: '100%' }}
+              resizeMode="contain"
+              alt={`Kode QRIS infaq Musholla Al Muttaqin, penerima ${merchantName}`}
+              accessibilityLabel={`Kode QRIS infaq Musholla Al Muttaqin, penerima ${merchantName}`}
+            />
+          </View>
 
-                <View style={styles.blessingBanner}>
-                  <Text style={styles.arabicBlessing}>جَزَاكُمُ اللَّهُ خَيْرًا كَثِيرًا</Text>
-                  <Text style={styles.blessingDesc}>
-                    "Semoga Allah melipatgandakan pahala kebaikan Anda dan keluarga, melancarkan
-                    rezeki yang halal, serta memberkahi setiap langkah kebaikan."
-                  </Text>
-                </View>
+          <View style={styles.merchant}>
+            <View style={styles.merchantRow}>
+              <T v="small" color={C.inkMuted} style={styles.merchantKey}>
+                Nama penerima
+              </T>
+              <T v="bodyStrong" style={styles.merchantVal}>
+                {merchantName}
+              </T>
+            </View>
+            <View style={[styles.merchantRow, styles.merchantRowLine]}>
+              <T v="small" color={C.inkMuted} style={styles.merchantKey}>
+                NMID
+              </T>
+              <Text selectable style={styles.nmid}>
+                {nmid}
+              </Text>
+              <Button
+                compact
+                variant="outline"
+                icon={copyState === 'copied' ? 'checkmark' : 'copy-outline'}
+                label={copyState === 'copied' ? 'Tersalin' : 'Salin'}
+                accessibilityLabel="Salin NMID"
+                onPress={handleCopyNMID}
+              />
+            </View>
+            {copyState !== 'idle' ? (
+              <Animated.Text style={[styles.copyNote, { opacity: copyFade }]} accessibilityLiveRegion="polite">
+                {copyState === 'copied'
+                  ? 'NMID tersalin ke papan klip.'
+                  : 'Salin otomatis tidak tersedia di perangkat ini. Tekan lama teks NMID untuk menyalin.'}
+              </Animated.Text>
+            ) : null}
+          </View>
 
-                <TouchableOpacity style={styles.primaryActionBtn} onPress={handleResetAndClose}>
-                  <Text style={styles.primaryActionBtnText}>Selesai & Tutup</Text>
-                </TouchableOpacity>
+          <View style={styles.section}>
+            <T v="h3">Cara berinfaq lewat QRIS</T>
+            {STEPS.map((step, i) => (
+              <View key={i} style={styles.step}>
+                <View style={styles.stepNum}>
+                  <T v="smallStrong" color={C.g700}>
+                    {i + 1}
+                  </T>
+                </View>
+                <T style={{ flex: 1 }}>{step}</T>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.section}>
+            <T v="h3">Kontak pengurus DKM</T>
+            <T v="small" color={C.inkMuted}>
+              Untuk amanah infaq khusus atau konfirmasi transfer, hubungi:
+            </T>
+            <View>
+              {MUSHOLA_INFO.contacts.map((c, i) => (
+                <ListRow
+                  key={c.phone}
+                  leading={<Avatar name={c.name} />}
+                  title={c.name}
+                  subtitle={c.formattedPhone}
+                  last={i === MUSHOLA_INFO.contacts.length - 1}
+                  trailing={
+                    <View style={styles.contactActions}>
+                      <Button
+                        compact
+                        variant="outline"
+                        icon="logo-whatsapp"
+                        label="WhatsApp"
+                        accessibilityLabel={`Kirim WhatsApp ke ${c.name}`}
+                        onPress={() => handleOpenWhatsApp(c.phone, c.name)}
+                      />
+                      <IconButton icon="call-outline" label={`Telepon ${c.name}`} onPress={() => handleCall(c.phone)} />
+                    </View>
+                  }
+                />
+              ))}
+            </View>
+            {linkError ? (
+              <T v="small" color={C.dangerFg}>
+                WhatsApp atau telepon tidak bisa dibuka dari perangkat ini. Hubungi nomor di atas secara manual.
+              </T>
+            ) : null}
+          </View>
+
+          <View style={styles.logBox}>
+            {!showLogForm ? (
+              <View style={{ gap: SP.s }}>
+                <T v="bodyStrong">Sudah transfer?</T>
+                <T v="small" color={C.inkMuted}>
+                  Catat infaq Anda ke buku kas musholla agar tampil di laporan kas.
+                </T>
+                <Button
+                  label="Catat ke buku kas"
+                  icon="receipt-outline"
+                  variant="outline"
+                  onPress={() => setShowLogForm(true)}
+                />
               </View>
             ) : (
-              <View style={styles.mainView}>
-                {/* Notice Banner: Bebas Nominal */}
-                <View style={styles.noticeBanner}>
-                  <Ionicons name="information-circle" size={18} color="#EF8354" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.noticeTitle}>Bebas Masukkan Nominal</Text>
-                    <Text style={styles.noticeText}>
-                      Scan QRIS ini langsung dari aplikasi m-Banking atau e-Wallet favorit Anda, lalu
-                      ketik nominal infaq seikhlasnya saat melakukan pembayaran.
-                    </Text>
-                  </View>
+              <View style={{ gap: SP.l }}>
+                <View style={styles.logHead}>
+                  <T v="h3" style={{ flex: 1 }}>
+                    Catat infaq ke buku kas
+                  </T>
+                  <Button compact variant="ghost" label="Batal" onPress={() => setShowLogForm(false)} />
                 </View>
 
-                {/* Merchant Identity Card */}
-                <View style={styles.merchantCard}>
-                  <View style={styles.merchantRow}>
-                    <View style={styles.gopayBadge}>
-                      <Text style={styles.gopayBadgeText}>GOPAY MERCHANT</Text>
-                    </View>
-                    <View style={styles.qrisLogoBadge}>
-                      <Text style={styles.qrisLogoText}>QRIS RESMI</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.merchantName}>{MUSHOLA_INFO.qris.merchantName}</Text>
-                  <View style={styles.nmidRow}>
-                    <Text style={styles.nmidLabel}>NMID:</Text>
-                    <Text style={styles.nmidValue}>{MUSHOLA_INFO.qris.nmid}</Text>
-                    <TouchableOpacity
-                      style={[styles.copyChip, copiedFeedback && styles.copyChipSuccess]}
-                      onPress={handleCopyNMID}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name={copiedFeedback ? 'checkmark' : 'copy-outline'}
-                        size={12}
-                        color={copiedFeedback ? '#EF8354' : '#EF8354'}
-                      />
-                      <Text
-                        style={[styles.copyChipText, copiedFeedback && styles.copyChipTextSuccess]}
-                      >
-                        {copiedFeedback ? 'Tersalin' : 'Salin NMID'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* QRIS Direct Square QR Code */}
-                <View style={styles.qrisPosterFrame}>
-                  <View style={styles.qrisOfficialHeader}>
-                    <Text style={styles.qrisRedText}>QRIS</Text>
-                    <Text style={styles.qrisSubHead}>PEMBAYARAN DIGITAL</Text>
-                  </View>
-                  <Image
-                    source={require('../../assets/qris-square.png')}
-                    style={styles.qrisPosterImg as any}
-                    resizeMode="contain"
-                  />
-                  <Text style={styles.qrisScanCaption}>
-                    Pindai dengan GoPay, BCA, Livin, BSI, OVO, ShopeePay, atau DANA
-                  </Text>
-                </View>
-
-                {/* Step Instructions */}
-                <View style={styles.stepsCard}>
-                  <Text style={styles.stepsTitle}>Cara Berinfaq Menggunakan QRIS:</Text>
-                  <View style={styles.stepItem}>
-                    <View style={styles.stepNumberBadge}>
-                      <Text style={styles.stepNumberText}>1</Text>
-                    </View>
-                    <Text style={styles.stepDesc}>
-                      Buka aplikasi m-Banking (BCA, Mandiri, BRI, BNI, BSI) atau e-Wallet (GoPay,
-                      OVO, Dana, ShopeePay).
-                    </Text>
-                  </View>
-                  <View style={styles.stepItem}>
-                    <View style={styles.stepNumberBadge}>
-                      <Text style={styles.stepNumberText}>2</Text>
-                    </View>
-                    <Text style={styles.stepDesc}>
-                      Pilih menu <Text style={styles.boldText}>Scan QRIS</Text> lalu arahkan kamera
-                      ke kode QR di atas.
-                    </Text>
-                  </View>
-                  <View style={styles.stepItem}>
-                    <View style={styles.stepNumberBadge}>
-                      <Text style={styles.stepNumberText}>3</Text>
-                    </View>
-                    <Text style={styles.stepDesc}>
-                      <Text style={styles.boldGreen}>Ketik jumlah nominal infaq seikhlasnya</Text>{' '}
-                      langsung di aplikasi Anda.
-                    </Text>
-                  </View>
-                  <View style={styles.stepItem}>
-                    <View style={styles.stepNumberBadge}>
-                      <Text style={styles.stepNumberText}>4</Text>
-                    </View>
-                    <Text style={styles.stepDesc}>
-                      Pastikan nama merchant penerima adalah{' '}
-                      <Text style={styles.boldText}>FAHRIAJI ANJASTRIVINATA</Text>, lalu konfirmasi
-                      PIN Anda.
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Contact Persons DKM Section */}
-                <View style={styles.contactSection}>
-                  <View style={styles.contactHeaderRow}>
-                    <Ionicons name="chatbubbles-outline" size={16} color="#EF8354" />
-                    <Text style={styles.contactHeading}>Kontak Pengurus DKM (Konfirmasi Infaq)</Text>
-                  </View>
-                  <Text style={styles.contactSub}>
-                    Jika ingin menyampaikan amanah infaq khusus atau konfirmasi transfer, silakan
-                    hubungi:
-                  </Text>
-
-                  <View style={styles.contactCardsGrid}>
-                    {/* Ustadz Astriyo */}
-                    <View style={styles.personCard}>
-                      <View style={styles.personInfo}>
-                        <View style={styles.avatarCircle}>
-                          <Ionicons name="person" size={16} color="#EF8354" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.personName}>Ustadz Astriyo</Text>
-                          <Text style={styles.personPhone}>0857-7790-0383</Text>
-                        </View>
-                      </View>
-                      <View style={styles.personActions}>
-                        <TouchableOpacity
-                          style={styles.waBtn}
-                          onPress={() => handleOpenWhatsApp('6285777900383', 'Ustadz Astriyo')}
-                        >
-                          <Ionicons name="logo-whatsapp" size={14} color="#FFFFFF" />
-                          <Text style={styles.waBtnText}>WhatsApp</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.callBtn}
-                          onPress={() => handleCall('6285777900383')}
-                        >
-                          <Ionicons name="call-outline" size={14} color="#EF8354" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* Ustadz Dicky */}
-                    <View style={styles.personCard}>
-                      <View style={styles.personInfo}>
-                        <View style={styles.avatarCircle}>
-                          <Ionicons name="person" size={16} color="#EF8354" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.personName}>Ustadz Dicky</Text>
-                          <Text style={styles.personPhone}>0817-4958-342</Text>
-                        </View>
-                      </View>
-                      <View style={styles.personActions}>
-                        <TouchableOpacity
-                          style={styles.waBtn}
-                          onPress={() => handleOpenWhatsApp('628174958342', 'Ustadz Dicky')}
-                        >
-                          <Ionicons name="logo-whatsapp" size={14} color="#FFFFFF" />
-                          <Text style={styles.waBtnText}>WhatsApp</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.callBtn}
-                          onPress={() => handleCall('628174958342')}
-                        >
-                          <Ionicons name="call-outline" size={14} color="#EF8354" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Optional Record Transaction Drawer */}
-                <View style={styles.logSectionWrapper}>
-                  {!showLogForm ? (
-                    <TouchableOpacity
-                      style={styles.toggleLogFormBtn}
-                      onPress={() => setShowLogForm(true)}
-                    >
-                      <Ionicons name="receipt-outline" size={15} color="#EF8354" />
-                      <Text style={styles.toggleLogFormBtnText}>
-                        Sudah Transfer? Catat ke Buku Kas Mushola
-                      </Text>
-                      <Ionicons name="chevron-down" size={14} color="#EF8354" />
-                    </TouchableOpacity>
+                <View style={{ gap: 6 }}>
+                  <T v="label">Kantong kas tujuan</T>
+                  {pockets.length ? (
+                    <Segmented
+                      label="Kantong kas tujuan"
+                      options={pockets.map((p) => ({ key: p.id, label: p.name }))}
+                      value={selectedPocket?.id ?? ''}
+                      onChange={setSelectedPocketId}
+                    />
                   ) : (
-                    <View style={styles.logFormBox}>
-                      <View style={styles.logFormHeader}>
-                        <Text style={styles.logFormTitle}>Catat Transaksi Infaq</Text>
-                        <TouchableOpacity onPress={() => setShowLogForm(false)}>
-                          <Text style={styles.cancelText}>Tutup Form</Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* Pocket Choice */}
-                      <Text style={styles.inputMiniLabel}>Pilih Alokasi Kantong Kas:</Text>
-                      <View style={styles.pocketPillsRow}>
-                        {pockets.map((p) => {
-                          const isSel = p.id === selectedPocketId;
-                          return (
-                            <TouchableOpacity
-                              key={p.id}
-                              style={[styles.pocketPill, isSel && styles.pocketPillActive]}
-                              onPress={() => setSelectedPocketId(p.id)}
-                            >
-                              <Text
-                                style={[
-                                  styles.pocketPillText,
-                                  isSel && styles.pocketPillTextActive,
-                                ]}
-                              >
-                                {p.name}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-
-                      {/* Nominal Amount */}
-                      <Text style={styles.inputMiniLabel}>Nominal Yang Ditransfer:</Text>
-                      <View style={styles.inputBox}>
-                        <Text style={styles.rpText}>Rp</Text>
-                        <TextInput
-                          style={styles.textInputBox}
-                          placeholder="cth: 50.000"
-                          keyboardType="numeric"
-                          value={confirmedAmount}
-                          onChangeText={(v) => setConfirmedAmount(v.replace(/[^0-9]/g, ''))}
-                        />
-                      </View>
-
-                      {/* Donor Name */}
-                      <Text style={styles.inputMiniLabel}>Nama Donatur (Boleh Dikosongkan):</Text>
-                      <TextInput
-                        style={[styles.textInputBox, styles.plainInputBox]}
-                        placeholder="Hamba Allah"
-                        value={donorName}
-                        onChangeText={setDonorName}
-                      />
-
-                      <TouchableOpacity
-                        style={styles.submitConfirmationBtn}
-                        onPress={handleSaveConfirmation}
-                      >
-                        <Ionicons name="save-outline" size={16} color="#FFFFFF" />
-                        <Text style={styles.submitConfirmationBtnText}>Simpan ke Buku Kas</Text>
-                      </TouchableOpacity>
-                    </View>
+                    <T v="small" color={C.inkMuted}>
+                      Belum ada kantong kas yang dimuat.
+                    </T>
                   )}
                 </View>
+
+                <Field
+                  label="Nominal yang ditransfer (Rp)"
+                  value={confirmedAmount}
+                  onChangeText={(v) => {
+                    setConfirmedAmount(v.replace(/[^0-9]/g, ''));
+                    setAmountError(undefined);
+                  }}
+                  keyboardType="numeric"
+                  placeholder="50000"
+                  error={amountError}
+                  hint={parsedAmount ? formatRupiah(parsedAmount) : undefined}
+                />
+
+                <Field
+                  label="Nama donatur (boleh dikosongkan)"
+                  value={donorName}
+                  onChangeText={setDonorName}
+                  placeholder="Hamba Allah"
+                />
+
+                {saveError ? (
+                  <T v="small" color={C.dangerFg}>
+                    {saveError}
+                  </T>
+                ) : null}
+
+                <Button label="Simpan ke buku kas" icon="save-outline" onPress={handleSaveConfirmation} loading={saving} />
               </View>
             )}
-          </ScrollView>
+          </View>
         </View>
-      </View>
-    </Modal>
+      )}
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(2, 44, 34, 0.72)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 14,
+  body: {
+    gap: SP.xl,
   },
-  cardContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    width: '100%',
-    maxWidth: 500,
-    maxHeight: '92%',
-    padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    elevation: 10,
+  center: {
+    textAlign: 'center',
   },
-  modalHeader: {
+  infoBox: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderColor: '#F1F5F9',
-    paddingBottom: 12,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#FDF1EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  headerSub: {
-    fontSize: 12,
-    color: '#EF8354',
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
-  },
-  scrollArea: {
-    marginTop: 10,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  mainView: {
-    gap: 14,
-  },
-  noticeBanner: {
-    flexDirection: 'row',
-    gap: 10,
-    backgroundColor: '#FDF1EB',
-    borderWidth: 1,
-    borderColor: '#BFC0C0',
-    borderRadius: 14,
-    padding: 12,
     alignItems: 'flex-start',
+    gap: SP.s,
+    padding: SP.m,
+    borderRadius: R.inner,
+    backgroundColor: C.g50,
   },
-  noticeTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#065F46',
-    marginBottom: 2,
-  },
-  noticeText: {
-    fontSize: 12,
-    color: '#EF8354',
-    lineHeight: 17,
-  },
-  merchantCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 12,
+  qrFrame: {
+    alignItems: 'center',
+    padding: SP.l,
+    borderRadius: R.inner,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.line,
+    backgroundColor: C.card,
+  },
+  merchant: {
+    borderRadius: R.inner,
+    backgroundColor: C.sunken,
+    paddingHorizontal: SP.l,
+    paddingVertical: SP.xs,
   },
   merchantRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 6,
-  },
-  gopayBadge: {
-    backgroundColor: '#00AED6',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  gopayBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  qrisLogoBadge: {
-    backgroundColor: '#DC2626',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  qrisLogoText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  merchantName: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: 0.3,
-  },
-  nmidRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
+    flexWrap: 'wrap',
+    gap: SP.s,
+    paddingVertical: SP.m,
   },
-  nmidLabel: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '600',
+  merchantRowLine: {
+    borderTopWidth: 1,
+    borderColor: C.line,
   },
-  nmidValue: {
-    fontSize: 12,
-    color: '#1E293B',
-    fontWeight: '700',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  merchantKey: {
+    width: 96,
   },
-  copyChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FDF1EB',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginLeft: 4,
+  merchantVal: {
+    flex: 1,
+    minWidth: 140,
   },
-  copyChipSuccess: {
-    backgroundColor: '#D1FAE5',
+  nmid: {
+    ...TYPE.bodyStrong,
+    ...TYPE.num,
+    color: C.ink,
+    flex: 1,
+    minWidth: 120,
+  } as TextStyle,
+  copyNote: {
+    ...TYPE.small,
+    color: C.g700,
+    paddingBottom: SP.m,
+  } as TextStyle,
+  section: {
+    gap: SP.s,
   },
-  copyChipText: {
-    fontSize: 11,
-    color: '#EF8354',
-    fontWeight: '600',
-  },
-  copyChipTextSuccess: {
-    color: '#EF8354',
-  },
-  qrisPosterFrame: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#10B981',
-    borderRadius: 16,
-    padding: 12,
-    alignItems: 'center',
-    shadowColor: '#EF8354',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-  },
-  qrisOfficialHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  qrisRedText: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#DC2626',
-    letterSpacing: 1,
-  },
-  qrisSubHead: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: '#475569',
-    letterSpacing: 0.5,
-  },
-  qrisPosterImg: {
-    width: 250,
-    height: 250,
-    borderRadius: 8,
-  },
-  qrisScanCaption: {
-    fontSize: 10.5,
-    color: '#EF8354',
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  stepsCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 8,
-  },
-  stepsTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 2,
-  },
-  stepItem: {
+  step: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: SP.m,
   },
-  stepNumberBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#EF8354',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
-  stepNumberText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  stepDesc: {
-    flex: 1,
-    fontSize: 12,
-    color: '#475569',
-    lineHeight: 18,
-  },
-  boldText: {
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  boldGreen: {
-    fontWeight: '700',
-    color: '#EF8354',
-  },
-  contactSection: {
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    borderRadius: 16,
-    padding: 14,
-  },
-  contactHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  contactHeading: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#065F46',
-  },
-  contactSub: {
-    fontSize: 11,
-    color: '#EF8354',
-    marginBottom: 10,
-  },
-  contactCardsGrid: {
-    gap: 8,
-  },
-  personCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 10,
+  stepNum: {
+    width: 24,
+    height: 24,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#DCFCE7',
-  },
-  personInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  avatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FDF1EB',
+    backgroundColor: C.g100,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  personName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  personPhone: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  personActions: {
+  contactActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: SP.xs,
   },
-  waBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#25D366',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  waBtnText: {
-    fontSize: 11,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  callBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#FDF1EB',
-  },
-  logSectionWrapper: {
-    marginTop: 2,
-  },
-  toggleLogFormBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
+  logBox: {
+    padding: SP.l,
+    borderRadius: R.inner,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: C.line,
   },
-  toggleLogFormBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#EF8354',
-  },
-  logFormBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 8,
-  },
-  logFormHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  logFormTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  cancelText: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  inputMiniLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#475569',
-    marginTop: 4,
-  },
-  pocketPillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  pocketPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  pocketPillActive: {
-    backgroundColor: '#FDF1EB',
-    borderColor: '#EF8354',
-  },
-  pocketPillText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  pocketPillTextActive: {
-    color: '#EF8354',
-    fontWeight: '700',
-  },
-  inputBox: {
+  logHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-    paddingHorizontal: 10,
+    gap: SP.s,
   },
-  rpText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#EF8354',
-    marginRight: 6,
-  },
-  textInputBox: {
-    flex: 1,
-    paddingVertical: 8,
-    fontSize: 13,
-    color: '#0F172A',
-  },
-  plainInputBox: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-  },
-  submitConfirmationBtn: {
-    flexDirection: 'row',
+  success: {
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#EF8354',
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginTop: 6,
+    gap: SP.m,
+    paddingVertical: SP.l,
   },
-  submitConfirmationBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  successContainer: {
+  successTitle: {
+    ...TYPE.h2,
+    color: C.ink,
+  } as TextStyle,
+  blessing: {
+    alignSelf: 'stretch',
     alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 10,
+    gap: SP.s,
+    padding: SP.l,
+    borderRadius: R.inner,
+    backgroundColor: C.g50,
   },
-  successIconBubble: {
-    marginBottom: 10,
-  },
-  successHeading: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#065F46',
-    marginBottom: 8,
-  },
-  successDesc: {
-    fontSize: 13,
-    color: '#334155',
+  arabic: {
+    ...TYPE.h2,
+    lineHeight: 34,
+    color: C.g900,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  blessingBanner: {
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#BFC0C0',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 20,
-  },
-  arabicBlessing: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#EF8354',
-    marginBottom: 6,
-  },
-  blessingDesc: {
-    fontSize: 11,
-    color: '#065F46',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    lineHeight: 16,
-  },
-  primaryActionBtn: {
-    backgroundColor: '#EF8354',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
-  },
-  primaryActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    writingDirection: 'rtl',
+  } as TextStyle,
+  fullBtn: {
+    alignSelf: 'stretch',
   },
 });

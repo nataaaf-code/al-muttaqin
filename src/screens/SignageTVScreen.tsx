@@ -1,23 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  useWindowDimensions,
-  Platform,
-} from 'react-native';
-import Svg, { Path, Circle, Rect, Line, G, Text as SvgText } from 'react-native-svg';
+import React, { useEffect, useState } from 'react';
+import { Animated, Easing, Image, StyleSheet, Text, TextStyle, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMushola } from '../store/useMusholaStore';
 import { getWibTime } from '../services/prayerService';
 import { formatDateIndo, getEstimatedHijriDate } from '../utils/formatters';
+import { C, R, SP, TYPE } from '../theme/colors';
+import { NATIVE, isReducedMotion } from '../theme/motion';
+import { HeroFill, IconButton, IconName } from '../ui/kit';
 
-// Aset Foto Latar Belakang Makkah
+/**
+ * Layar TV 16:9 (DESIGN.md bagian 10). Kanvas tetap 1920x1080 yang diskalakan ke viewport,
+ * jadi semua ukuran di bawah dalam satuan kanvas. Tipe memakai token TYPE dengan fontSize diperbesar.
+ */
+
+const CANVAS_W = 1920;
+const CANVAS_H = 1080;
+const PAD = 32;
+const GAP = 20;
+
 const makkahAsset = require('../../assets/makkah.jpg');
+const logoAsset = require('../../assets/logo.png');
+const qrisAsset = require('../../assets/qris-square.png');
 
-// Helper: Tambah menit ke format waktu "HH:mm" (24 jam)
+/** Jeda adzan ke iqomah per waktu sholat (menit), sama seperti sebelumnya. */
+const IQOMAH_GAP: Record<string, number> = { Subuh: 12, Dzuhur: 13, Ashar: 13, Maghrib: 11, Isya: 10 };
+
+const PRAYER_ICON: Record<string, IconName> = {
+  Subuh: 'partly-sunny-outline',
+  Dzuhur: 'sunny-outline',
+  Ashar: 'sunny-outline',
+  Maghrib: 'cloudy-night-outline',
+  Isya: 'moon-outline',
+};
+
 function addMinutesToTime(timeStr: string, addMins: number): string {
   if (!timeStr) return '--:--';
   const [h, m] = timeStr.split(':').map((x) => parseInt(x, 10));
@@ -27,1167 +42,395 @@ function addMinutesToTime(timeStr: string, addMins: number): string {
   return `${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`;
 }
 
-// Custom SVG Icons for Weather & Prayer Times according to design.md
-function SunriseIcon() {
-  return (
-    <Svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-      <Path
-        d="M24 6V12M11 13L14.5 16.5M37 13L33.5 16.5M5 26H11M37 26H43"
-        stroke="#EF8354"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <Path
-        d="M13 26C13 19.9249 17.9249 15 24 15C30.0751 15 35 19.9249 35 26"
-        stroke="#EF8354"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <Path
-        d="M24 19L24 23M21 21L24 18L27 21"
-        stroke="#EF8354"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M6 32H42M14 38C17 36 20 40 24 38C28 36 31 40 34 38"
-        stroke="#EF8354"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-    </Svg>
-  );
+function toSeconds(timeStr: string) {
+  const [h, m] = timeStr.split(':').map((x) => parseInt(x, 10));
+  return (h || 0) * 3600 + (m || 0) * 60;
 }
 
-function SunFullIcon({ size = 38 }: { size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 38 38" fill="none">
-      <Circle cx="19" cy="19" r="8" fill="#EF8354" />
-      {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, idx) => {
-        const rad = (angle * Math.PI) / 180;
-        const x1 = 19 + Math.sin(rad) * 11;
-        const y1 = 19 - Math.cos(rad) * 11;
-        const x2 = 19 + Math.sin(rad) * 15;
-        const y2 = 19 - Math.cos(rad) * 15;
-        return (
-          <Path
-            key={idx}
-            d={`M${x1} ${y1} L${x2} ${y2}`}
-            stroke="#EF8354"
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
-        );
-      })}
-    </Svg>
-  );
+const pad2 = (n: number) => n.toString().padStart(2, '0');
+
+/** Token tipe dengan ukuran TV. */
+function tv(token: keyof typeof TYPE, fontSize: number, lineHeight = Math.round(fontSize * 1.15), extra?: TextStyle): TextStyle {
+  return { ...(TYPE[token] as TextStyle), fontSize, lineHeight, ...extra };
 }
 
-function FajrIcon() {
-  return (
-    <Svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-      <Circle cx="20" cy="18" r="8" fill="#EF8354" />
-      <Path d="M20 5V8M9 9L11.5 11.5M31 9L28.5 11.5M6 18H9M31 18H34" stroke="#EF8354" strokeWidth="2.5" strokeLinecap="round" />
-      <Path
-        d="M17 32C15.3431 32 14 30.6569 14 29C14 27.65 14.88 26.5 16.1 26.15C16.4 23.8 18.4 22 20.8 22C22.6 22 24.2 23 25 24.5C25.5 24.2 26.2 24 27 24C28.7 24 30 25.3 30 27C30.7 27.2 31.2 27.8 31.2 28.5C31.2 29.3 30.6 30 29.8 30L17 32Z"
-        fill="#F5E9D4"
-        stroke="#E8DCB8"
-        strokeWidth="1.2"
-      />
-    </Svg>
-  );
-}
+/** Running text: bergerak terus karena itu fungsinya; diam saat reduced-motion. */
+function RunningText({ text }: { text: string }) {
+  const x = useState(() => new Animated.Value(0))[0];
+  const [boxW, setBoxW] = useState(0);
+  const [textW, setTextW] = useState(0);
+  const reduced = isReducedMotion();
 
-function AsrIcon() {
-  return (
-    <Svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-      <Circle cx="23" cy="18" r="8" fill="#EF8354" />
-      <Path d="M23 5V8M12 9L14.5 11.5M34 9L31.5 11.5M9 18H12M34 18H37" stroke="#EF8354" strokeWidth="2.5" strokeLinecap="round" />
-      <Path
-        d="M11 31C9.5 31 8.2 29.8 8.2 28.3C8.2 27 9.1 26 10.3 25.6C10.7 23.5 12.5 21.9 14.7 21.9C16.4 21.9 17.8 22.8 18.6 24.2C19.1 23.9 19.7 23.7 20.4 23.7C21.9 23.7 23.1 24.9 23.1 26.4C23.8 26.6 24.3 27.2 24.3 27.9C24.3 28.7 23.7 29.3 22.9 29.3L11 31Z"
-        fill="#F5E9D4"
-        stroke="#E8DCB8"
-        strokeWidth="1.2"
-      />
-    </Svg>
-  );
-}
+  useEffect(() => {
+    if (reduced || !boxW || !textW) return;
+    x.setValue(boxW);
+    const anim = Animated.loop(
+      Animated.timing(x, {
+        toValue: -textW,
+        duration: ((boxW + textW) / 110) * 1000,
+        easing: Easing.linear,
+        useNativeDriver: NATIVE,
+      })
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [reduced, boxW, textW, x]);
 
-function MaghribCardIcon() {
-  return (
-    <Svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-      <Path
-        d="M24 10C24 16.6274 18.6274 22 12 22C11.3 22 10.6 21.9 10 21.8C11.8 25.4 15.6 28 20 28C26.0751 28 31 23.0751 31 17C31 12.6 28.4 8.8 24.8 7C24.9 8 24 10 24 10Z"
-        fill="#EF8354"
-      />
-      <Path d="M27 9L28 11.5L30.5 12.5L28 13.5L27 16L26 13.5L23.5 12.5L26 11.5Z" fill="#EF8354" />
-      <Path
-        d="M12 32C10.3 32 9 30.7 9 29C9 27.7 9.9 26.6 11.1 26.2C11.4 23.9 13.4 22.1 15.8 22.1C17.6 22.1 19.2 23.1 20 24.6C20.5 24.3 21.2 24.1 22 24.1C23.7 24.1 25 25.4 25 27.1C25.7 27.3 26.2 27.9 26.2 28.6C26.2 29.4 25.6 30.1 24.8 30.1L12 32Z"
-        fill="#F5E9D4"
-        stroke="#E8DCB8"
-        strokeWidth="1.2"
-      />
-    </Svg>
-  );
-}
-
-function MaghribHeroIcon() {
-  return (
-    <Svg width="54" height="54" viewBox="0 0 54 54" fill="none">
-      <Path
-        d="M32 10C32 18.8 24.8 26 16 26C14.8 26 13.7 25.8 12.7 25.5C15.3 30.5 20.7 34 27 34C35.8 34 43 26.8 43 18C43 11.7 39.5 6.3 34.5 3.7C34.8 5.7 32 10 32 10Z"
-        stroke="#EF8354"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M38 7L39 10L42 11L39 12L38 15L37 12L34 11L37 10Z"
-        fill="#EF8354"
-      />
-      <Path
-        d="M10 40C14 38 18 42 22 40C26 38 30 42 34 40C38 38 42 42 46 40"
-        stroke="#EF8354"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <Path
-        d="M14 46C18 44 22 48 26 46C30 44 34 48 38 46"
-        stroke="#EF8354"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-    </Svg>
-  );
-}
-
-function IshaIcon() {
-  return (
-    <Svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-      <Path
-        d="M26 10C26 17.732 19.732 24 12 24C11 24 10 23.8 9.1 23.5C11.5 28.5 16.7 32 23 32C31.2843 32 38 25.2843 38 17C38 10.7 34.5 5.5 29.5 3.1C29.8 5.3 26 10 26 10Z"
-        fill="#EF8354"
-      />
-      <Path d="M16 9L17 11L19 11.5L17 12L16 14L15 12L13 11.5L15 11Z" fill="#EF8354" />
-      <Path d="M33 28L34 30L36 30.5L34 31L33 33L32 31L30 30.5L32 30Z" fill="#EF8354" />
-    </Svg>
-  );
-}
-
-// Komponen Jam Analog Presisi 356px (SVG Murni) Sesuai Spesifikasi design.md
-function AnalogClockSVG({
-  hours,
-  minutes,
-  seconds,
-}: {
-  hours: number;
-  minutes: number;
-  seconds: number;
-}) {
-  const hourAngle = ((hours % 12) + minutes / 60 + seconds / 3600) * 30;
-  const minuteAngle = (minutes + seconds / 60) * 6;
-  const secondAngle = seconds * 6;
-
-  // 60 Titik/Garis Menit & Jam di Keliling Jam
-  const ticks = [];
-  for (let i = 0; i < 60; i++) {
-    const isHour = i % 5 === 0;
-    const angle = i * 6;
-    const rad = (angle * Math.PI) / 180;
-    const outerR = 150;
-    const innerR = isHour ? 138 : 144;
-    const x1 = 178 + outerR * Math.sin(rad);
-    const y1 = 178 - outerR * Math.cos(rad);
-    const x2 = 178 + innerR * Math.sin(rad);
-    const y2 = 178 - innerR * Math.cos(rad);
-    ticks.push({
-      key: i,
-      x1,
-      y1,
-      x2,
-      y2,
-      stroke: isHour ? '#2D3142' : '#BFC0C0',
-      strokeWidth: isHour ? 3 : 1.5,
-    });
-  }
-
-  // 12 Angka Jam (Radial Trigonometris r = 115)
-  const numbers = [];
-  for (let n = 1; n <= 12; n++) {
-    const angle = n * 30;
-    const rad = (angle * Math.PI) / 180;
-    const r = 115;
-    const x = 178 + r * Math.sin(rad);
-    const y = 178 - r * Math.cos(rad);
-    numbers.push({ n, x, y });
+  if (reduced) {
+    return (
+      <Text style={st.runText} numberOfLines={1}>
+        {text}
+      </Text>
+    );
   }
 
   return (
-    <Svg width="356" height="356" viewBox="0 0 356 356" fill="none">
-      {/* 1. Latar Putih Dial Jam */}
-      <Circle cx="178" cy="178" r="177" fill="#FFFFFF" />
+    <View style={st.runClip} onLayout={(e) => setBoxW(e.nativeEvent.layout.width)}>
+      <Animated.View style={[st.runTrack, { transform: [{ translateX: x }] }]}>
+        <Text style={st.runText} onLayout={(e) => setTextW(e.nativeEvent.layout.width)}>
+          {text}
+        </Text>
+      </Animated.View>
+    </View>
+  );
+}
 
-      {/* 2. Cincin Luar Bezel Hijau Tua Tebal 22px (#2D3142) */}
-      <Circle cx="178" cy="178" r="167" stroke="#2D3142" strokeWidth="22" fill="none" />
-
-      {/* 3. Cincin Bevel Bagian Dalam (#BFC0C0, Tebal 2.5px) */}
-      <Circle cx="178" cy="178" r="153" stroke="#BFC0C0" strokeWidth="2.5" fill="none" />
-
-      {/* 4. 60 Garis Tikit Menit & Jam */}
-      {ticks.map((t) => (
-        <Line
-          key={t.key}
-          x1={t.x1}
-          y1={t.y1}
-          x2={t.x2}
-          y2={t.y2}
-          stroke={t.stroke}
-          strokeWidth={t.strokeWidth}
-          strokeLinecap="round"
-        />
-      ))}
-
-      {/* 5. Angka 1 - 12 Radial (Announce Weight 600, Swiss Precision Dial) */}
-      {numbers.map(({ n, x, y }) => (
-        <SvgText
-          key={n}
-          x={x}
-          y={y + 9}
-          fontSize="26"
-          fontWeight="600"
-          letterSpacing="-0.3"
-          fill="#2D3834"
-          textAnchor="middle"
-        >
-          {n}
-        </SvgText>
-      ))}
-
-      {/* 6. Jarum Jam (Panjang: 82px, Tebal: 10px, Hijau Bezel) */}
-      <G transform={`translate(178, 178) rotate(${hourAngle})`}>
-        <Line x1="0" y1="0" x2="0" y2="-82" stroke="#2D3142" strokeWidth="10" strokeLinecap="round" />
-        <Line x1="0" y1="-10" x2="0" y2="-64" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" />
-      </G>
-
-      {/* 7. Jarum Menit (Panjang: 118px, Tebal: 8px, Hijau Bezel) */}
-      <G transform={`translate(178, 178) rotate(${minuteAngle})`}>
-        <Line x1="0" y1="0" x2="0" y2="-118" stroke="#2D3142" strokeWidth="8" strokeLinecap="round" />
-        <Line x1="0" y1="-10" x2="0" y2="-98" stroke="#FFFFFF" strokeWidth="1.2" strokeLinecap="round" />
-      </G>
-
-      {/* 8. Jarum Detik (Panjang Maju 126px, Ekor Mundur 26px, Warna #EF8354) */}
-      <G transform={`translate(178, 178) rotate(${secondAngle})`}>
-        <Line x1="0" y1="26" x2="0" y2="-126" stroke="#EF8354" strokeWidth="2.5" strokeLinecap="round" />
-        <Circle cx="0" cy="16" r="4.5" fill="#EF8354" />
-      </G>
-
-      {/* 9. Poros Tengah (Center Pin) */}
-      <Circle cx="178" cy="178" r="8" fill="#2D3142" />
-      <Circle cx="178" cy="178" r="3" fill="#FFFFFF" />
-    </Svg>
+function TimeWithZone({ time, style, zoneStyle }: { time: string; style: TextStyle; zoneStyle: TextStyle }) {
+  return (
+    <View style={st.timeRow}>
+      <Text style={style}>{time}</Text>
+      <Text style={zoneStyle}>WIB</Text>
+    </View>
   );
 }
 
 export function SignageTVScreen() {
   const { width: winW, height: winH } = useWindowDimensions();
-  const { prayerData, setIsSignageMode } = useMushola();
+  const { prayerData, setIsSignageMode, signageConfig, isPrayerLoading } = useMushola();
 
-  // URI Foto Makkah untuk Web & Native
-  const makkahUri =
-    (typeof makkahAsset === 'string'
-      ? makkahAsset
-      : makkahAsset?.default || makkahAsset?.uri) || '/assets/makkah.jpg';
-
-  // Live Timer State (WIB)
+  // Jam berdetak per detik (WIB)
   const [nowDate, setNowDate] = useState(new Date());
-  const [wibTime, setWibTime] = useState(getWibTime());
-
+  const [wib, setWib] = useState(getWibTime());
   useEffect(() => {
     const timer = setInterval(() => {
       setNowDate(new Date());
-      setWibTime(getWibTime());
+      setWib(getWibTime());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Compute 1920x1080 canvas scale factor for current viewport (Auto-scale 100%)
-  const scale = Math.min(winW / 1920, winH / 1080);
+  const scale = Math.min(winW / CANVAS_W, winH / CANVAS_H);
+  // Ruang untuk tombol keluar (ukuran nyata 44px) di pojok kanan atas viewport.
+  const exitReserve = Math.min(420, (44 + 32) / Math.max(scale, 0.01));
 
-  // ================= JAM ANALOG REAL-TIME (WIB) =================
-  const liveHours = wibTime.hours;
-  const liveMinutes = wibTime.minutes;
-  const liveSeconds = wibTime.seconds;
+  const timeOf = (name: string, fallback: string) => prayerData.schedules.find((s) => s.name === name)?.time || fallback;
 
-  // ================= DATA AKTUAL MUSHOLA AL-MUTTAQIN =================
-  const mosqueName = 'Musholla Al Muttaqin';
-  const mosqueAddress = 'Perum. Mutiara Puri Harmoni, Sukamanah, Rajeg';
+  const timeTerbit = timeOf('Terbit', '05:32');
+  const prayers = [
+    { name: 'Subuh', adzan: timeOf('Subuh', '04:32') },
+    { name: 'Dzuhur', adzan: timeOf('Dzuhur', '11:47') },
+    { name: 'Ashar', adzan: timeOf('Ashar', '15:02') },
+    { name: 'Maghrib', adzan: timeOf('Maghrib', '17:54') },
+    { name: 'Isya', adzan: timeOf('Isya', '19:05') },
+  ].map((p) => ({ ...p, iqomah: addMinutesToTime(p.adzan, IQOMAH_GAP[p.name]) }));
 
-  // Jadwal Sholat Kemenag Aktual (Format 24 Jam)
-  const timeSubuh = prayerData.schedules.find((s) => s.name === 'Subuh')?.time || '04:32';
-  const timeTerbit = prayerData.schedules.find((s) => s.name === 'Terbit')?.time || '05:32';
-  const timeDzuhur = prayerData.schedules.find((s) => s.name === 'Dzuhur')?.time || '11:47';
-  const timeAshar = prayerData.schedules.find((s) => s.name === 'Ashar')?.time || '15:02';
-  const timeMaghrib = prayerData.schedules.find((s) => s.name === 'Maghrib')?.time || '17:54';
-  const timeIsya = prayerData.schedules.find((s) => s.name === 'Isya')?.time || '19:05';
+  const dzuhur = prayers[1];
 
-  // Waktu Iqomah Aktual (Ditambah jeda adzan ke iqomah)
-  const iqomahSubuh = addMinutesToTime(timeSubuh, 12);
-  const iqomahDzuhur = addMinutesToTime(timeDzuhur, 13);
-  const iqomahAshar = addMinutesToTime(timeAshar, 13);
-  const iqomahMaghrib = addMinutesToTime(timeMaghrib, 11);
-  const iqomahIsya = addMinutesToTime(timeIsya, 10);
+  // Fase iqomah: adzan sudah lewat, iqomah belum.
+  const nowSec = wib.totalSeconds;
+  const inIqomah = prayers.find((p) => nowSec >= toSeconds(p.adzan) && nowSec < toSeconds(p.iqomah));
+  const iqomahLeft = inIqomah ? toSeconds(inIqomah.iqomah) - nowSec : 0;
 
-  // Jadwal Sholat Jumat
-  const jumatAdzan = timeDzuhur;
-  const jumatIqomah = iqomahDzuhur;
+  const nextName = prayerData.nextPrayer.name;
+  const activeName = inIqomah ? inIqomah.name : nextName;
 
-  // Data Sholat Berikutnya (Hero Capsule)
-  const nextName = prayerData.nextPrayer.name; // 'Subuh' | 'Dzuhur' | 'Ashar' | 'Maghrib' | 'Isya'
-  const nextTime = `${prayerData.nextPrayer.time}`;
-  const nextCountdown = `(-${prayerData.nextPrayer.compactCountdown || '00:00:00'})`;
-
-  // Tanggal Bahasa Indonesia
   const hijriDate = getEstimatedHijriDate(nowDate);
   const gregorianDate = formatDateIndo(nowDate.toISOString().split('T')[0]);
+  const isFriday = nowDate.getDay() === 5;
 
-  // Data 5 Kartu Sholat Bawah (Semua Bahasa Indonesia & Format 24 Jam)
-  const prayerCardsData = [
-    {
-      key: 'subuh',
-      name: 'Subuh',
-      icon: <FajrIcon />,
-      timeAdzan: timeSubuh,
-      timeIqomah: iqomahSubuh,
-      isActive: nextName.toLowerCase() === 'subuh',
-    },
-    {
-      key: 'dzuhur',
-      name: 'Dzuhur',
-      icon: <SunFullIcon size={42} />,
-      timeAdzan: timeDzuhur,
-      timeIqomah: iqomahDzuhur,
-      isActive: nextName.toLowerCase() === 'dzuhur',
-    },
-    {
-      key: 'ashar',
-      name: 'Ashar',
-      icon: <AsrIcon />,
-      timeAdzan: timeAshar,
-      timeIqomah: iqomahAshar,
-      isActive: nextName.toLowerCase() === 'ashar',
-    },
-    {
-      key: 'maghrib',
-      name: 'Maghrib',
-      icon: <MaghribCardIcon />,
-      timeAdzan: timeMaghrib,
-      timeIqomah: iqomahMaghrib,
-      isActive: nextName.toLowerCase() === 'maghrib',
-    },
-    {
-      key: 'isya',
-      name: 'Isya',
-      icon: <IshaIcon />,
-      timeAdzan: timeIsya,
-      timeIqomah: iqomahIsya,
-      isActive: nextName.toLowerCase() === 'isya',
-    },
-  ];
+  const hadith = signageConfig.hadithOfTheDay;
 
   return (
-    <View style={styles.viewportOuter}>
-      {/* ================= LAYER 0: FOTO BACKGROUND MAKKAH FULL SCREEN (DINAMIS 100% COVER) ================= */}
-      <View style={styles.fullscreenBgWrapper} pointerEvents="none">
-        {Platform.OS === 'web' ? (
-          React.createElement('img', {
-            src: makkahUri,
-            alt: 'Latar Makkah Fullscreen',
-            style: {
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              width: '100%',
-              height: '100%',
-              minWidth: '100%',
-              minHeight: '100%',
-              transform: 'translate(-50%, -50%) scale(1.10)',
-              objectFit: 'cover',
-              objectPosition: 'center center',
-              opacity: 0.38,
-              pointerEvents: 'none',
-            },
-          })
-        ) : (
-          <Image
-            source={require('../../assets/makkah.jpg')}
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                width: '100%',
-                height: '100%',
-                opacity: 0.38,
-                transform: [{ scale: 1.10 }],
-              },
-            ]}
-            resizeMode="cover"
-          />
-        )}
-      </View>
+    <View style={st.viewport}>
+      <Image source={makkahAsset} style={st.bgImage} resizeMode="cover" accessibilityElementsHidden importantForAccessibility="no" />
 
-      {/* 1920x1080 Fixed Canvas dengan Auto-Scale Responsif */}
-      <View
-        style={[
-          styles.canvas1080p,
-          {
-            transform: [{ scale }],
-          },
-        ]}
-      >
-        {/* ================= LAYER 0.5: SVG MOSQUE SKYLINE SILHOUETTE ================= */}
-        <View style={styles.svgBackgroundLayer} pointerEvents="none">
-          <Svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
-            {/* Kubah & Bulan Sabit Besar di Belakang Jam Analog */}
-            <Circle cx="595" cy="240" r="85" fill="#CBE0DA" opacity="0.45" />
-            <Path
-              d="M570,110 A42,42 0 1,0 625,165 A34,34 0 1,1 570,110 Z"
-              fill="#CBE0DA"
-              opacity="0.55"
-            />
-
-            {/* Siluet Daun Palem Sudut Kiri & Kanan Atas */}
-            <Path
-              d="M-40,-20 Q120,40 180,180 Q100,120 -20,100 Z M-10,-40 Q160,20 230,120 Q140,80 30,30 Z"
-              fill="#CBE0DA"
-              opacity="0.35"
-            />
-            <Path
-              d="M1960,-20 Q1800,40 1740,180 Q1820,120 1940,100 Z M1930,-40 Q1760,20 1690,120 Q1780,80 1890,30 Z"
-              fill="#CBE0DA"
-              opacity="0.35"
-            />
-
-            {/* Siluet Menara & Kubah Masjid Lapis Tengah */}
-            <Path
-              d="M0,640 L120,640 L120,520 Q160,450 200,520 L200,640 L260,640 Q380,460 500,640 L980,640 L980,430 L1015,380 L1050,430 L1050,640 L1370,640 L1385,360 L1405,310 L1425,360 L1440,640 L1650,640 Q1730,520 1810,640 L1920,640 L1920,1080 L0,1080 Z"
-              fill="#C4DFD8"
-              opacity="0.45"
-            />
-
-            {/* Siluet Bangunan Depan Masjid */}
-            <Path
-              d="M0,720 Q180,680 360,720 L1560,720 Q1740,670 1920,720 L1920,1080 L0,1080 Z"
-              fill="#BFD8D2"
-              opacity="0.4"
-            />
-          </Svg>
-        </View>
-
-        {/* ================= LAYER 1: ZONA HEADER ================= */}
-        <View style={styles.tvHeader}>
-          {/* Identitas Musholla */}
-          <View style={styles.brandLeft}>
-            <View style={styles.mosqueAvatarCircle}>
-              <Image
-                source={require('../../assets/logo.png')}
-                style={styles.mosqueAvatarImg}
-                resizeMode="contain"
-              />
+      <View style={[st.canvas, { transform: [{ scale }] }]}>
+        {/* Header */}
+        <View style={[st.header, { paddingRight: exitReserve }]}>
+          <View style={st.brand}>
+            <View style={st.logoWrap}>
+              <Image source={logoAsset} style={st.logo} resizeMode="contain" accessibilityLabel="Logo Musholla Al Muttaqin" />
             </View>
-            <View style={{ marginLeft: 22 }}>
-              <Text style={styles.mosqueTitle}>{mosqueName}</Text>
-              <Text style={styles.mosqueSubtitle}>{mosqueAddress}</Text>
+            <View style={{ flexShrink: 1 }}>
+              <Text style={st.brandName} numberOfLines={1}>
+                {signageConfig.musholaName}
+              </Text>
+              <Text style={st.brandAddress} numberOfLines={1}>
+                {signageConfig.musholaAddress}
+              </Text>
             </View>
           </View>
 
-          {/* Indikator Waktu Terbit / Syuruq (Format 24 Jam) */}
-          <View style={styles.sunriseRight}>
-            <SunriseIcon />
-            <Text style={styles.sunriseLabel}>Terbit</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-              <Text style={styles.sunriseTimeNum}>{timeTerbit}</Text>
-              <Text style={styles.sunriseTimeAmPm}>WIB</Text>
+          <View style={st.headerRight}>
+            <View style={st.dates}>
+              <Text style={st.dateHijri}>{hijriDate}</Text>
+              <Text style={st.dateGreg}>{gregorianDate}</Text>
             </View>
-
-            {/* Tombol Tutup Mode TV */}
-            <TouchableOpacity
-              style={styles.exitTvBtn}
-              onPress={() => setIsSignageMode(false)}
-              activeOpacity={0.8}
-              accessibilityLabel="Kembali ke Dashboard"
-            >
-              <Ionicons name="close" size={20} color="#475569" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ================= LAYER 2: ZONA HERO (3 KOLOM ASIMETRIS) ================= */}
-        <View style={styles.tvHero}>
-          {/* Kolom Kiri: Kartu Sholat Jumat */}
-          <View style={styles.jumuahCard}>
-            <View style={styles.jumuahHeader}>
-              <SunFullIcon size={38} />
-              <Text style={styles.jumuahTitle}>Jumat</Text>
-            </View>
-
-            <View style={styles.jumuahTimeGroup}>
-              <Text style={styles.jumuahTimeLabel}>Adzan</Text>
-              <View style={styles.jumuahTimeRow}>
-                <Text style={styles.jumuahTimeAthanNum}>{jumatAdzan}</Text>
-                <Text style={styles.jumuahTimeAthanAmPm}>WIB</Text>
+            <View style={st.terbit}>
+              <Ionicons name="sunny-outline" size={34} color={C.g700} aria-hidden />
+              <View>
+                <Text style={st.terbitLabel}>Terbit</Text>
+                <TimeWithZone time={timeTerbit} style={st.terbitTime} zoneStyle={st.zoneSmall} />
               </View>
-            </View>
-
-            <View style={[styles.jumuahTimeGroup, { marginTop: 14 }]}>
-              <Text style={styles.jumuahTimeLabel}>Iqomah</Text>
-              <View style={styles.jumuahTimeRow}>
-                <Text style={styles.jumuahTimeIqamahNum}>{jumatIqomah}</Text>
-                <Text style={styles.jumuahTimeIqamahAmPm}>WIB</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Kolom Tengah: Jam Analog Real-Time + Kapsul Sholat Berikutnya + Tanggal */}
-          <View style={styles.heroCenterWrapper}>
-            <View style={styles.clockAndPillRow}>
-              {/* Jam Analog Berputar Nyata 356px (SVG Murni) */}
-              <View style={styles.analogClockCircle}>
-                <AnalogClockSVG
-                  hours={liveHours}
-                  minutes={liveMinutes}
-                  seconds={liveSeconds}
-                />
-              </View>
-
-              {/* Kapsul Hijau Zamrud Waktu Sholat Berikutnya (860px x 286px) */}
-              <View style={styles.nextPrayerPill}>
-                {/* Siluet Bukit & Palem di dalam Kapsul */}
-                <Svg
-                  width="860"
-                  height="286"
-                  viewBox="0 0 860 286"
-                  style={styles.capsuleArtSvg}
-                  pointerEvents="none"
-                >
-                  <Path
-                    d="M860,0 Q720,20 680,120 Q750,70 860,60 Z M860,40 Q760,70 720,160 Q790,110 860,100 Z"
-                    fill="#041B10"
-                    opacity="0.85"
-                  />
-                  <Path
-                    d="M320,286 Q540,210 740,250 Q800,260 860,286 Z"
-                    fill="#041B10"
-                    opacity="0.9"
-                  />
-                </Svg>
-
-                <View style={styles.capsuleContent}>
-                  {/* Baris 1: Ikon Emas + Nama Sholat Berikutnya */}
-                  <View style={styles.heroPrayerNameRow}>
-                    <MaghribHeroIcon />
-                    <Text style={styles.heroPrayerNameText}>{nextName}</Text>
-                  </View>
-
-                  {/* Baris 2: Jam Sholat (24 Jam) + Hitung Mundur Live */}
-                  <View style={styles.heroPrayerTimeRow}>
-                    <Text style={styles.heroPrayerTimeText}>{nextTime} WIB</Text>
-                    <Text style={styles.heroCountdownText}>{nextCountdown}</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Tanggal Hijriyah & Masehi Bahasa Indonesia */}
-            <View style={styles.heroDatesBlock}>
-              <Text style={styles.hijriDateText}>{hijriDate}</Text>
-              <Text style={styles.gregorianDateText}>{gregorianDate}</Text>
-            </View>
-          </View>
-
-          {/* Kolom Kanan: Kotak Infaq QRIS Musholla Al-Muttaqin */}
-          <View style={styles.qrColumn}>
-            <View style={styles.qrCard}>
-              <Image
-                source={require('../../assets/qris-square.png')}
-                style={styles.qrImg}
-                resizeMode="contain"
-              />
-            </View>
-            <View style={styles.qrCaptionWrap}>
-              <Text style={styles.qrCaptionLine}>Infaq & Sedekah Mushola</Text>
-              <Text style={styles.qrCaptionLine}>Scan QRIS (GoPay / Semua Bank)</Text>
             </View>
           </View>
         </View>
 
-        {/* ================= LAYER 3: ZONA 5 KARTU WAKTU SHOLAT ================= */}
-        <View style={styles.prayerGrid}>
-          {prayerCardsData.map((card) => {
-            const isActive = card.isActive;
+        {/* Baris utama: jam, sholat berikutnya, QRIS */}
+        <View style={st.mainRow}>
+          <View style={[st.card, st.clockCard]}>
+            <Text style={st.cardLabel}>Waktu sekarang, WIB</Text>
+            <View style={st.clockRow}>
+              <Text style={st.clockHM}>
+                {pad2(wib.hours)}:{pad2(wib.minutes)}
+              </Text>
+              <Text style={st.clockS}>{pad2(wib.seconds)}</Text>
+            </View>
+            <Text style={st.cardFoot} numberOfLines={1}>
+              {isPrayerLoading
+                ? 'Memperbarui jadwal sholat...'
+                : prayerData.isLiveKemenag
+                  ? `Jadwal Kemenag, ${prayerData.cityName}`
+                  : `Jadwal perkiraan offline, ${prayerData.cityName}`}
+            </Text>
+          </View>
+
+          <View style={[st.card, st.heroCard]}>
+            <HeroFill />
+            <Text style={st.heroLabel}>{inIqomah ? 'Menuju iqomah' : 'Sholat berikutnya'}</Text>
+            <View style={st.heroNameRow}>
+              <Ionicons name={PRAYER_ICON[activeName] ?? 'time-outline'} size={60} color={C.onDark} aria-hidden />
+              <Text style={st.heroName}>{activeName}</Text>
+            </View>
+            <TimeWithZone
+              time={inIqomah ? inIqomah.iqomah : prayerData.nextPrayer.time}
+              style={st.heroTime}
+              zoneStyle={st.heroZone}
+            />
+            <View style={st.heroCountRow}>
+              <Text style={st.heroCountLabel}>{inIqomah ? 'Iqomah dalam' : 'Adzan dalam'}</Text>
+              <Text style={st.heroCount}>
+                {inIqomah
+                  ? `${pad2(Math.floor(iqomahLeft / 60))}:${pad2(iqomahLeft % 60)}`
+                  : prayerData.nextPrayer.compactCountdown || '00:00:00'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[st.card, st.qrCard]}>
+            <Image source={qrisAsset} style={st.qrImg} resizeMode="contain" accessibilityLabel="Kode QRIS infaq Musholla Al Muttaqin" />
+            <Text style={st.qrTitle}>Infaq dan sedekah</Text>
+            <Text style={st.qrSub}>Scan QRIS, semua bank dan e-wallet</Text>
+          </View>
+        </View>
+
+        {/* Lima waktu sholat */}
+        <View style={st.prayerRow}>
+          {prayers.map((p) => {
+            const active = p.name === activeName;
             return (
-              <View
-                key={card.key}
-                style={[
-                  styles.prayerCard,
-                  isActive && styles.prayerCardActive,
-                ]}
-              >
-                {/* Floating Pill Header di Atas Tengah Kartu */}
-                <View style={styles.floatingPill}>
-                  {card.icon}
-                  <Text style={styles.floatingPillTitle}>{card.name}</Text>
+              <View key={p.name} style={[st.card, st.prayerCard, active && st.prayerCardActive]}>
+                <View style={st.prayerHead}>
+                  <Ionicons name={PRAYER_ICON[p.name]} size={34} color={active ? C.g700 : C.inkMuted} aria-hidden />
+                  <Text style={[st.prayerName, active && { color: C.g700 }]}>{p.name}</Text>
+                  {active ? (
+                    <View style={st.tvBadge}>
+                      <Text style={st.tvBadgeText}>{inIqomah ? 'Iqomah' : 'Berikutnya'}</Text>
+                    </View>
+                  ) : null}
                 </View>
-
-                {/* Isi Kartu (Adzan & Iqomah Bahasa Indonesia Format 24 Jam) */}
-                <View style={styles.prayerCardContent}>
-                  {/* Blok Adzan */}
-                  <View style={styles.prayerTimeGroup}>
-                    <Text
-                      style={[
-                        styles.prayerLabelText,
-                        isActive && styles.prayerLabelTextActive,
-                      ]}
-                    >
-                      Adzan
-                    </Text>
-                    <View style={styles.prayerTimeRow}>
-                      <Text
-                        style={[
-                          styles.prayerAdhanTimeNum,
-                          isActive && styles.prayerTimeNumActive,
-                        ]}
-                      >
-                        {card.timeAdzan}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.prayerAdhanTimeAmPm,
-                          isActive && styles.prayerTimeAmPmActive,
-                        ]}
-                      >
-                        WIB
-                      </Text>
-                    </View>
+                <View style={st.prayerTimes}>
+                  <View>
+                    <Text style={st.timeLabel}>Adzan</Text>
+                    <TimeWithZone time={p.adzan} style={st.prayerAdzan} zoneStyle={st.zoneSmall} />
                   </View>
-
-                  {/* Blok Iqomah (Hirarki Jam Terbesar 66px Bold) */}
-                  <View style={styles.prayerTimeGroup}>
-                    <Text
-                      style={[
-                        styles.prayerLabelText,
-                        isActive && styles.prayerLabelTextActive,
-                      ]}
-                    >
-                      Iqomah
-                    </Text>
-                    <View style={styles.prayerTimeRow}>
-                      <Text
-                        style={[
-                          styles.prayerIqamahTimeNum,
-                          isActive && styles.prayerTimeNumActive,
-                        ]}
-                      >
-                        {card.timeIqomah}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.prayerIqamahTimeAmPm,
-                          isActive && styles.prayerTimeAmPmActive,
-                        ]}
-                      >
-                        WIB
-                      </Text>
-                    </View>
+                  <View>
+                    <Text style={st.timeLabel}>Iqomah</Text>
+                    <Text style={st.prayerIqomah}>{p.iqomah}</Text>
                   </View>
                 </View>
               </View>
             );
           })}
         </View>
+
+        {/* Hadits & Jumat */}
+        <View style={st.bottomRow}>
+          <View style={[st.card, st.hadithCard]}>
+            <Ionicons name="book-outline" size={36} color={C.g700} aria-hidden />
+            <View style={{ flex: 1 }}>
+              <Text style={st.hadithText} numberOfLines={2}>
+                {hadith.text}
+              </Text>
+              <Text style={st.hadithBy}>{hadith.narrator}</Text>
+            </View>
+          </View>
+          <View style={[st.card, st.jumatCard, isFriday && st.prayerCardActive]}>
+            <Text style={st.jumatTitle}>Jumat</Text>
+            <View>
+              <Text style={st.timeLabel}>Adzan</Text>
+              <Text style={st.jumatTime}>{dzuhur.adzan}</Text>
+            </View>
+            <View>
+              <Text style={st.timeLabel}>Iqomah</Text>
+              <Text style={st.jumatTime}>{dzuhur.iqomah}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Running text */}
+        <View style={[st.card, st.runCard]}>
+          <View style={st.runTag}>
+            <Text style={st.runTagText}>Info</Text>
+          </View>
+          <View style={{ flex: 1, overflow: 'hidden' }}>
+            <RunningText text={signageConfig.runningText} />
+          </View>
+        </View>
+      </View>
+
+      <View style={st.exit}>
+        <IconButton icon="close" label="Keluar dari mode TV" onPress={() => setIsSignageMode(false)} />
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  viewportOuter: {
+const st = StyleSheet.create({
+  viewport: {
     flex: 1,
     width: '100%',
     height: '100%',
-    backgroundColor: '#DBEAE5',
+    backgroundColor: C.page,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    position: 'relative',
   },
-  fullscreenBgWrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: '100%',
-    height: '100%',
-    overflow: 'hidden',
-    zIndex: 0,
+  bgImage: { ...StyleSheet.absoluteFill, width: '100%', height: '100%', opacity: 0.1 },
+  canvas: {
+    width: CANVAS_W,
+    height: CANVAS_H,
+    padding: PAD,
+    gap: GAP,
+    flexShrink: 0,
   },
-  canvas1080p: {
-    width: 1920,
-    height: 1080,
-    backgroundColor: 'transparent',
-    position: 'relative',
-    overflow: 'hidden',
-    paddingTop: 28,
-    paddingBottom: 32,
-    paddingHorizontal: 34,
-    justifyContent: 'space-between',
-    zIndex: 5,
-  },
-  svgBackgroundLayer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 0,
-  },
+  exit: { position: 'absolute', top: SP.l, right: SP.l, backgroundColor: C.card, borderRadius: R.pill },
 
-  /* ================= ZONE 1: TOP HEADER BAR ================= */
-  tvHeader: {
-    height: 96,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  brandLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  mosqueAvatarCircle: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 2.5,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 2,
-  },
-  mosqueAvatarImg: {
-    width: 98,
-    height: 98,
-  },
-  mosqueTitle: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: '#2D3834',
-    letterSpacing: -0.5, // Headings 32px+: -0.015em
-    lineHeight: 38,
-  },
-  mosqueSubtitle: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#64748B',
-    marginTop: 2,
-    letterSpacing: 0.2, // UI text 16px: +0.012em
-    lineHeight: 22,
-  },
-  sunriseRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingRight: 10,
-  },
-  sunriseLabel: {
-    fontSize: 26,
-    fontWeight: '500',
-    color: '#8F9995',
-    letterSpacing: 0.4, // UI label: +0.015em
-  },
-  sunriseTimeNum: {
-    fontSize: 38,
-    fontWeight: '600',
-    color: '#2D3834',
-    letterSpacing: -0.6, // Headings 38px: -0.015em
-    fontVariant: ['tabular-nums'],
-  },
-  sunriseTimeAmPm: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#8F9995',
-    marginLeft: 6,
-    letterSpacing: 1.6, // ALL CAPS: +0.08em
-  },
-  exitTvBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 16,
+  card: {
+    backgroundColor: C.card,
+    borderRadius: R.card,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-    cursor: 'pointer',
+    borderColor: C.line,
+    overflow: 'hidden',
   },
 
-  /* ================= ZONE 2: MIDDLE HERO SECTION ================= */
-  tvHero: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  /* Header */
+  header: { height: 100, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 32 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 22, flexShrink: 1 },
+  logoWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: C.card,
+    borderWidth: 1,
+    borderColor: C.line,
     alignItems: 'center',
-    height: 470,
-    zIndex: 10,
-    marginTop: 10,
-  },
-
-  /* Left: Kartu Sholat Jumat */
-  jumuahCard: {
-    width: 310,
-    height: 326,
-    borderRadius: 28,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 24,
-    paddingHorizontal: 30,
-    shadowColor: '#1C3E32',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 24,
-    elevation: 6,
-  },
-  jumuahHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  jumuahTitle: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#3D403E',
-    letterSpacing: -0.3,
-  },
-  jumuahTimeGroup: {
-    alignItems: 'flex-start',
-  },
-  jumuahTimeLabel: {
-    fontSize: 24,
-    fontWeight: '500',
-    color: '#8F9492',
-    marginBottom: 2,
-    letterSpacing: 0.4,
-  },
-  jumuahTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  jumuahTimeAthanNum: {
-    fontSize: 46,
-    fontWeight: '600',
-    color: '#3D403E',
-    letterSpacing: -0.8, // -0.017em
-    fontVariant: ['tabular-nums'],
-  },
-  jumuahTimeAthanAmPm: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#8F9492',
-    marginLeft: 6,
-    letterSpacing: 1.6, // ALL CAPS: +0.08em
-  },
-  jumuahTimeIqamahNum: {
-    fontSize: 50,
-    fontWeight: '600',
-    color: '#3D403E',
-    letterSpacing: -1.0, // -0.02em
-    fontVariant: ['tabular-nums'],
-  },
-  jumuahTimeIqamahAmPm: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#8F9492',
-    marginLeft: 6,
-    letterSpacing: 1.6, // ALL CAPS: +0.08em
-  },
-
-  /* Center: Jam Analog + Kapsul + Tanggal */
-  heroCenterWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clockAndPillRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  analogClockCircle: {
-    width: 356,
-    height: 356,
-    borderRadius: 178,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 28,
-    elevation: 12,
-    zIndex: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  /* Kapsul Hijau Zamrud Sholat Berikutnya */
-  nextPrayerPill: {
-    width: 860,
-    height: 286,
-    backgroundColor: '#2D3142',
-    borderTopRightRadius: 72,
-    borderBottomRightRadius: 72,
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
-    marginLeft: -178, // Overlap jam analog
-    paddingTop: 36,
-    paddingBottom: 36,
-    paddingRight: 56,
-    paddingLeft: 210, // Memberi ruang bagi jam analog
     justifyContent: 'center',
     overflow: 'hidden',
-    position: 'relative',
   },
-  capsuleArtSvg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  capsuleContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 5,
-  },
-  heroPrayerNameRow: {
+  logo: { width: 80, height: 80 },
+  brandName: tv('h1', 46, 54, { letterSpacing: -1, color: C.ink }),
+  brandAddress: tv('body', 22, 30, { color: C.inkMuted }),
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 28 },
+  dates: { alignItems: 'flex-end' },
+  dateHijri: tv('h3', 28, 36, { color: C.ink }),
+  dateGreg: tv('body', 22, 30, { color: C.inkMuted }),
+  terbit: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 18,
-    marginBottom: 24,
+    gap: 16,
+    backgroundColor: C.card,
+    borderRadius: R.card,
+    borderWidth: 1,
+    borderColor: C.line,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
   },
-  heroPrayerNameText: {
-    fontSize: 50,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: -1.0, // Display 50px: -0.02em
-  },
-  heroPrayerTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'center',
-    gap: 22,
-  },
-  heroPrayerTimeText: {
-    fontSize: 44,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: -0.8, // -0.018em
-    fontVariant: ['tabular-nums'],
-  },
-  heroCountdownText: {
-    fontSize: 46,
-    fontWeight: '500',
-    color: '#EF8354',
-    letterSpacing: -0.8, // -0.017em
-    fontVariant: ['tabular-nums'],
-  },
+  terbitLabel: tv('label', 20, 26, { color: C.inkMuted }),
+  terbitTime: tv('display', 38, 44, { letterSpacing: -0.8, color: C.ink }),
 
-  /* Tanggal Di Bawah Kapsul */
-  heroDatesBlock: {
-    marginTop: 24,
-    alignItems: 'center',
-    marginLeft: 32,
-  },
-  hijriDateText: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: '#3A4642',
-    letterSpacing: -0.5,
-    lineHeight: 42,
-  },
-  gregorianDateText: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: '#3A4642',
-    letterSpacing: -0.5,
-    marginTop: 4,
-    lineHeight: 42,
-  },
+  timeRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  zoneSmall: tv('smallStrong', 18, 22, { color: C.inkMuted }),
 
-  /* Right: QR Code Column */
-  qrColumn: {
-    alignItems: 'center',
-  },
-  qrCard: {
-    width: 296,
-    height: 296,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 32,
-    padding: 24,
-    shadowColor: '#1C3E32',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 24,
-    elevation: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qrImg: {
-    width: '100%',
-    height: '100%',
-  },
-  qrCaptionWrap: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  qrCaptionLine: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#4A5551',
-    letterSpacing: 0.3,
-    lineHeight: 26,
-    textAlign: 'center',
-  },
+  /* Baris utama */
+  mainRow: { height: 400, flexDirection: 'row', gap: GAP },
+  clockCard: { flex: 1.1, padding: 36, justifyContent: 'space-between' },
+  cardLabel: tv('h3', 28, 34, { color: C.inkMuted }),
+  clockRow: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
+  clockHM: tv('display', 196, 206, { letterSpacing: -6, color: C.ink }),
+  clockS: tv('display', 72, 80, { letterSpacing: -1.5, color: C.inkMuted }),
+  cardFoot: tv('body', 22, 30, { color: C.inkMuted }),
 
-  /* ================= ZONE 3: BOTTOM 5-PRAYER GRID ================= */
-  prayerGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'stretch',
-    gap: 46,
-    marginTop: 42,
-    height: 356,
-    zIndex: 10,
+  heroCard: { flex: 1.4, padding: 36, justifyContent: 'space-between', borderColor: C.g800, backgroundColor: C.g800 },
+  heroLabel: tv('h3', 28, 34, { color: C.onDarkMuted }),
+  heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  heroName: tv('h1', 68, 76, { letterSpacing: -1.4, color: C.onDark }),
+  heroTime: tv('display', 132, 140, { letterSpacing: -4, color: C.onDark }),
+  heroZone: tv('h3', 32, 38, { color: C.onDarkMuted }),
+  heroCountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 18 },
+  heroCountLabel: tv('h3', 28, 34, { color: C.onDarkMuted }),
+  heroCount: tv('display', 56, 62, { letterSpacing: -1.2, color: C.onDark }),
+
+  qrCard: { width: 360, padding: 28, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  qrImg: { width: 260, height: 260 },
+  qrTitle: tv('h3', 26, 32, { color: C.ink, textAlign: 'center', marginTop: 8 }),
+  qrSub: tv('body', 20, 26, { color: C.inkMuted, textAlign: 'center' }),
+
+  /* Lima waktu */
+  prayerRow: { height: 236, flexDirection: 'row', gap: GAP },
+  prayerCard: { flex: 1, padding: 24, paddingRight: 28, justifyContent: 'space-between' },
+  prayerCardActive: { borderWidth: 3, borderColor: C.g700 },
+  prayerHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  prayerName: tv('h2', 34, 40, { letterSpacing: -0.5, color: C.ink, flexShrink: 1 }),
+  tvBadge: {
+    marginLeft: 'auto',
+    backgroundColor: C.g50,
+    borderColor: C.g100,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
-  prayerCard: {
-    flex: 1,
-    maxWidth: 330,
-    height: 356,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 32,
-    paddingTop: 62,
-    paddingBottom: 30,
-    paddingHorizontal: 34,
-    borderWidth: 3.5,
-    borderColor: 'transparent',
-    shadowColor: '#1C3E32',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 24,
-    elevation: 4,
-    position: 'relative',
-    justifyContent: 'space-between',
-  },
-  prayerCardActive: {
-    borderColor: '#EF8354',
-    shadowColor: '#EF8354',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  floatingPill: {
-    position: 'absolute',
-    top: -39,
-    left: '50%',
-    transform: [{ translateX: -112 }],
-    width: 224,
-    height: 78,
-    borderRadius: 39,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2.5,
-    borderColor: '#EFE9C8',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    paddingHorizontal: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 5,
-    zIndex: 5,
-  },
-  floatingPillTitle: {
-    fontSize: 30,
-    fontWeight: '600',
-    color: '#3D403E',
-    letterSpacing: -0.4,
-  },
-  prayerCardContent: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingTop: 8,
-  },
-  prayerTimeGroup: {
-    alignItems: 'flex-start',
-  },
-  prayerLabelText: {
-    fontSize: 26,
-    fontWeight: '500',
-    color: '#A2A6A4',
-    marginBottom: 2,
-    letterSpacing: 0.5, // UI Label: +0.02em
-  },
-  prayerLabelTextActive: {
-    color: '#5A5D5B',
-  },
-  prayerTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  prayerAdhanTimeNum: {
-    fontSize: 46,
-    fontWeight: '600',
-    color: '#3D403E',
-    letterSpacing: -0.9, // Display -0.02em
-    fontVariant: ['tabular-nums'],
-  },
-  prayerAdhanTimeAmPm: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#8F9492',
-    marginLeft: 6,
-    letterSpacing: 1.6, // ALL CAPS: +0.08em
-  },
-  prayerIqamahTimeNum: {
-    fontSize: 64, // Dominant display kartu sholat
-    fontWeight: '600',
-    color: '#3D403E',
-    letterSpacing: -1.3, // Display 64px: -0.02em
-    fontVariant: ['tabular-nums'],
-  },
-  prayerIqamahTimeAmPm: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#8F9492',
-    marginLeft: 8,
-    letterSpacing: 1.8, // ALL CAPS: +0.075em
-  },
-  prayerTimeNumActive: {
-    color: '#EF8354',
-  },
-  prayerTimeAmPmActive: {
-    color: '#EF8354',
-  },
+  tvBadgeText: tv('smallStrong', 18, 22, { color: C.g700 }),
+  prayerTimes: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 },
+  timeLabel: tv('label', 22, 28, { color: C.inkMuted }),
+  prayerAdzan: tv('display', 66, 72, { letterSpacing: -2, color: C.ink }),
+  prayerIqomah: tv('display', 32, 38, { letterSpacing: -0.6, color: C.inkMuted }),
+
+  /* Hadits & Jumat */
+  bottomRow: { height: 124, flexDirection: 'row', gap: GAP },
+  hadithCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 22, paddingHorizontal: 32, paddingVertical: 18 },
+  hadithText: tv('body', 24, 33, { color: C.ink }),
+  hadithBy: tv('smallStrong', 20, 26, { color: C.g700, marginTop: 4 }),
+  jumatCard: { width: 560, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 32 },
+  jumatTitle: tv('h2', 34, 40, { color: C.ink }),
+  jumatTime: tv('display', 46, 52, { letterSpacing: -1, color: C.ink }),
+
+  /* Running text */
+  runCard: { height: 64, flexDirection: 'row', alignItems: 'center', gap: 18, paddingLeft: 12, paddingRight: 24 },
+  runTag: { backgroundColor: C.g700, borderRadius: R.pill, paddingHorizontal: 20, paddingVertical: 6 },
+  runTagText: tv('label', 22, 28, { color: C.onDark }),
+  runClip: { height: 40, overflow: 'hidden', justifyContent: 'center' },
+  runTrack: { position: 'absolute', left: 0, top: 0, width: 20000, flexDirection: 'row' },
+  runText: tv('bodyStrong', 26, 40, { color: C.ink }),
 });

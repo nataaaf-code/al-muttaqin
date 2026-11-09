@@ -1,823 +1,505 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  Platform,
-  Alert,
-} from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMushola } from '../store/useMusholaStore';
 import { InventoryItem } from '../types';
+import { C, R, SP } from '../theme/colors';
+import { NATIVE, Press, Sheet, dur } from '../theme/motion';
+import {
+  Badge,
+  BadgeTone,
+  Button,
+  Card,
+  CardHeader,
+  Col,
+  EmptyState,
+  Field,
+  IconName,
+  IconTile,
+  ListRow,
+  PageHeader,
+  Row,
+  Screen,
+  Segmented,
+  Stat,
+  T,
+  useBreakpoint,
+} from '../ui/kit';
 
-export function InventoryScreen() {
-  const { inventories, permissions, currentRole, addInventory, updateInventoryCondition } = useMushola();
-  const [filterCategory, setFilterCategory] = useState<string>('ALL');
+/* ---------- Data bantu ---------- */
 
-  // Modal State Tambah Aset
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [itemName, setItemName] = useState('');
-  const [itemCategory, setItemCategory] = useState<InventoryItem['category']>('AUDIO_ELEKTRONIK');
-  const [itemQuantity, setItemQuantity] = useState('1');
-  const [itemUnit, setItemUnit] = useState('Unit');
-  const [itemCondition, setItemCondition] = useState<InventoryItem['condition']>('BAIK');
-  const [itemLocation, setItemLocation] = useState('');
-  const [isForLoan, setIsForLoan] = useState(false);
-  const [itemNotes, setItemNotes] = useState('');
+type Category = InventoryItem['category'];
+type Condition = InventoryItem['condition'];
 
-  const filteredItems = inventories.filter((inv) => {
-    if (filterCategory === 'ALL') return true;
-    return inv.category === filterCategory;
-  });
+const CAT: Record<Category, { label: string; icon: IconName }> = {
+  AUDIO_ELEKTRONIK: { label: 'Audio & elektronik', icon: 'mic-outline' },
+  PERLENGKAPAN_IBADAH: { label: 'Perlengkapan ibadah', icon: 'book-outline' },
+  FASILITAS_UMUM: { label: 'Fasilitas umum & tenda', icon: 'home-outline' },
+  PERAWATAN_JENAZAH: { label: 'Perawatan jenazah', icon: 'medkit-outline' },
+};
+const CAT_ORDER: Category[] = ['AUDIO_ELEKTRONIK', 'PERLENGKAPAN_IBADAH', 'FASILITAS_UMUM', 'PERAWATAN_JENAZAH'];
 
-  const handleSaveInventory = () => {
-    if (!itemName.trim()) {
-      alertMsg('Peringatan', 'Nama barang wajib diisi!');
-      return;
-    }
-    const qty = parseInt(itemQuantity, 10);
-    if (isNaN(qty) || qty <= 0) {
-      alertMsg('Peringatan', 'Jumlah barang harus berupa angka positif!');
-      return;
-    }
+const COND: Record<Condition, { label: string; tone: BadgeTone }> = {
+  BAIK: { label: 'Baik', tone: 'success' },
+  RUSAK_RINGAN: { label: 'Rusak ringan', tone: 'warn' },
+  PERLU_DIGANTI: { label: 'Perlu diganti', tone: 'danger' },
+};
+const COND_ORDER: Condition[] = ['BAIK', 'RUSAK_RINGAN', 'PERLU_DIGANTI'];
 
-    addInventory({
-      name: itemName.trim(),
-      category: itemCategory,
-      quantity: qty,
-      unit: itemUnit.trim() || 'Unit',
-      condition: itemCondition,
-      location: itemLocation.trim() || 'Gudang Mushola',
-      isAvailableForLoan: isForLoan,
-      notes: itemNotes.trim() || undefined,
-    });
+const loanLabel = (i: InventoryItem) => (i.isAvailableForLoan ? 'Bisa dipinjam warga' : 'Khusus mushola');
 
-    setIsAddModalOpen(false);
-    resetForm();
-    alertMsg('Berhasil', 'Aset baru berhasil dicatatkan dalam sistem inventaris.');
-  };
+/* ---------- Komponen lokal (belum ada di kit) ---------- */
 
-  const resetForm = () => {
-    setItemName('');
-    setItemCategory('AUDIO_ELEKTRONIK');
-    setItemQuantity('1');
-    setItemUnit('Unit');
-    setItemCondition('BAIK');
-    setItemLocation('');
-    setIsForLoan(false);
-    setItemNotes('');
-  };
-
-  const alertMsg = (title: string, msg: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}: ${msg}`);
-    } else {
-      Alert.alert(title, msg);
-    }
-  };
-
+function ChoiceGroup<K extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { key: K; label: string }[];
+  value: K;
+  onChange: (k: K) => void;
+}) {
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header Info */}
-      <View style={styles.bannerBox}>
-        <View style={styles.bannerHeaderRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.bannerTitle}>Inventaris & Sarana Prasarana (Sarpras)</Text>
-            <Text style={styles.bannerSubtitle}>
-              Katalog aset fisik mushola, status kelayakan pakai, dan fasilitas yang dapat dipinjam warga.
-            </Text>
-          </View>
-          {permissions.canManageInventory && (
-            <TouchableOpacity
-              style={styles.addBtn}
-              onPress={() => setIsAddModalOpen(true)}
-              activeOpacity={0.8}
+    <View style={{ gap: 6 }}>
+      <T v="label">{label}</T>
+      <View style={st.choiceWrap} accessibilityRole="radiogroup" accessibilityLabel={label}>
+        {options.map((o) => {
+          const on = o.key === value;
+          return (
+            <Press
+              key={o.key}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on }}
+              onPress={() => onChange(o.key)}
+              hitSlop={4}
+              style={[st.choice, on && st.choiceOn]}
+              hoverStyle={on ? undefined : { backgroundColor: C.g50 }}
             >
-              <Ionicons name="add-circle" size={18} color="#FFFFFF" />
-              <Text style={styles.addBtnText}>+ Tambah Aset</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+              <T v="label" color={on ? C.onDark : C.inkMuted}>
+                {o.label}
+              </T>
+            </Press>
+          );
+        })}
       </View>
-
-      {/* RBAC Notice jika bukan Sarpras / Super Admin */}
-      {!permissions.canManageInventory && (
-        <View style={styles.rbacNoticeBox}>
-          <Ionicons name="information-circle" size={20} color="#0284C7" />
-          <View style={{ marginLeft: 10, flex: 1 }}>
-            <Text style={styles.rbacNoticeTitle}>Mode Transparansi Inventaris</Text>
-            <Text style={styles.rbacNoticeText}>
-              Sebagai <Text style={{ fontWeight: '700' }}>{permissions.roleTitle}</Text>, Anda melihat katalog fasilitas secara terbuka. Perubahan status kondisi fisik atau penambahan aset hanya dapat dilakukan oleh <Text style={{ fontWeight: '700' }}>Seksi Sarpras & Logistik</Text> atau <Text style={{ fontWeight: '700' }}>Ketua DKM</Text>.
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Filter Tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
-        {[
-          { id: 'ALL', label: 'Semua Aset' },
-          { id: 'AUDIO_ELEKTRONIK', label: 'Audio & Sound' },
-          { id: 'PERLENGKAPAN_IBADAH', label: 'Perlengkapan Ibadah' },
-          { id: 'FASILITAS_UMUM', label: 'Fasilitas Umum & Tenda' },
-          { id: 'PERAWATAN_JENAZAH', label: 'Perawatan Jenazah' },
-        ].map((f) => (
-          <TouchableOpacity
-            key={f.id}
-            style={[
-              styles.filterChip,
-              filterCategory === f.id && styles.filterChipActive,
-            ]}
-            onPress={() => setFilterCategory(f.id)}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                filterCategory === f.id && styles.filterChipTextActive,
-              ]}
-            >
-              {f.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* List Inventaris */}
-      <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionHeading}>Daftar Inventaris ({filteredItems.length})</Text>
-        {permissions.canManageInventory && (
-          <Text style={styles.sectionHint}>Ketuk status kondisi untuk mengubah</Text>
-        )}
-      </View>
-
-      {filteredItems.map((item) => (
-        <View key={item.id} style={styles.itemCard}>
-          <View style={styles.itemTop}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemCategory}>{item.category.replace('_', ' ')}</Text>
-            </View>
-
-            {/* Jika punya hak kelola inventory, berikan tombol toggle kondisi */}
-            {permissions.canManageInventory ? (
-              <View style={styles.conditionToggleGroup}>
-                {(['BAIK', 'RUSAK_RINGAN', 'PERLU_DIGANTI'] as const).map((cond) => {
-                  const isActive = item.condition === cond;
-                  return (
-                    <TouchableOpacity
-                      key={cond}
-                      style={[
-                        styles.condBtn,
-                        cond === 'BAIK' && (isActive ? styles.condBtnGoodActive : styles.condBtnGood),
-                        cond === 'RUSAK_RINGAN' && (isActive ? styles.condBtnWarnActive : styles.condBtnWarn),
-                        cond === 'PERLU_DIGANTI' && (isActive ? styles.condBtnDangerActive : styles.condBtnDanger),
-                      ]}
-                      onPress={() => updateInventoryCondition(item.id, cond)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          styles.condBtnText,
-                          cond === 'BAIK' && (isActive ? styles.condTextGoodActive : styles.condTextGood),
-                          cond === 'RUSAK_RINGAN' && (isActive ? styles.condTextWarnActive : styles.condTextWarn),
-                          cond === 'PERLU_DIGANTI' && (isActive ? styles.condTextDangerActive : styles.condTextDanger),
-                        ]}
-                      >
-                        {cond === 'BAIK' ? 'Baik' : cond === 'RUSAK_RINGAN' ? 'Rusak Ringan' : 'Ganti'}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ) : (
-              <View
-                style={[
-                  styles.conditionBadge,
-                  item.condition === 'BAIK'
-                    ? styles.badgeGood
-                    : item.condition === 'RUSAK_RINGAN'
-                    ? styles.badgeWarning
-                    : styles.badgeDanger,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.conditionBadgeText,
-                    item.condition === 'BAIK'
-                      ? styles.textGood
-                      : item.condition === 'RUSAK_RINGAN'
-                      ? styles.textWarning
-                      : styles.textDanger,
-                  ]}
-                >
-                  {item.condition}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.itemDetails}>
-            <View style={styles.detailRow}>
-              <Ionicons name="cube-outline" size={14} color="#64748B" />
-              <Text style={styles.detailText}>
-                Jumlah: <Text style={styles.boldText}>{item.quantity} {item.unit}</Text>
-              </Text>
-            </View>
-
-            <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={14} color="#64748B" />
-              <Text style={styles.detailText}>
-                Lokasi: <Text style={styles.boldText}>{item.location}</Text>
-              </Text>
-            </View>
-
-            {item.notes ? (
-              <View style={styles.detailRow}>
-                <Ionicons name="document-text-outline" size={14} color="#64748B" />
-                <Text style={styles.detailText}>
-                  Catatan: <Text style={styles.boldText}>{item.notes}</Text>
-                </Text>
-              </View>
-            ) : null}
-          </View>
-
-          <View style={styles.itemFooter}>
-            {item.isAvailableForLoan ? (
-              <View style={styles.loanBadgeAvailable}>
-                <Ionicons name="checkmark-circle-outline" size={13} color="#EF8354" />
-                <Text style={styles.loanTextAvailable}>Bisa Dipinjam Warga (Hubungi Sie Sarpras)</Text>
-              </View>
-            ) : (
-              <View style={styles.loanBadgeRestricted}>
-                <Ionicons name="lock-closed-outline" size={13} color="#64748B" />
-                <Text style={styles.loanTextRestricted}>Fasilitas Internal Mushola Saja</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      ))}
-
-      {/* Modal Tambah Aset Inventaris */}
-      <Modal
-        visible={isAddModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsAddModalOpen(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="cube" size={20} color="#EF8354" />
-                <Text style={styles.modalTitle}>Tambah Aset Inventaris</Text>
-              </View>
-              <TouchableOpacity onPress={() => setIsAddModalOpen(false)}>
-                <Ionicons name="close" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalBody}>
-              <Text style={styles.inputLabel}>Nama Barang / Aset *</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="cth: Wireless Mic Shure, Tenda Tarup 4x6"
-                value={itemName}
-                onChangeText={setItemName}
-              />
-
-              <Text style={styles.inputLabel}>Kategori Aset</Text>
-              <View style={styles.radioWrap}>
-                {[
-                  { id: 'AUDIO_ELEKTRONIK', label: 'Audio & Sound' },
-                  { id: 'PERLENGKAPAN_IBADAH', label: 'Ibadah' },
-                  { id: 'FASILITAS_UMUM', label: 'Fasilitas Umum' },
-                  { id: 'PERAWATAN_JENAZAH', label: 'Jenazah' },
-                ].map((c) => (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[
-                      styles.radioChip,
-                      itemCategory === c.id && styles.radioChipActive,
-                    ]}
-                    onPress={() => setItemCategory(c.id as InventoryItem['category'])}
-                  >
-                    <Text
-                      style={[
-                        styles.radioChipText,
-                        itemCategory === c.id && styles.radioChipTextActive,
-                      ]}
-                    >
-                      {c.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Jumlah *</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    placeholder="1"
-                    keyboardType="numeric"
-                    value={itemQuantity}
-                    onChangeText={setItemQuantity}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Satuan</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    placeholder="Unit / Set / Rol"
-                    value={itemUnit}
-                    onChangeText={setItemUnit}
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.inputLabel}>Kondisi Fisik Awal</Text>
-              <View style={styles.radioWrap}>
-                {[
-                  { id: 'BAIK', label: 'Baik & Layak' },
-                  { id: 'RUSAK_RINGAN', label: 'Rusak Ringan' },
-                  { id: 'PERLU_DIGANTI', label: 'Perlu Diganti' },
-                ].map((c) => (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[
-                      styles.radioChip,
-                      itemCondition === c.id && styles.radioChipActive,
-                    ]}
-                    onPress={() => setItemCondition(c.id as InventoryItem['condition'])}
-                  >
-                    <Text
-                      style={[
-                        styles.radioChipText,
-                        itemCondition === c.id && styles.radioChipTextActive,
-                      ]}
-                    >
-                      {c.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.inputLabel}>Lokasi Penyimpanan *</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="cth: Ruang Sound, Gudang Sayap Kanan"
-                value={itemLocation}
-                onChangeText={setItemLocation}
-              />
-
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setIsForLoan(!isForLoan)}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name={isForLoan ? 'checkbox' : 'square-outline'}
-                  size={20}
-                  color={isForLoan ? '#EF8354' : '#94A3B8'}
-                />
-                <Text style={styles.checkboxLabel}>
-                  Bisa dipinjam oleh warga lingkungan untuk hajat/keperluan pribadi
-                </Text>
-              </TouchableOpacity>
-
-              <Text style={styles.inputLabel}>Catatan / Merk / Spesifikasi (Opsional)</Text>
-              <TextInput
-                style={[styles.modalInput, { height: 60 }]}
-                placeholder="cth: Donasi Bapak H. Wahyu thn 2025"
-                multiline
-                value={itemNotes}
-                onChangeText={setItemNotes}
-              />
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setIsAddModalOpen(false)}
-              >
-                <Text style={styles.modalCancelBtnText}>Batal</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalSubmitBtn}
-                onPress={handleSaveInventory}
-              >
-                <Text style={styles.modalSubmitBtnText}>Simpan Aset</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </ScrollView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  bannerBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 14,
-  },
-  bannerHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  bannerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  bannerSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    lineHeight: 18,
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EF8354',
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    gap: 6,
-  },
-  addBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  rbacNoticeBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#F0F9FF',
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-  },
-  rbacNoticeTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0369A1',
-    marginBottom: 2,
-  },
-  rbacNoticeText: {
-    fontSize: 11,
-    color: '#0C4A6E',
-    lineHeight: 16,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  filterChip: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginRight: 8,
-  },
-  filterChipActive: {
-    backgroundColor: '#EF8354',
-    borderColor: '#EF8354',
-  },
-  filterChipText: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  filterChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  sectionHeading: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  sectionHint: {
-    fontSize: 11,
-    color: '#64748B',
-    fontStyle: 'italic',
-  },
-  itemCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  itemTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  itemName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  itemCategory: {
-    fontSize: 11,
-    color: '#EF8354',
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  conditionToggleGroup: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
-    padding: 2,
-    gap: 2,
-  },
-  condBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-  },
-  condBtnText: {
-    fontSize: 10,
-  },
-  condBtnGood: {
-    backgroundColor: 'transparent',
-  },
-  condBtnGoodActive: {
-    backgroundColor: '#DCFCE7',
-  },
-  condTextGood: {
-    fontSize: 10,
-    color: '#166534',
-    fontWeight: '500',
-  },
-  condTextGoodActive: {
-    fontSize: 10,
-    color: '#15803D',
-    fontWeight: '700',
-  },
-  condBtnWarn: {
-    backgroundColor: 'transparent',
-  },
-  condBtnWarnActive: {
-    backgroundColor: '#FEF3C7',
-  },
-  condTextWarn: {
-    fontSize: 10,
-    color: '#92400E',
-    fontWeight: '500',
-  },
-  condTextWarnActive: {
-    fontSize: 10,
-    color: '#B45309',
-    fontWeight: '700',
-  },
-  condBtnDanger: {
-    backgroundColor: 'transparent',
-  },
-  condBtnDangerActive: {
-    backgroundColor: '#FEE2E2',
-  },
-  condTextDanger: {
-    fontSize: 10,
-    color: '#991B1B',
-    fontWeight: '500',
-  },
-  condTextDangerActive: {
-    fontSize: 10,
-    color: '#B91C1C',
-    fontWeight: '700',
-  },
-  conditionBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  badgeGood: {
-    backgroundColor: '#DCFCE7',
-  },
-  textGood: {
-    color: '#15803D',
-    fontWeight: '700',
-    fontSize: 10,
-  },
-  badgeWarning: {
-    backgroundColor: '#FEF3C7',
-  },
-  textWarning: {
-    color: '#B45309',
-    fontWeight: '700',
-    fontSize: 10,
-  },
-  badgeDanger: {
-    backgroundColor: '#FEE2E2',
-  },
-  textDanger: {
-    color: '#B91C1C',
-    fontWeight: '700',
-    fontSize: 10,
-  },
-  conditionBadgeText: {
-    fontSize: 10,
-  },
-  itemDetails: {
-    flexDirection: 'row',
-    gap: 16,
-    marginVertical: 4,
-    flexWrap: 'wrap',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  detailText: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  boldText: {
-    color: '#1E293B',
-    fontWeight: '600',
-  },
-  itemFooter: {
-    borderTopWidth: 1,
-    borderColor: '#F1F5F9',
-    paddingTop: 8,
-    marginTop: 6,
-  },
-  loanBadgeAvailable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  loanTextAvailable: {
-    fontSize: 11,
-    color: '#EF8354',
-    fontWeight: '600',
-  },
-  loanBadgeRestricted: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  loanTextRestricted: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    width: '100%',
-    maxWidth: 500,
-    maxHeight: '90%',
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingBottom: 14,
-    marginBottom: 14,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  modalBody: {
-    marginBottom: 14,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 6,
-    marginTop: 8,
-  },
-  modalInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
-    color: '#1E293B',
-  },
-  radioWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 6,
-  },
-  radioChip: {
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  radioChipActive: {
-    backgroundColor: '#FDF1EB',
-    borderColor: '#EF8354',
-  },
-  radioChipText: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  radioChipTextActive: {
-    color: '#EF8354',
-    fontWeight: '700',
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  checkboxLabel: {
-    fontSize: 12,
-    color: '#334155',
-    flex: 1,
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    borderTopWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingTop: 14,
-  },
-  modalCancelBtn: {
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  modalCancelBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  modalSubmitBtn: {
-    backgroundColor: '#EF8354',
-    paddingVertical: 9,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  modalSubmitBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});
+/** Kotak centang 44px. */
+function Checkbox({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <Press
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      accessibilityLabel={label}
+      onPress={() => onChange(!checked)}
+      style={st.check}
+      hoverStyle={{ backgroundColor: C.sunken }}
+    >
+      <View style={[st.checkBox, checked && st.checkBoxOn]}>
+        {checked ? <Ionicons name="checkmark" size={16} color={C.onDark} aria-hidden /> : null}
+      </View>
+      <T v="body" style={{ flex: 1 }}>
+        {label}
+      </T>
+    </Press>
+  );
+}
 
+function InfoLine({ icon, label, value }: { icon: IconName; label: string; value: string }) {
+  return (
+    <View style={st.info}>
+      <Ionicons name={icon} size={18} color={C.inkMuted} aria-hidden />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <T v="small" color={C.inkMuted}>
+          {label}
+        </T>
+        <T v="bodyStrong">{value}</T>
+      </View>
+    </View>
+  );
+}
+
+function useNotice<W extends string>() {
+  const [msg, setMsg] = useState<{ text: string; where: W } | null>(null);
+  const v = useRef(new Animated.Value(0)).current;
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const show = useCallback(
+    (text: string, where: W) => {
+      setMsg({ text, where });
+      v.setValue(0);
+      Animated.timing(v, { toValue: 1, duration: dur(150), useNativeDriver: NATIVE }).start();
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => {
+        Animated.timing(v, { toValue: 0, duration: dur(300), useNativeDriver: NATIVE }).start(() => setMsg(null));
+      }, 2200);
+    },
+    [v]
+  );
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+  const render = (where: W) =>
+    msg && msg.where === where ? (
+      <Animated.View style={[st.notice, { opacity: v }]} accessibilityLiveRegion="polite">
+        <Ionicons name="checkmark-circle" size={18} color={C.g700} aria-hidden />
+        <T v="bodyStrong" color={C.g800} style={{ flex: 1 }}>
+          {msg.text}
+        </T>
+      </Animated.View>
+    ) : null;
+  return { show, render };
+}
+
+function StatGrid({ items }: { items: React.ReactNode[] }) {
+  const { isPhone, isDesktop } = useBreakpoint();
+  if (isDesktop) return <Row stackBelow={0}>{items}</Row>;
+  const [first, ...rest] = items;
+  const head = isPhone ? [[first]] : [];
+  const pool = isPhone ? rest : items;
+  const rows: React.ReactNode[][] = [...head];
+  for (let i = 0; i < pool.length; i += 2) rows.push(pool.slice(i, i + 2));
+  return (
+    <View style={{ gap: isPhone ? SP.m : SP.l }}>
+      {rows.map((r, i) => (
+        <Row key={i} stackBelow={0} gap={isPhone ? SP.m : SP.l}>
+          {r}
+        </Row>
+      ))}
+    </View>
+  );
+}
+
+/* ---------- Layar ---------- */
+
+type NoticeWhere = 'top' | 'sheet';
+
+export function InventoryScreen() {
+  const { inventories, permissions, addInventory, updateInventoryCondition } = useMushola();
+  const { isDesktop } = useBreakpoint();
+  const canManage = permissions.canManageInventory;
+  const notice = useNotice<NoticeWhere>();
+
+  const [catFilter, setCatFilter] = useState<'ALL' | Category>('ALL');
+  const [condFilter, setCondFilter] = useState<'ALL' | Condition>('ALL');
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detail = inventories.find((i) => i.id === detailId) ?? null;
+
+  /* Form tambah aset */
+  const [addOpen, setAddOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState<Category>('AUDIO_ELEKTRONIK');
+  const [qty, setQty] = useState('1');
+  const [unit, setUnit] = useState('Unit');
+  const [condition, setCondition] = useState<Condition>('BAIK');
+  const [location, setLocation] = useState('');
+  const [forLoan, setForLoan] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const resetForm = () => {
+    setName('');
+    setCategory('AUDIO_ELEKTRONIK');
+    setQty('1');
+    setUnit('Unit');
+    setCondition('BAIK');
+    setLocation('');
+    setForLoan(false);
+    setNotes('');
+    setErrors({});
+  };
+  const openAdd = () => {
+    resetForm();
+    setAddOpen(true);
+  };
+
+  const saveItem = () => {
+    if (!canManage) return;
+    const e: Record<string, string> = {};
+    if (!name.trim()) e.name = 'Nama barang wajib diisi.';
+    const n = parseInt(qty, 10);
+    if (isNaN(n) || n <= 0 || String(n) !== qty.trim()) e.qty = 'Jumlah harus angka bulat, minimal 1.';
+    if (!location.trim()) e.location = 'Lokasi penyimpanan wajib diisi.';
+    setErrors(e);
+    if (Object.keys(e).length) return;
+
+    addInventory({
+      name: name.trim(),
+      category,
+      quantity: n,
+      unit: unit.trim() || 'Unit',
+      condition,
+      location: location.trim(),
+      isAvailableForLoan: forLoan,
+      notes: notes.trim() || undefined,
+    });
+    setAddOpen(false);
+    resetForm();
+    notice.show('Aset baru dicatat di inventaris.', 'top');
+  };
+
+  const changeCondition = (item: InventoryItem, c: Condition) => {
+    if (!canManage || item.condition === c) return;
+    updateInventoryCondition(item.id, c);
+    notice.show(`Kondisi ${item.name} diubah menjadi ${COND[c].label.toLowerCase()}.`, 'sheet');
+  };
+
+  /* Turunan data */
+  const totalUnits = inventories.reduce((s, i) => s + (i.quantity || 0), 0);
+  const countCond = (c: Condition) => inventories.filter((i) => i.condition === c).length;
+  const countCat = (c: Category) => inventories.filter((i) => i.category === c).length;
+  const loanable = inventories.filter((i) => i.isAvailableForLoan);
+  const attention = inventories
+    .filter((i) => i.condition !== 'BAIK')
+    .sort((a, b) => (a.condition === 'PERLU_DIGANTI' ? -1 : 0) - (b.condition === 'PERLU_DIGANTI' ? -1 : 0));
+
+  const filtered = inventories.filter(
+    (i) => (catFilter === 'ALL' || i.category === catFilter) && (condFilter === 'ALL' || i.condition === condFilter)
+  );
+
+  const itemRow = (i: InventoryItem, idx: number, arr: InventoryItem[], showLoan = true) => (
+    <ListRow
+      key={i.id}
+      leading={<IconTile icon={CAT[i.category]?.icon ?? 'cube-outline'} />}
+      title={i.name}
+      subtitle={[`${i.quantity} ${i.unit}`, i.location, showLoan ? loanLabel(i) : null].filter(Boolean).join(' · ')}
+      trailing={<Badge label={COND[i.condition]?.label ?? i.condition} tone={COND[i.condition]?.tone ?? 'neutral'} />}
+      onPress={() => setDetailId(i.id)}
+      accessibilityLabel={`Buka rincian ${i.name}, kondisi ${COND[i.condition]?.label ?? i.condition}`}
+      last={idx === arr.length - 1}
+    />
+  );
+
+  return (
+    <Screen>
+      <PageHeader
+        title="Inventaris"
+        subtitle="Aset fisik mushola, kondisi kelayakan, dan fasilitas yang bisa dipinjam warga."
+        actions={canManage ? <Button icon="add" label="Tambah aset" onPress={openAdd} /> : undefined}
+      />
+      {notice.render('top')}
+
+      <StatGrid
+        items={[
+          <Stat key="all" hero label="Jenis aset" value={String(inventories.length)} note={`${totalUnits} unit tercatat`} />,
+          <Stat key="ok" delay={50} label="Kondisi baik" value={String(countCond('BAIK'))} note="Jenis aset layak pakai" />,
+          <Stat
+            key="att"
+            delay={100}
+            label="Perlu perhatian"
+            value={String(attention.length)}
+            note={`${countCond('RUSAK_RINGAN')} rusak ringan, ${countCond('PERLU_DIGANTI')} perlu diganti`}
+          />,
+          <Stat key="loan" delay={150} label="Bisa dipinjam" value={String(loanable.length)} note="Jenis aset untuk warga" />,
+        ]}
+      />
+
+      <Row>
+        <Col flex={isDesktop ? 3 : 1}>
+          <Card delay={120}>
+            <CardHeader
+              title="Katalog aset"
+              subtitle={canManage ? 'Ketuk aset untuk melihat rincian dan mengubah kondisi.' : 'Ketuk aset untuk melihat rincian.'}
+            />
+            <View style={{ gap: SP.m }}>
+              <Segmented
+                label="Saring kategori aset"
+                value={catFilter}
+                onChange={setCatFilter}
+                options={[
+                  { key: 'ALL' as const, label: `Semua (${inventories.length})` },
+                  ...CAT_ORDER.map((c) => ({ key: c, label: `${CAT[c].label} (${countCat(c)})` })),
+                ]}
+              />
+              <Segmented
+                label="Saring kondisi aset"
+                value={condFilter}
+                onChange={setCondFilter}
+                options={[{ key: 'ALL' as const, label: 'Semua kondisi' }, ...COND_ORDER.map((c) => ({ key: c, label: COND[c].label }))]}
+              />
+            </View>
+            <View style={{ marginTop: SP.m }}>
+              {inventories.length === 0 ? (
+                <EmptyState
+                  icon="cube-outline"
+                  title="Belum ada aset tercatat"
+                  text={
+                    canManage
+                      ? 'Inventaris masih kosong. Catat aset pertama lewat tombol Tambah aset.'
+                      : 'Inventaris masih kosong. Seksi sarpras akan mencatat aset mushola di sini.'
+                  }
+                  action={canManage ? <Button icon="add" label="Tambah aset" onPress={openAdd} /> : undefined}
+                />
+              ) : filtered.length === 0 ? (
+                <EmptyState
+                  icon="funnel-outline"
+                  title="Tidak ada aset yang cocok"
+                  text="Tidak ada aset dengan kategori dan kondisi yang dipilih. Hapus saringan untuk melihat semua aset."
+                  action={
+                    <Button
+                      variant="outline"
+                      label="Hapus saringan"
+                      onPress={() => {
+                        setCatFilter('ALL');
+                        setCondFilter('ALL');
+                      }}
+                    />
+                  }
+                />
+              ) : (
+                filtered.map((i, idx, arr) => itemRow(i, idx, arr))
+              )}
+            </View>
+          </Card>
+        </Col>
+
+        <Col flex={1}>
+          <Card delay={160}>
+            <CardHeader title="Perlu perhatian" subtitle="Aset rusak ringan atau perlu diganti." />
+            {attention.length === 0 ? (
+              <EmptyState
+                icon="checkmark-done-outline"
+                title={inventories.length ? 'Semua aset dalam kondisi baik' : 'Belum ada aset'}
+                text={
+                  inventories.length
+                    ? 'Tidak ada aset yang rusak. Ubah kondisi lewat rincian aset bila ada kerusakan.'
+                    : 'Daftar ini terisi setelah aset dicatat dan kondisinya diperiksa.'
+                }
+              />
+            ) : (
+              attention.map((i, idx, arr) => itemRow(i, idx, arr, false))
+            )}
+          </Card>
+
+          <Card tone="sunken" delay={200}>
+            <View style={st.info}>
+              <Ionicons name={canManage ? 'construct-outline' : 'information-circle-outline'} size={18} color={C.g700} aria-hidden />
+              <View style={{ flex: 1, gap: 2 }}>
+                <T v="bodyStrong">{canManage ? 'Akses seksi sarpras' : 'Katalog terbuka untuk warga'}</T>
+                <T v="small" color={C.inkMuted}>
+                  {canManage
+                    ? `${loanable.length} jenis aset bisa dipinjam warga. Perbarui kondisi setelah aset dipakai atau dikembalikan.`
+                    : `Sebagai ${permissions.roleTitle}, Anda melihat katalog. Untuk meminjam aset berlabel Bisa dipinjam warga, hubungi seksi sarpras. Perubahan data dilakukan oleh seksi sarpras atau ketua DKM.`}
+                </T>
+              </View>
+            </View>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Rincian aset + ubah kondisi */}
+      <Sheet visible={!!detail} onClose={() => setDetailId(null)} title={detail?.name ?? ''} subtitle={detail ? CAT[detail.category]?.label : undefined}>
+        {detail ? (
+          <View style={{ gap: SP.m }}>
+            {notice.render('sheet')}
+            <InfoLine icon="cube-outline" label="Jumlah" value={`${detail.quantity} ${detail.unit}`} />
+            <InfoLine icon="location-outline" label="Lokasi" value={detail.location} />
+            <InfoLine
+              icon={detail.isAvailableForLoan ? 'hand-left-outline' : 'lock-closed-outline'}
+              label="Peminjaman"
+              value={detail.isAvailableForLoan ? 'Bisa dipinjam warga, hubungi seksi sarpras' : 'Khusus untuk kegiatan mushola'}
+            />
+            {detail.notes ? <InfoLine icon="document-text-outline" label="Catatan" value={detail.notes} /> : null}
+            {canManage ? (
+              <ChoiceGroup
+                label="Kondisi"
+                value={detail.condition}
+                onChange={(c) => changeCondition(detail, c)}
+                options={COND_ORDER.map((c) => ({ key: c, label: COND[c].label }))}
+              />
+            ) : (
+              <View style={{ gap: 6 }}>
+                <T v="small" color={C.inkMuted}>
+                  Kondisi
+                </T>
+                <Badge label={COND[detail.condition]?.label ?? detail.condition} tone={COND[detail.condition]?.tone ?? 'neutral'} />
+              </View>
+            )}
+          </View>
+        ) : null}
+      </Sheet>
+
+      {/* Tambah aset */}
+      <Sheet visible={addOpen} onClose={() => setAddOpen(false)} title="Tambah aset" subtitle="Catat barang baru ke inventaris mushola.">
+        <View style={st.form}>
+          <Field label="Nama barang" value={name} onChangeText={setName} placeholder="Contoh: Mic nirkabel, tenda 4x6" error={errors.name} />
+          <ChoiceGroup
+            label="Kategori"
+            value={category}
+            onChange={setCategory}
+            options={CAT_ORDER.map((c) => ({ key: c, label: CAT[c].label }))}
+          />
+          <View style={st.pair}>
+            <Field style={{ flex: 1 }} label="Jumlah" value={qty} onChangeText={setQty} keyboardType="number-pad" error={errors.qty} />
+            <Field style={{ flex: 1 }} label="Satuan" value={unit} onChangeText={setUnit} placeholder="Unit, set, rol" />
+          </View>
+          <ChoiceGroup
+            label="Kondisi awal"
+            value={condition}
+            onChange={setCondition}
+            options={COND_ORDER.map((c) => ({ key: c, label: COND[c].label }))}
+          />
+          <Field label="Lokasi penyimpanan" value={location} onChangeText={setLocation} placeholder="Contoh: Gudang belakang" error={errors.location} />
+          <Checkbox checked={forLoan} onChange={setForLoan} label="Bisa dipinjam warga untuk keperluan pribadi" />
+          <Field label="Catatan" value={notes} onChangeText={setNotes} multiline placeholder="Opsional: merek, spesifikasi, asal donasi" />
+          <View style={st.formActions}>
+            <Button variant="ghost" label="Batal" onPress={() => setAddOpen(false)} />
+            <Button icon="checkmark" label="Simpan aset" onPress={saveItem} />
+          </View>
+        </View>
+      </Sheet>
+    </Screen>
+  );
+}
+
+const st = StyleSheet.create({
+  choiceWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: SP.s },
+  choice: {
+    minHeight: 36,
+    paddingHorizontal: SP.l,
+    borderRadius: R.pill,
+    borderWidth: 1,
+    borderColor: C.line,
+    backgroundColor: C.sunken,
+    justifyContent: 'center',
+  },
+  choiceOn: { backgroundColor: C.g700, borderColor: C.g700 },
+  check: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SP.m,
+    minHeight: 44,
+    paddingVertical: SP.xs,
+    borderRadius: R.inner,
+  },
+  checkBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: C.inkMuted,
+    backgroundColor: C.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkBoxOn: { backgroundColor: C.g700, borderColor: C.g700 },
+  info: { flexDirection: 'row', alignItems: 'flex-start', gap: SP.m },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SP.s,
+    backgroundColor: C.g50,
+    borderWidth: 1,
+    borderColor: C.g100,
+    borderRadius: R.inner,
+    paddingHorizontal: SP.l,
+    paddingVertical: SP.m,
+    marginBottom: SP.s,
+  },
+  form: { gap: SP.l },
+  pair: { flexDirection: 'row', gap: SP.m },
+  formActions: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: SP.s, marginTop: SP.xs },
+});

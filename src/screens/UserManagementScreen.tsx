@@ -1,100 +1,140 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Modal,
-  Alert,
-  Platform,
-  Linking,
-} from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Animated, Linking, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMushola } from '../store/useMusholaStore';
 import { usersApi } from '../services/apiService';
-import { UserRole, UserManagementItem, UserManagementStats } from '../types';
+import { UserManagementItem, UserManagementStats, UserRole } from '../types';
+import { BP, C, R, SP, TYPE } from '../theme/colors';
+import { NATIVE, Press, Sheet, dur } from '../theme/motion';
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Col,
+  EmptyState,
+  Field,
+  IconName,
+  ListRow,
+  Loading,
+  PageHeader,
+  Row,
+  Screen,
+  Segmented,
+  Stat,
+  T,
+  useBreakpoint,
+} from '../ui/kit';
 
 type FilterCategory = 'ALL' | 'DKM_ADMIN' | 'BENDAHARA' | 'SARPRAS' | 'JAMAAH' | 'PENDING';
+
+/** Akun Super User utama: tidak boleh dihapus (aturan lama dipertahankan). */
+const PROTECTED_EMAIL = 'fahriadjie99@gmail.com';
 
 interface RoleOption {
   value: UserRole;
   label: string;
-  badgeColor: string;
-  badgeBg: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  short: string;
+  icon: IconName;
   desc: string;
 }
 
 const ALL_ROLES: RoleOption[] = [
   {
     value: 'SUPER_ADMIN',
-    label: 'Super Administrator',
-    badgeColor: '#B45309',
-    badgeBg: '#FEF3C7',
-    icon: 'sparkles',
-    desc: 'Pemegang kendali tertinggi sistem (fahriadjie99@gmail.com). Akses penuh ke semua fitur dan manajemen akun.',
+    label: 'Super administrator',
+    short: 'Super admin',
+    icon: 'sparkles-outline',
+    desc: 'Pemegang kendali tertinggi sistem. Akses penuh ke semua fitur dan manajemen akun.',
   },
   {
     value: 'ADMIN',
-    label: 'Ketua DKM (Admin)',
-    badgeColor: '#059669',
-    badgeBg: '#DCFCE7',
-    icon: 'shield-checkmark',
-    desc: 'Pengurus harian DKM dengan akses penuh ke seluruh pembukuan, kegiatan, sensus, dan sarpras.',
+    label: 'Ketua DKM (admin)',
+    short: 'Ketua DKM',
+    icon: 'shield-checkmark-outline',
+    desc: 'Pengurus harian DKM dengan akses penuh ke pembukuan, kegiatan, sensus, dan sarpras.',
   },
   {
     value: 'DKM',
-    label: 'Pengurus DKM & Dakwah',
-    badgeColor: '#D97706',
-    badgeBg: '#FEF3C7',
-    icon: 'business',
-    desc: 'Pengelola kalender kajian, warta TV signage, jadwal petugas sholat Jumat, dan data sensus warga.',
+    label: 'Pengurus DKM dan dakwah',
+    short: 'Pengurus DKM',
+    icon: 'business-outline',
+    desc: 'Mengelola kalender kajian, warta TV signage, jadwal petugas Jumat, dan data sensus warga.',
   },
   {
     value: 'BENDAHARA',
-    label: 'Bendahara Keuangan DKM',
-    badgeColor: '#0D9488',
-    badgeBg: '#CCFBF1',
-    icon: 'wallet',
-    desc: 'Pencatatan kas pemasukan, pengeluaran, kantong kas operasional/sosial, dan laporan keuangan.',
+    label: 'Bendahara keuangan DKM',
+    short: 'Bendahara',
+    icon: 'wallet-outline',
+    desc: 'Mencatat pemasukan, pengeluaran, kantong kas, dan laporan keuangan.',
   },
   {
     value: 'PENGURUS_SEKSI',
-    label: 'Seksi Sarpras & Logistik',
-    badgeColor: '#6366F1',
-    badgeBg: '#EEF2FF',
-    icon: 'cube',
-    desc: 'Pengelolaan aset inventaris musholla, status kelayakan barang, dan peminjaman fasilitas warga.',
+    label: 'Seksi sarpras dan logistik',
+    short: 'Seksi sarpras',
+    icon: 'cube-outline',
+    desc: 'Mengelola aset inventaris, status kelayakan barang, dan peminjaman fasilitas.',
   },
   {
     value: 'JAMAAH',
-    label: 'Warga / Jamaah Terdaftar',
-    badgeColor: '#0284C7',
-    badgeBg: '#E0F2FE',
-    icon: 'people',
-    desc: 'Warga perumahan terdaftar: melihat transparansi kas, direktori warga (terproteksi), dan agenda kajian.',
+    label: 'Warga atau jamaah terdaftar',
+    short: 'Jamaah',
+    icon: 'people-outline',
+    desc: 'Melihat transparansi kas, direktori warga (terproteksi), dan agenda kajian.',
   },
 ];
 
-export function UserManagementScreen() {
-  const { currentUser } = useMushola();
+/** Label peran lain yang mungkin datang dari server tapi tidak bisa dipilih di sini. */
+const OTHER_ROLE_LABEL: Partial<Record<UserRole, string>> = {
+  TAMU: 'Tamu',
+  MARBOT: 'Marbot',
+  BENDAHARA_DKM: 'Bendahara utama',
+  BENDAHARA_SUB: 'Bendahara sub-organisasi',
+  SEKRETARIS: 'Sekretaris',
+};
 
-  // State Data
+const roleShort = (r: UserRole) => ALL_ROLES.find((o) => o.value === r)?.short ?? OTHER_ROLE_LABEL[r] ?? r;
+
+const AVAILABLE_BLOCKS = ['Blok H', 'Blok A', 'Blok B', 'Blok C', 'Blok D', 'Blok E', 'Blok F', 'Blok G'];
+
+const isProtected = (u: UserManagementItem) => u.email.toLowerCase() === PROTECTED_EMAIL || u.role === 'SUPER_ADMIN';
+
+const formatAddress = (u: UserManagementItem) =>
+  u.blokRumah ? `${u.blokRumah}${u.nomorBlok || ''} No.${u.noRumah || '-'}` : 'Alamat belum diisi';
+
+const normalizePhone = (val: string) => {
+  let clean = val.replace(/\D/g, '');
+  if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+  else if (clean.length > 0 && !clean.startsWith('62')) clean = '62' + clean;
+  return clean;
+};
+
+type SheetMode = null | 'detail' | 'role' | 'form';
+type Notice = { tone: 'success' | 'danger'; text: string } | null;
+type Confirm = null | 'reset' | 'delete';
+
+export function UserManagementScreen() {
+  // currentUser tetap dibaca; akses layar ini dijaga di App.tsx (hanya SUPER_ADMIN).
+  const { currentUser } = useMushola();
+  const { isDesktop } = useBreakpoint();
+
+  // Data
   const [users, setUsers] = useState<UserManagementItem[]>([]);
   const [stats, setStats] = useState<UserManagementStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<FilterCategory>('ALL');
 
-  // Modal State: Ubah Role
-  const [selectedUserForRole, setSelectedUserForRole] = useState<UserManagementItem | null>(null);
-  const [roleModalVisible, setRoleModalVisible] = useState(false);
+  // Pilihan & sheet
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [sheetMode, setSheetMode] = useState<SheetMode>(null);
+  const [confirm, setConfirm] = useState<Confirm>(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Modal State: Tambah / Edit User
-  const [userModalVisible, setUserModalVisible] = useState(false);
+  // Form tambah / ubah
   const [editingUser, setEditingUser] = useState<UserManagementItem | null>(null);
   const [formEmail, setFormEmail] = useState('');
   const [formName, setFormName] = useState('');
@@ -108,29 +148,41 @@ export function UserManagementScreen() {
   const [formJumlahKeluarga, setFormJumlahKeluarga] = useState('4');
   const [formPekerjaan, setFormPekerjaan] = useState('');
   const [formCatatan, setFormCatatan] = useState('');
+  const [formErrors, setFormErrors] = useState<{ email?: string; name?: string }>({});
   const [formSaving, setFormSaving] = useState(false);
 
-  const availableBlocks = ['Blok H', 'Blok A', 'Blok B', 'Blok C', 'Blok D', 'Blok E', 'Blok F', 'Blok G'];
+  // Konfirmasi singkat yang memudar
+  const [notice, setNotice] = useState<Notice>(null);
+  const [noticeFade] = useState(() => new Animated.Value(0));
+  const showNotice = useCallback((n: NonNullable<Notice>) => setNotice(n), []);
 
-  const notify = (title: string, msg: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}: ${msg}`);
-    } else {
-      Alert.alert(title, msg);
-    }
-  };
+  // Muncul 150 ms, bertahan sekitar 3,5 detik, lalu memudar.
+  useEffect(() => {
+    if (!notice) return;
+    noticeFade.setValue(0);
+    Animated.timing(noticeFade, { toValue: 1, duration: dur(150), useNativeDriver: NATIVE }).start();
+    const t = setTimeout(() => {
+      Animated.timing(noticeFade, { toValue: 0, duration: dur(300), useNativeDriver: NATIVE }).start(({ finished }) => {
+        if (finished) setNotice((cur) => (cur === notice ? null : cur));
+      });
+    }, 3500);
+    return () => clearTimeout(t);
+  }, [notice, noticeFade]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await usersApi.getAll();
       if (res.success && res.data) {
         setUsers(res.data.users || []);
         setStats(res.data.stats || null);
+      } else {
+        setLoadError('Server tidak mengirim daftar pengguna.');
       }
     } catch (err: any) {
       console.error('[UserManagement] Gagal load users:', err);
-      notify('Gagal Memuat Data', err?.message || 'Tidak dapat mengambil daftar pengguna.');
+      setLoadError(err?.message || 'Tidak dapat mengambil daftar pengguna.');
     } finally {
       setLoading(false);
     }
@@ -140,10 +192,9 @@ export function UserManagementScreen() {
     loadUsers();
   }, [loadUsers]);
 
-  // Filtering Terkelompok
+  // Filter terkelompok
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
-      // 1. Kategori Filter
       if (activeCategory === 'DKM_ADMIN') {
         if (!['SUPER_ADMIN', 'ADMIN', 'DKM', 'SEKRETARIS'].includes(u.role)) return false;
       } else if (activeCategory === 'BENDAHARA') {
@@ -156,7 +207,6 @@ export function UserManagementScreen() {
         if (u.isOnboarded) return false;
       }
 
-      // 2. Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const fullAddr = `${u.blokRumah || ''}${u.nomorBlok || ''} No.${u.noRumah || ''}`.toLowerCase();
@@ -167,67 +217,95 @@ export function UserManagementScreen() {
         const matchRole = u.role.toLowerCase().includes(q);
         if (!matchName && !matchEmail && !matchPhone && !matchAddr && !matchRole) return false;
       }
-
       return true;
     });
   }, [users, activeCategory, searchQuery]);
 
-  // Handler Ganti Role
-  const handleOpenRoleModal = (user: UserManagementItem) => {
-    setSelectedUserForRole(user);
-    setRoleModalVisible(true);
+  const selectedUser = users.find((u) => u.id === selectedId) ?? null;
+  // Di desktop panel rincian selalu menampilkan pengguna terpilih (atau yang pertama di daftar).
+  const detailUser = selectedUser ?? (isDesktop ? filteredUsers[0] ?? null : null);
+
+  const closeSheet = () => {
+    if (busy || formSaving) return;
+    setSheetMode(null);
+    setConfirm(null);
+    setActionError(null);
   };
 
+  const openDetail = (u: UserManagementItem) => {
+    setSelectedId(u.id);
+    setConfirm(null);
+    setActionError(null);
+    if (!isDesktop) setSheetMode('detail');
+  };
+
+  const openRole = (u: UserManagementItem) => {
+    setSelectedId(u.id);
+    setActionError(null);
+    setSheetMode('role');
+  };
+
+  // Ganti peran
   const handleUpdateRole = async (newRole: UserRole) => {
-    if (!selectedUserForRole) return;
-    try {
-      await usersApi.updateRole(selectedUserForRole.id, newRole);
-      notify('Berhasil', `Peran untuk ${selectedUserForRole.name} berhasil diubah menjadi ${newRole}.`);
-      setRoleModalVisible(false);
-      loadUsers();
-    } catch (err: any) {
-      notify('Gagal', err?.message || 'Tidak dapat memperbarui peran pengguna.');
-    }
-  };
-
-  // Handler Reset Onboarding
-  const handleResetOnboarding = async (user: UserManagementItem) => {
-    const confirm = Platform.OS === 'web'
-      ? window.confirm(`Reset onboarding untuk ${user.name}? Pengguna akan diminta mengisi ulang profil saat login berikutnya.`)
-      : true;
-    if (!confirm) return;
-
-    try {
-      await usersApi.resetOnboarding(user.id);
-      notify('Status Direset', `User ${user.name} akan diminta melengkapi data diri saat login berikutnya.`);
-      loadUsers();
-    } catch (err: any) {
-      notify('Gagal', err?.message || 'Gagal mereset onboarding.');
-    }
-  };
-
-  // Handler Hapus User
-  const handleDeleteUser = async (user: UserManagementItem) => {
-    if (user.email === 'fahriadjie99@gmail.com') {
-      notify('Terproteksi', 'Akun Super User utama tidak dapat dihapus.');
+    if (!selectedUser || busy) return;
+    if (newRole === selectedUser.role) {
+      closeSheet();
       return;
     }
-
-    const confirm = Platform.OS === 'web'
-      ? window.confirm(`Apakah Anda yakin ingin menghapus akun ${user.name} (${user.email})? Data jamaah terkait juga akan dihapus.`)
-      : true;
-    if (!confirm) return;
-
+    setBusy(true);
+    setActionError(null);
     try {
-      await usersApi.delete(user.id);
-      notify('Berhasil Dihapus', `Akun ${user.name} telah berhasil dihapus dari sistem.`);
+      await usersApi.updateRole(selectedUser.id, newRole);
+      setSheetMode(null);
+      showNotice({ tone: 'success', text: `Peran ${selectedUser.name} diubah menjadi ${roleShort(newRole)}.` });
       loadUsers();
     } catch (err: any) {
-      notify('Gagal Menghapus', err?.message || 'Tidak dapat menghapus pengguna.');
+      setActionError(`${err?.message || 'Tidak dapat memperbarui peran pengguna.'} Coba lagi sebentar.`);
+    } finally {
+      setBusy(false);
     }
   };
 
-  // Handler Open Modal Tambah / Edit
+  // Reset onboarding (setelah konfirmasi di halaman)
+  const handleResetOnboarding = async (user: UserManagementItem) => {
+    setBusy(true);
+    setActionError(null);
+    try {
+      await usersApi.resetOnboarding(user.id);
+      setConfirm(null);
+      setSheetMode(null);
+      showNotice({ tone: 'success', text: `${user.name} akan diminta melengkapi data diri saat masuk berikutnya.` });
+      loadUsers();
+    } catch (err: any) {
+      setActionError(`${err?.message || 'Gagal mereset status profil.'} Coba lagi sebentar.`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Hapus pengguna (setelah konfirmasi di halaman)
+  const handleDeleteUser = async (user: UserManagementItem) => {
+    if (user.email === PROTECTED_EMAIL) {
+      setActionError('Akun Super User utama tidak dapat dihapus.');
+      return;
+    }
+    setBusy(true);
+    setActionError(null);
+    try {
+      await usersApi.delete(user.id);
+      setConfirm(null);
+      setSheetMode(null);
+      setSelectedId(null);
+      showNotice({ tone: 'success', text: `Akun ${user.name} sudah dihapus dari sistem.` });
+      loadUsers();
+    } catch (err: any) {
+      setActionError(`${err?.message || 'Tidak dapat menghapus pengguna.'} Coba lagi sebentar.`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Form tambah / ubah
   const handleOpenAddModal = () => {
     setEditingUser(null);
     setFormEmail('');
@@ -242,7 +320,9 @@ export function UserManagementScreen() {
     setFormJumlahKeluarga('4');
     setFormPekerjaan('');
     setFormCatatan('');
-    setUserModalVisible(true);
+    setFormErrors({});
+    setActionError(null);
+    setSheetMode('form');
   };
 
   const handleOpenEditModal = (user: UserManagementItem) => {
@@ -259,15 +339,21 @@ export function UserManagementScreen() {
     setFormJumlahKeluarga(String(user.jumlahKeluarga || 4));
     setFormPekerjaan(user.pekerjaan || '');
     setFormCatatan(user.catatan || '');
-    setUserModalVisible(true);
+    setFormErrors({});
+    setActionError(null);
+    setSheetMode('form');
   };
 
   const handleSaveUserForm = async () => {
-    if (!formEmail.trim() || !formName.trim()) {
-      notify('Validasi', 'Email dan Nama Lengkap wajib diisi.');
-      return;
-    }
+    const errs: { email?: string; name?: string } = {};
+    if (!formEmail.trim()) errs.email = 'Email wajib diisi.';
+    else if (!/^\S+@\S+\.\S+$/.test(formEmail.trim())) errs.email = 'Format email belum benar, contoh: jamaah@gmail.com.';
+    if (!formName.trim()) errs.name = 'Nama lengkap wajib diisi.';
+    setFormErrors(errs);
+    if (Object.keys(errs).length) return;
+
     setFormSaving(true);
+    setActionError(null);
     try {
       const payload = {
         email: formEmail.trim().toLowerCase(),
@@ -286,1210 +372,576 @@ export function UserManagementScreen() {
 
       if (editingUser) {
         await usersApi.update(editingUser.id, payload);
-        notify('Berhasil', `Data pengguna ${payload.name} berhasil diperbarui.`);
+        showNotice({ tone: 'success', text: `Data ${payload.name} sudah diperbarui.` });
       } else {
         await usersApi.create(payload);
-        notify('Berhasil', `Pengguna baru ${payload.name} berhasil ditambahkan.`);
+        showNotice({ tone: 'success', text: `Pengguna baru ${payload.name} sudah ditambahkan.` });
       }
-      setUserModalVisible(false);
+      setSheetMode(null);
       loadUsers();
     } catch (err: any) {
-      notify('Gagal', err?.message || 'Gagal menyimpan data pengguna.');
+      setActionError(`${err?.message || 'Gagal menyimpan data pengguna.'} Periksa isian lalu coba lagi.`);
     } finally {
       setFormSaving(false);
     }
   };
 
-  // Helper buka WhatsApp
+  // WhatsApp
   const handleOpenWhatsApp = (phone?: string) => {
     if (!phone) return;
     let clean = phone.replace(/\D/g, '');
     if (clean.startsWith('0')) clean = '62' + clean.slice(1);
     if (!clean.startsWith('62')) clean = '62' + clean;
-    const url = `https://wa.me/${clean}`;
-    if (Platform.OS === 'web') {
-      window.open(url, '_blank');
-    } else {
-      Linking.openURL(url).catch(() => notify('Error', 'Gagal membuka aplikasi WhatsApp.'));
-    }
+    Linking.openURL(`https://wa.me/${clean}`).catch(() =>
+      showNotice({ tone: 'danger', text: 'WhatsApp tidak bisa dibuka dari perangkat ini.' })
+    );
   };
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Super User Header Banner */}
-      <View style={styles.headerHero}>
-        <View style={styles.headerTopRow}>
-          <View style={styles.headerBadge}>
-            <Ionicons name="sparkles" size={15} color="#FBBF24" />
-            <Text style={styles.headerBadgeText}>SUPER USER PRIVILEGE</Text>
+  /* ---------- Bagian tampilan ---------- */
+
+  const filterOptions: { key: FilterCategory; label: string }[] = [
+    { key: 'ALL', label: `Semua (${users.length})` },
+    { key: 'DKM_ADMIN', label: 'Pengurus dan admin' },
+    { key: 'BENDAHARA', label: 'Bendahara' },
+    { key: 'SARPRAS', label: 'Sarpras dan marbot' },
+    { key: 'JAMAAH', label: `Jamaah (${stats?.jamaah ?? 0})` },
+    { key: 'PENDING', label: `Profil belum lengkap (${stats?.pendingOnboarding ?? 0})` },
+  ];
+
+  const renderDetail = (u: UserManagementItem) => {
+    const protectedUser = isProtected(u);
+    const info: { icon: IconName; label: string; value: string }[] = [
+      { icon: 'location-outline', label: 'Alamat', value: `${formatAddress(u)}, RT/RW ${u.rtRw || '05/07'}` },
+      { icon: 'call-outline', label: 'WhatsApp', value: u.phone || 'Belum diisi' },
+      { icon: 'home-outline', label: 'Status warga', value: `Warga ${u.statusWarga || 'Tetap'}, ${u.jumlahKeluarga || 1} jiwa` },
+      { icon: 'briefcase-outline', label: 'Profesi', value: u.pekerjaan || 'Belum diisi' },
+    ];
+    if (u.catatan) info.push({ icon: 'document-text-outline', label: 'Catatan', value: u.catatan });
+
+    return (
+      <View style={styles.detail}>
+        <View style={styles.detailHead}>
+          <Avatar name={u.name} size={56} dark={protectedUser} />
+          <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+            <T v="h2">{u.name}</T>
+            <T v="small" color={C.inkMuted}>
+              {u.email}
+            </T>
+            <View style={styles.badges}>
+              <Badge label={roleShort(u.role)} tone={protectedUser ? 'success' : 'neutral'} />
+              <Badge label={u.isOnboarded ? 'Profil lengkap' : 'Profil belum lengkap'} tone={u.isOnboarded ? 'success' : 'warn'} />
+            </View>
           </View>
-          <View style={styles.superEmailPill}>
-            <Ionicons name="person-circle" size={14} color="#D1FAE5" />
-            <Text style={styles.superEmailText}>fahriadjie99@gmail.com</Text>
+        </View>
+
+        <View>
+          {info.map((it, i) => (
+            <View key={it.label} style={[styles.infoRow, i < info.length - 1 && styles.infoRowLine]}>
+              <Ionicons name={it.icon} size={16} color={C.inkMuted} aria-hidden />
+              <T v="small" color={C.inkMuted} style={styles.infoLabel}>
+                {it.label}
+              </T>
+              <T v="bodyStrong" style={{ flex: 1, minWidth: 0 }}>
+                {it.value}
+              </T>
+            </View>
+          ))}
+        </View>
+
+        {actionError ? (
+          <View style={styles.errorBox} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+            <Ionicons name="alert-circle-outline" size={18} color={C.dangerFg} aria-hidden />
+            <T v="small" color={C.dangerFg} style={{ flex: 1 }}>
+              {actionError}
+            </T>
           </View>
-        </View>
+        ) : null}
 
-        <Text style={styles.heroTitle}>Manajemen Pengguna & Hak Akses</Text>
-        <Text style={styles.heroSubtitle}>
-          Pusat kendali akun Musholla Al Muttaqin: kelola pengurus DKM, bendahara kas, seksi sarpras, dan data sensus warga kependudukan secara terpadu.
-        </Text>
-      </View>
-
-      {/* KPI Summary Cards */}
-      <View style={styles.statsGrid}>
-        <View style={[styles.statCard, { borderLeftColor: '#EF8354' }]}>
-          <Text style={styles.statLabel}>Total Terdaftar</Text>
-          <Text style={styles.statNumber}>{stats?.total ?? users.length}</Text>
-          <Text style={styles.statSub}>Akun Terintegrasi</Text>
-        </View>
-
-        <View style={[styles.statCard, { borderLeftColor: '#D97706' }]}>
-          <Text style={styles.statLabel}>Pengurus DKM</Text>
-          <Text style={styles.statNumber}>{(stats?.admin ?? 0) + (stats?.dkm ?? 0) + (stats?.superAdmin ?? 0)}</Text>
-          <Text style={styles.statSub}>Admin & Syiar</Text>
-        </View>
-
-        <View style={[styles.statCard, { borderLeftColor: '#0D9488' }]}>
-          <Text style={styles.statLabel}>Bendahara</Text>
-          <Text style={styles.statNumber}>{stats?.bendahara ?? 0}</Text>
-          <Text style={styles.statSub}>Pengelola Kas</Text>
-        </View>
-
-        <View style={[styles.statCard, { borderLeftColor: '#0284C7' }]}>
-          <Text style={styles.statLabel}>Warga Jamaah</Text>
-          <Text style={styles.statNumber}>{stats?.jamaah ?? 0}</Text>
-          <Text style={styles.statSub}>Muzakki & Warga</Text>
-        </View>
-      </View>
-
-      {/* Search & Actions Toolbar */}
-      <View style={styles.toolbarCard}>
-        <View style={styles.searchRow}>
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color="#64748B" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Cari nama, email, no HP, atau Blok rumah (misal: H7 No.31)..."
-              placeholderTextColor="#94A3B8"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery ? (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={16} color="#94A3B8" />
-              </TouchableOpacity>
+        {confirm ? (
+          <View style={[styles.confirmBox, confirm === 'delete' && styles.confirmDanger]}>
+            <T v="bodyStrong">{confirm === 'delete' ? `Hapus akun ${u.name}?` : `Minta ${u.name} mengisi ulang profil?`}</T>
+            <T v="small" color={C.inkMuted}>
+              {confirm === 'delete'
+                ? `Akun ${u.email} dan data jamaah terkait akan dihapus. Tindakan ini tidak bisa dibatalkan.`
+                : 'Pengguna akan diminta melengkapi data diri lagi saat masuk berikutnya.'}
+            </T>
+            <View style={styles.actions}>
+              <Button
+                label={confirm === 'delete' ? 'Ya, hapus akun' : 'Ya, minta isi ulang'}
+                variant={confirm === 'delete' ? 'danger' : 'primary'}
+                compact
+                loading={busy}
+                onPress={() => (confirm === 'delete' ? handleDeleteUser(u) : handleResetOnboarding(u))}
+              />
+              <Button label="Batal" variant="ghost" compact disabled={busy} onPress={() => setConfirm(null)} />
+            </View>
+          </View>
+        ) : (
+          <View style={styles.actions}>
+            <Button label="Ubah peran" icon="swap-horizontal-outline" compact onPress={() => openRole(u)} />
+            <Button label="Ubah data" icon="create-outline" variant="outline" compact onPress={() => handleOpenEditModal(u)} />
+            {u.phone ? (
+              <Button
+                label="Chat WhatsApp"
+                icon="logo-whatsapp"
+                variant="outline"
+                compact
+                onPress={() => handleOpenWhatsApp(u.phone)}
+              />
             ) : null}
+            {!u.isOnboarded ? (
+              <Button label="Minta isi ulang profil" icon="refresh-outline" variant="ghost" compact onPress={() => setConfirm('reset')} />
+            ) : null}
+            {!protectedUser ? (
+              <Button label="Hapus akun" icon="trash-outline" variant="danger" compact onPress={() => setConfirm('delete')} />
+            ) : (
+              <T v="small" color={C.inkMuted} style={{ alignSelf: 'center' }}>
+                Akun super user tidak dapat dihapus.
+              </T>
+            )}
           </View>
-
-          <TouchableOpacity style={styles.addBtn} onPress={handleOpenAddModal} activeOpacity={0.8}>
-            <Ionicons name="person-add" size={16} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>Tambah User</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Filter Categories Chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterTabsRow}>
-          <TouchableOpacity
-            style={[styles.filterChip, activeCategory === 'ALL' && styles.filterChipActive]}
-            onPress={() => setActiveCategory('ALL')}
-          >
-            <Ionicons name="people-outline" size={14} color={activeCategory === 'ALL' ? '#FFFFFF' : '#475569'} />
-            <Text style={[styles.filterChipText, activeCategory === 'ALL' && styles.filterChipTextActive]}>
-              Semua ({users.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.filterChip, activeCategory === 'DKM_ADMIN' && styles.filterChipActive]}
-            onPress={() => setActiveCategory('DKM_ADMIN')}
-          >
-            <Ionicons name="shield-checkmark-outline" size={14} color={activeCategory === 'DKM_ADMIN' ? '#FFFFFF' : '#475569'} />
-            <Text style={[styles.filterChipText, activeCategory === 'DKM_ADMIN' && styles.filterChipTextActive]}>
-              Pengurus DKM & Admin
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.filterChip, activeCategory === 'BENDAHARA' && styles.filterChipActive]}
-            onPress={() => setActiveCategory('BENDAHARA')}
-          >
-            <Ionicons name="wallet-outline" size={14} color={activeCategory === 'BENDAHARA' ? '#FFFFFF' : '#475569'} />
-            <Text style={[styles.filterChipText, activeCategory === 'BENDAHARA' && styles.filterChipTextActive]}>
-              Bendahara Kas
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.filterChip, activeCategory === 'SARPRAS' && styles.filterChipActive]}
-            onPress={() => setActiveCategory('SARPRAS')}
-          >
-            <Ionicons name="cube-outline" size={14} color={activeCategory === 'SARPRAS' ? '#FFFFFF' : '#475569'} />
-            <Text style={[styles.filterChipText, activeCategory === 'SARPRAS' && styles.filterChipTextActive]}>
-              Sarpras & Marbot
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.filterChip, activeCategory === 'JAMAAH' && styles.filterChipActive]}
-            onPress={() => setActiveCategory('JAMAAH')}
-          >
-            <Ionicons name="home-outline" size={14} color={activeCategory === 'JAMAAH' ? '#FFFFFF' : '#475569'} />
-            <Text style={[styles.filterChipText, activeCategory === 'JAMAAH' && styles.filterChipTextActive]}>
-              Warga Jamaah ({stats?.jamaah ?? 0})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.filterChip, activeCategory === 'PENDING' && styles.filterChipActive]}
-            onPress={() => setActiveCategory('PENDING')}
-          >
-            <Ionicons name="alert-circle-outline" size={14} color={activeCategory === 'PENDING' ? '#FFFFFF' : '#DC2626'} />
-            <Text style={[styles.filterChipText, activeCategory === 'PENDING' && styles.filterChipTextActive, { color: activeCategory === 'PENDING' ? '#FFFFFF' : '#DC2626' }]}>
-              Belum Lengkap ({stats?.pendingOnboarding ?? 0})
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
+        )}
       </View>
+    );
+  };
 
-      {/* User Cards List */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#EF8354" />
-          <Text style={styles.loadingText}>Memuat database pengguna...</Text>
-        </View>
-      ) : filteredUsers.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="search-outline" size={48} color="#94A3B8" />
-          <Text style={styles.emptyTitle}>Pengguna Tidak Ditemukan</Text>
-          <Text style={styles.emptySubtitle}>Tidak ada akun yang sesuai dengan kata kunci atau filter saat ini.</Text>
-        </View>
-      ) : (
-        <View style={styles.userList}>
-          {filteredUsers.map((item) => {
-            const roleMeta = ALL_ROLES.find((r) => r.value === item.role) || {
-              label: item.role,
-              badgeColor: '#64748B',
-              badgeBg: '#F1F5F9',
-              icon: 'person' as any,
-            };
-
-            const isSuperUser = item.email.toLowerCase() === 'fahriadjie99@gmail.com' || item.role === 'SUPER_ADMIN';
-
-            return (
-              <View key={item.id} style={[styles.userCard, isSuperUser && styles.superUserCard]}>
-                {/* Header User Card */}
-                <View style={styles.userCardHeader}>
-                  <View style={styles.userLeftRow}>
-                    <View style={[styles.userAvatar, isSuperUser && styles.superUserAvatar]}>
-                      <Text style={styles.userAvatarText}>{item.name ? item.name.charAt(0).toUpperCase() : 'U'}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <Text style={styles.userName}>{item.name}</Text>
-                        {isSuperUser && (
-                          <View style={styles.superBadgePill}>
-                            <Ionicons name="sparkles" size={11} color="#B45309" />
-                            <Text style={styles.superBadgePillText}>Super User</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.userEmail}>{item.email}</Text>
-                    </View>
-                  </View>
-
-                  {/* Role Pill Button */}
-                  <TouchableOpacity
-                    style={[styles.rolePill, { backgroundColor: roleMeta.badgeBg, borderColor: roleMeta.badgeColor }]}
-                    onPress={() => handleOpenRoleModal(item)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name={roleMeta.icon} size={13} color={roleMeta.badgeColor} />
-                    <Text style={[styles.rolePillText, { color: roleMeta.badgeColor }]}>{roleMeta.label}</Text>
-                    <Ionicons name="chevron-down" size={12} color={roleMeta.badgeColor} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Info Grid: Alamat Lengkap, Phone, Status */}
-                <View style={styles.userInfoGrid}>
-                  {/* Alamat Lengkap: Blok H7 No. 31 */}
-                  <View style={styles.infoItem}>
-                    <Ionicons name="location-outline" size={14} color="#4F5D75" />
-                    <Text style={styles.infoLabel}>Alamat:</Text>
-                    <Text style={styles.infoValueHighlight}>
-                      {item.blokRumah ? `${item.blokRumah}${item.nomorBlok || ''} No.${item.noRumah || '-'}` : 'Belum diisi'}
-                    </Text>
-                    <Text style={styles.infoSub}>RT/RW {item.rtRw || '05/07'}</Text>
-                  </View>
-
-                  {/* No Handphone WhatsApp */}
-                  <View style={styles.infoItem}>
-                    <Ionicons name="call-outline" size={14} color="#0284C7" />
-                    <Text style={styles.infoLabel}>WhatsApp:</Text>
-                    <Text style={styles.infoValue}>{item.phone || '-'}</Text>
-                    {item.phone ? (
-                      <TouchableOpacity
-                        style={styles.waQuickBtn}
-                        onPress={() => handleOpenWhatsApp(item.phone)}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name="logo-whatsapp" size={12} color="#FFFFFF" />
-                        <Text style={styles.waQuickText}>Chat WA</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-
-                  {/* Status Warga & Keluarga */}
-                  <View style={styles.infoItem}>
-                    <Ionicons name="home-outline" size={14} color="#D97706" />
-                    <Text style={styles.infoLabel}>Status:</Text>
-                    <Text style={styles.infoValue}>Warga {item.statusWarga || 'Tetap'}</Text>
-                    <Text style={styles.infoSub}>{item.jumlahKeluarga || 1} Jiwa</Text>
-                  </View>
-
-                  {/* Status Onboarding */}
-                  <View style={styles.infoItem}>
-                    <Ionicons
-                      name={item.isOnboarded ? 'checkmark-circle' : 'alert-circle'}
-                      size={14}
-                      color={item.isOnboarded ? '#059669' : '#DC2626'}
-                    />
-                    <Text style={styles.infoLabel}>Profil:</Text>
-                    <Text style={[styles.infoValue, { color: item.isOnboarded ? '#059669' : '#DC2626', fontWeight: '700' }]}>
-                      {item.isOnboarded ? 'Lengkap' : 'Menunggu Input'}
-                    </Text>
-                  </View>
-                </View>
-
-                {item.pekerjaan ? (
-                  <View style={styles.professionRow}>
-                    <Ionicons name="briefcase-outline" size={13} color="#64748B" />
-                    <Text style={styles.professionText}>Profesi / Keahlian: <Text style={{ color: '#0F172A', fontWeight: '600' }}>{item.pekerjaan}</Text></Text>
-                  </View>
-                ) : null}
-
-                {/* Card Action Buttons Toolbar */}
-                <View style={styles.cardActionsRow}>
-                  <TouchableOpacity
-                    style={styles.actionBtnEdit}
-                    onPress={() => handleOpenEditModal(item)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="create-outline" size={14} color="#EF8354" />
-                    <Text style={styles.actionBtnEditText}>Edit Detail</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.actionBtnRole}
-                    onPress={() => handleOpenRoleModal(item)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="swap-horizontal" size={14} color="#0284C7" />
-                    <Text style={styles.actionBtnRoleText}>Ganti Peran</Text>
-                  </TouchableOpacity>
-
-                  {!item.isOnboarded && (
-                    <TouchableOpacity
-                      style={styles.actionBtnReset}
-                      onPress={() => handleResetOnboarding(item)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="refresh-outline" size={14} color="#D97706" />
-                      <Text style={styles.actionBtnResetText}>Paksa Isi Ulang</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {!isSuperUser && (
-                    <TouchableOpacity
-                      style={styles.actionBtnDelete}
-                      onPress={() => handleDeleteUser(item)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="trash-outline" size={14} color="#DC2626" />
-                    </TouchableOpacity>
-                  )}
-                </View>
+  const renderRolePicker = () =>
+    selectedUser ? (
+      <View style={{ gap: SP.s }}>
+        <T color={C.inkMuted}>
+          Pilih hak akses untuk {selectedUser.name} ({selectedUser.email}).
+        </T>
+        {actionError ? (
+          <T v="small" color={C.dangerFg}>
+            {actionError}
+          </T>
+        ) : null}
+        {ALL_ROLES.map((r) => {
+          const current = selectedUser.role === r.value;
+          return (
+            <Press
+              key={r.value}
+              onPress={() => handleUpdateRole(r.value)}
+              disabled={busy}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: current, disabled: busy }}
+              accessibilityLabel={`${r.label}. ${r.desc}`}
+              style={[styles.roleOption, current && styles.roleOptionActive]}
+              hoverStyle={current ? undefined : { backgroundColor: C.sunken }}
+            >
+              <Ionicons name={r.icon} size={20} color={current ? C.g700 : C.inkMuted} aria-hidden />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <T v="bodyStrong">{r.label}</T>
+                <T v="small" color={C.inkMuted}>
+                  {r.desc}
+                </T>
               </View>
-            );
-          })}
-        </View>
+              {current ? <Badge label="Peran saat ini" tone="success" /> : null}
+            </Press>
+          );
+        })}
+        {busy ? <Loading label="Menyimpan peran..." /> : null}
+      </View>
+    ) : null;
+
+  const renderForm = () => (
+    <View style={{ gap: SP.l }}>
+      <Field
+        label="Alamat email Google (wajib)"
+        value={formEmail}
+        onChangeText={(t) => {
+          setFormEmail(t);
+          setFormErrors((e) => ({ ...e, email: undefined }));
+        }}
+        placeholder="jamaah@gmail.com"
+        keyboardType="email-address"
+        editable={!editingUser}
+        error={formErrors.email}
+        hint={editingUser ? 'Email akun tidak bisa diubah.' : undefined}
+      />
+      <Field
+        label="Nama lengkap sesuai KTP (wajib)"
+        value={formName}
+        onChangeText={(t) => {
+          setFormName(t);
+          setFormErrors((e) => ({ ...e, name: undefined }));
+        }}
+        placeholder="Contoh: Ahmad Fauzi"
+        error={formErrors.name}
+      />
+      <View style={styles.group}>
+        <T v="label">Peran hak akses</T>
+        <Segmented
+          label="Peran hak akses"
+          options={ALL_ROLES.map((r) => ({ key: r.value, label: r.short }))}
+          value={formRole}
+          onChange={setFormRole}
+        />
+      </View>
+      <Field
+        label="Nomor WhatsApp"
+        value={formPhone}
+        onChangeText={(val) => setFormPhone(normalizePhone(val))}
+        placeholder="6281234567890"
+        keyboardType="phone-pad"
+        hint="Otomatis disimpan dengan awalan 62."
+      />
+      <View style={styles.group}>
+        <T v="label">Blok rumah (Mutiara Puri Harmoni)</T>
+        <Segmented
+          label="Blok rumah"
+          options={AVAILABLE_BLOCKS.map((b) => ({ key: b, label: b }))}
+          value={formBlok}
+          onChange={setFormBlok}
+        />
+      </View>
+      <View style={styles.twoCols}>
+        <Field style={styles.col} label="Nomor blok" value={formNomorBlok} onChangeText={setFormNomorBlok} placeholder="7" hint="Misal H7, isi 7" />
+        <Field style={styles.col} label="Nomor rumah" value={formNoRumah} onChangeText={setFormNoRumah} placeholder="31" />
+      </View>
+      <T v="small" color={C.inkMuted}>
+        Alamat tercatat: <T v="smallStrong">{`${formBlok}${formNomorBlok || ''} No.${formNoRumah || '...'}`}</T>
+      </T>
+      <View style={styles.twoCols}>
+        <Field style={styles.col} label="RT / RW" value={formRtRw} onChangeText={setFormRtRw} placeholder="05/07" />
+        <Field
+          style={styles.col}
+          label="Jumlah jiwa"
+          value={formJumlahKeluarga}
+          onChangeText={setFormJumlahKeluarga}
+          placeholder="4"
+          keyboardType="numeric"
+        />
+      </View>
+      <View style={styles.group}>
+        <T v="label">Status kependudukan</T>
+        <Segmented
+          label="Status kependudukan"
+          options={[
+            { key: 'Tetap', label: 'Warga tetap' },
+            { key: 'Kontrak', label: 'Warga kontrak' },
+          ]}
+          value={formStatusWarga}
+          onChange={setFormStatusWarga}
+        />
+      </View>
+      <Field
+        label="Profesi atau bidang keahlian"
+        value={formPekerjaan}
+        onChangeText={setFormPekerjaan}
+        placeholder="Contoh: Karyawan swasta"
+      />
+      <Field
+        label="Catatan internal DKM"
+        value={formCatatan}
+        onChangeText={setFormCatatan}
+        placeholder="Catatan tambahan"
+        multiline
+      />
+      {actionError ? (
+        <T v="small" color={C.dangerFg}>
+          {actionError}
+        </T>
+      ) : null}
+      <View style={styles.actions}>
+        <Button label="Simpan pengguna" icon="save-outline" onPress={handleSaveUserForm} loading={formSaving} />
+        <Button label="Batal" variant="ghost" onPress={closeSheet} disabled={formSaving} />
+      </View>
+    </View>
+  );
+
+  const renderList = () => {
+    if (loading && !users.length) return <Loading label="Memuat daftar pengguna..." />;
+    if (loadError)
+      return (
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Daftar pengguna belum bisa dimuat"
+          text={`${loadError.replace(/\.?$/, '.')} Periksa koneksi internet atau hak akses akun, lalu muat ulang.`}
+          action={<Button label="Muat ulang" icon="refresh-outline" variant="outline" onPress={loadUsers} />}
+        />
+      );
+    if (!users.length)
+      return (
+        <EmptyState
+          icon="people-outline"
+          title="Belum ada pengguna terdaftar"
+          text="Akun muncul di sini setelah warga masuk dengan Google, atau ditambahkan lewat tombol Tambah pengguna."
+        />
+      );
+    if (!filteredUsers.length)
+      return (
+        <EmptyState
+          icon="search-outline"
+          title="Tidak ada pengguna yang cocok"
+          text="Tidak ada akun yang sesuai dengan kata kunci atau saringan ini. Ubah kata kunci atau tampilkan semua."
+          action={
+            <Button
+              label="Tampilkan semua"
+              variant="outline"
+              onPress={() => {
+                setSearchQuery('');
+                setActiveCategory('ALL');
+              }}
+            />
+          }
+        />
+      );
+    return (
+      <View>
+        {filteredUsers.map((u, i) => {
+          const selected = isDesktop && detailUser?.id === u.id;
+          return (
+            <View key={u.id} style={[styles.rowWrap, selected && styles.rowSelected]}>
+              <ListRow
+                leading={<Avatar name={u.name} dark={isProtected(u)} />}
+                title={u.name}
+                subtitle={`${u.email}\n${formatAddress(u)}`}
+                trailing={
+                  <View style={styles.rowBadges}>
+                    <Badge label={roleShort(u.role)} tone={isProtected(u) ? 'success' : 'neutral'} />
+                    {!u.isOnboarded ? <Badge label="Belum lengkap" tone="warn" /> : null}
+                  </View>
+                }
+                onPress={() => openDetail(u)}
+                accessibilityLabel={`${u.name}, ${roleShort(u.role)}${u.isOnboarded ? '' : ', profil belum lengkap'}. Buka rincian`}
+                last={i === filteredUsers.length - 1}
+              />
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const pengurus = (stats?.admin ?? 0) + (stats?.dkm ?? 0) + (stats?.superAdmin ?? 0);
+  // Saat gagal memuat, jumlah tidak diketahui: tampilkan tanda strip, bukan 0.
+  const n = (v: number) => (loadError && !stats ? '-' : String(v));
+  const statCards = [
+    <Stat
+      key="total"
+      hero
+      label="Total terdaftar"
+      value={n(stats?.total ?? users.length)}
+      note={stats ? `${stats.pendingOnboarding} belum melengkapi profil` : undefined}
+    />,
+    <Stat key="dkm" label="Pengurus DKM" value={n(pengurus)} note="Super admin, ketua, dan pengurus" delay={50} />,
+    <Stat key="bend" label="Bendahara" value={n(stats?.bendahara ?? 0)} note="Pengelola kas" delay={100} />,
+    <Stat key="jamaah" label="Warga jamaah" value={n(stats?.jamaah ?? 0)} note="Akun peran jamaah" delay={150} />,
+  ];
+
+  const sheetTitle =
+    sheetMode === 'role'
+      ? 'Ubah peran pengguna'
+      : sheetMode === 'form'
+        ? editingUser
+          ? 'Ubah data pengguna'
+          : 'Tambah pengguna'
+        : 'Rincian pengguna';
+
+  return (
+    <Screen>
+      <PageHeader
+        title="Kelola pengguna"
+        subtitle={`Atur peran, data warga, dan status profil akun yang terdaftar.${currentUser ? ` Masuk sebagai ${currentUser.name}.` : ''}`}
+        actions={
+          <>
+            <Button label="Tambah pengguna" icon="person-add-outline" onPress={handleOpenAddModal} />
+            <Button label="Muat ulang" icon="refresh-outline" variant="outline" onPress={loadUsers} loading={loading} />
+          </>
+        }
+      />
+
+      {notice ? (
+        <Animated.View
+          style={[styles.notice, notice.tone === 'danger' && styles.noticeDanger, { opacity: noticeFade }]}
+          accessibilityLiveRegion="polite"
+        >
+          <Ionicons
+            name={notice.tone === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+            size={18}
+            color={notice.tone === 'success' ? C.g700 : C.dangerFg}
+            aria-hidden
+          />
+          <Text style={[styles.noticeText, notice.tone === 'danger' && { color: C.dangerFg }]}>{notice.text}</Text>
+        </Animated.View>
+      ) : null}
+
+      {isDesktop ? (
+        <Row>{statCards}</Row>
+      ) : (
+        <>
+          <Row stackBelow={0} gap={SP.m}>
+            {statCards.slice(0, 2)}
+          </Row>
+          <Row stackBelow={0} gap={SP.m}>
+            {statCards.slice(2)}
+          </Row>
+        </>
       )}
 
-      {/* MODAL 1: GANTI PERAN PENGGUNA */}
-      <Modal visible={roleModalVisible} transparent animationType="fade" onRequestClose={() => setRoleModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.roleModalCard}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="shield-checkmark" size={20} color="#EF8354" />
-                <Text style={styles.modalTitle}>Ubah Peran Pengguna</Text>
+      <Row stackBelow={BP.desktop}>
+        <Col flex={3}>
+          <Card delay={120}>
+            <CardHeader
+              title="Daftar pengguna"
+              subtitle={loading ? 'Memuat...' : `${filteredUsers.length} dari ${users.length} akun ditampilkan`}
+            />
+            <View style={styles.toolbar}>
+              <Field
+                label="Cari pengguna"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Nama, email, nomor HP, atau alamat (misal H7 No.31)"
+              />
+              <View style={styles.group}>
+                <T v="label">Saring menurut peran</T>
+                <Segmented label="Saring menurut peran" options={filterOptions} value={activeCategory} onChange={setActiveCategory} />
               </View>
-              <TouchableOpacity onPress={() => setRoleModalVisible(false)}>
-                <Ionicons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
             </View>
-
-            <Text style={styles.modalSub}>
-              Pilih hak akses untuk <Text style={{ fontWeight: '700', color: '#0F172A' }}>{selectedUserForRole?.name}</Text> ({selectedUserForRole?.email}):
-            </Text>
-
-            <ScrollView style={{ maxHeight: 360 }}>
-              {ALL_ROLES.map((r) => {
-                const isCurrent = selectedUserForRole?.role === r.value;
-                return (
-                  <TouchableOpacity
-                    key={r.value}
-                    style={[styles.roleOptionCard, isCurrent && styles.roleOptionCardSelected]}
-                    onPress={() => handleUpdateRole(r.value)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={[styles.roleOptionIconWrap, { backgroundColor: r.badgeBg }]}>
-                      <Ionicons name={r.icon} size={18} color={r.badgeColor} />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={styles.roleOptionTitle}>{r.label}</Text>
-                      <Text style={styles.roleOptionDesc}>{r.desc}</Text>
-                    </View>
-                    {isCurrent ? <Ionicons name="checkmark-circle" size={20} color="#059669" /> : null}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setRoleModalVisible(false)}>
-                <Text style={styles.cancelModalBtnText}>Tutup</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* MODAL 2: TAMBAH / EDIT USER DETAIL */}
-      <Modal visible={userModalVisible} transparent animationType="slide" onRequestClose={() => setUserModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.userFormModal}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name={editingUser ? 'create' : 'person-add'} size={20} color="#EF8354" />
-                <Text style={styles.modalTitle}>{editingUser ? 'Edit Data Pengguna' : 'Tambah Pengguna Baru'}</Text>
-              </View>
-              <TouchableOpacity onPress={() => setUserModalVisible(false)}>
-                <Ionicons name="close" size={20} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
-              {/* Email & Nama */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Alamat Email Google <Text style={styles.req}>*</Text></Text>
-                <TextInput
-                  style={[styles.input, editingUser && styles.inputDisabled]}
-                  value={formEmail}
-                  onChangeText={setFormEmail}
-                  placeholder="jamaah@gmail.com"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="email-address"
-                  editable={!editingUser}
+            {renderList()}
+          </Card>
+        </Col>
+        {isDesktop ? (
+          <Col flex={2}>
+            <Card delay={180}>
+              <CardHeader title="Rincian pengguna" subtitle="Pilih pengguna di daftar untuk melihat dan mengubah datanya" />
+              {detailUser ? (
+                renderDetail(detailUser)
+              ) : (
+                <EmptyState
+                  icon="person-outline"
+                  title="Belum ada pengguna dipilih"
+                  text="Daftar masih kosong atau tidak ada yang cocok dengan saringan. Ubah saringan untuk memilih pengguna."
                 />
-              </View>
+              )}
+            </Card>
+          </Col>
+        ) : null}
+      </Row>
 
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Nama Lengkap Sesuai KTP <Text style={styles.req}>*</Text></Text>
-                <TextInput
-                  style={styles.input}
-                  value={formName}
-                  onChangeText={setFormName}
-                  placeholder="Bpk. Fahri Adjie"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-
-              {/* Peran Sistem */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Peran Hak Akses (Role)</Text>
-                <View style={styles.chipsWrap}>
-                  {ALL_ROLES.map((r) => {
-                    const isSelected = formRole === r.value;
-                    return (
-                      <TouchableOpacity
-                        key={r.value}
-                        style={[styles.roleSelectChip, isSelected && { backgroundColor: r.badgeColor, borderColor: r.badgeColor }]}
-                        onPress={() => setFormRole(r.value)}
-                      >
-                        <Text style={[styles.roleSelectChipText, isSelected && { color: '#FFFFFF', fontWeight: '700' }]}>
-                          {r.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-
-              {/* No WhatsApp */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Nomor WhatsApp (Auto 62xxx)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formPhone}
-                  onChangeText={(val) => {
-                    let clean = val.replace(/\D/g, '');
-                    if (clean.startsWith('0')) clean = '62' + clean.slice(1);
-                    else if (clean.length > 0 && !clean.startsWith('62')) clean = '62' + clean;
-                    setFormPhone(clean);
-                  }}
-                  placeholder="6281234567890"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="phone-pad"
-                />
-              </View>
-
-              {/* Blok Rumah & Nomor Blok (Contoh: Blok H7) */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Pilihan Blok Rumah (Mutiara Puri Harmoni)</Text>
-                <View style={styles.chipsWrap}>
-                  {availableBlocks.map((b) => (
-                    <TouchableOpacity
-                      key={b}
-                      style={[styles.blockChip, formBlok === b && styles.blockChipActive]}
-                      onPress={() => setFormBlok(b)}
-                    >
-                      <Text style={[styles.blockChipText, formBlok === b && styles.blockChipTextActive]}>{b}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.twoCols}>
-                <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Nomor Blok (Contoh: 7)</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formNomorBlok}
-                    onChangeText={setFormNomorBlok}
-                    placeholder="7"
-                    placeholderTextColor="#94A3B8"
-                  />
-                  <Text style={styles.hintText}>Misal H7, isi angka 7</Text>
-                </View>
-
-                <View style={[styles.fieldGroup, { flex: 1, marginLeft: 12 }]}>
-                  <Text style={styles.fieldLabel}>Nomor Rumah (Contoh: 31)</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formNoRumah}
-                    onChangeText={setFormNoRumah}
-                    placeholder="31"
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-              </View>
-
-              {/* Live Preview Alamat */}
-              <View style={styles.liveAddressPreview}>
-                <Ionicons name="location" size={16} color="#EF8354" />
-                <Text style={styles.liveAddressText}>
-                  Format Alamat: <Text style={{ fontWeight: '800', color: '#2D3142' }}>{formBlok}{formNomorBlok ? formNomorBlok : ''} No.{formNoRumah || '...'}</Text>
-                </Text>
-              </View>
-
-              <View style={styles.twoCols}>
-                <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>RT / RW</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formRtRw}
-                    onChangeText={setFormRtRw}
-                    placeholder="05/07"
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-
-                <View style={[styles.fieldGroup, { flex: 1, marginLeft: 12 }]}>
-                  <Text style={styles.fieldLabel}>Jumlah Jiwa</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formJumlahKeluarga}
-                    onChangeText={setFormJumlahKeluarga}
-                    placeholder="4"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="numeric"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Profesi / Bidang Keahlian</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formPekerjaan}
-                  onChangeText={setFormPekerjaan}
-                  placeholder="Contoh: Pengembang Sistem / Karyawan"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Catatan Khusus</Text>
-                <TextInput
-                  style={[styles.input, { height: 60, textAlignVertical: 'top' }]}
-                  value={formCatatan}
-                  onChangeText={setFormCatatan}
-                  placeholder="Catatan tambahan internal DKM..."
-                  placeholderTextColor="#94A3B8"
-                  multiline
-                />
-              </View>
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setUserModalVisible(false)} disabled={formSaving}>
-                <Text style={styles.cancelModalBtnText}>Batal</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.saveModalBtn} onPress={handleSaveUserForm} disabled={formSaving}>
-                {formSaving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="save" size={15} color="#FFFFFF" />
-                    <Text style={styles.saveModalBtnText}>Simpan Pengguna</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </ScrollView>
+      <Sheet visible={sheetMode !== null} onClose={closeSheet} title={sheetTitle}>
+        {sheetMode === 'detail' && selectedUser ? renderDetail(selectedUser) : null}
+        {sheetMode === 'role' ? renderRolePicker() : null}
+        {sheetMode === 'form' ? renderForm() : null}
+      </Sheet>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
+  toolbar: {
+    gap: SP.m,
+    marginBottom: SP.s,
   },
-  content: {
-    padding: 20,
-    paddingBottom: 60,
-  },
-  headerHero: {
-    backgroundColor: '#2D3142',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: '#2D3142',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  headerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  group: {
     gap: 6,
-    backgroundColor: 'rgba(239, 131, 84, 0.2)',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#EF8354',
   },
-  headerBadgeText: {
-    color: '#EF8354',
-    fontSize: 10.5,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+  rowWrap: {
+    marginHorizontal: -SP.m,
+    paddingHorizontal: SP.m,
+    borderRadius: R.inner,
   },
-  superEmailPill: {
+  rowSelected: {
+    backgroundColor: C.g50,
+  },
+  rowBadges: {
+    alignItems: 'flex-end',
+    gap: SP.xs,
+    maxWidth: 120,
+  },
+  detail: {
+    gap: SP.l,
+  },
+  detailHead: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12,
+    alignItems: 'flex-start',
+    gap: SP.m,
   },
-  superEmailText: {
-    color: '#BFC0C0',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  heroTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  heroSubtitle: {
-    fontSize: 13,
-    color: '#BFC0C0',
-    lineHeight: 19,
-  },
-  statsGrid: {
+  badges: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
+    gap: SP.xs,
+    marginTop: 2,
   },
-  statCard: {
-    flex: 1,
-    minWidth: 140,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    textTransform: 'uppercase',
-  },
-  statNumber: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#0F172A',
-    marginVertical: 4,
-  },
-  statSub: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  toolbarCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 20,
-  },
-  searchRow: {
+  infoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: SP.s,
+    paddingVertical: SP.m,
   },
-  searchBox: {
-    flex: 1,
-    minWidth: 240,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#0F172A',
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EF8354',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-  },
-  addBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  filterTabsRow: {
-    flexDirection: 'row',
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    marginRight: 8,
-  },
-  filterChipActive: {
-    backgroundColor: '#EF8354',
-  },
-  filterChipText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  filterChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  loadingContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 13,
-    color: '#64748B',
-  },
-  emptyContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#334155',
-    marginTop: 8,
-  },
-  emptySubtitle: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 4,
-  },
-  userList: {
-    gap: 12,
-  },
-  userCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  superUserCard: {
-    borderColor: '#FCD34D',
-    borderWidth: 1.5,
-    backgroundColor: '#FFFDF5',
-  },
-  userCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 10,
+  infoRowLine: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 12,
-  },
-  userLeftRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    minWidth: 220,
-  },
-  userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#047857',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  superUserAvatar: {
-    backgroundColor: '#B45309',
-  },
-  userAvatarText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  userName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  superBadgePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FEF3C7',
-    paddingVertical: 2,
-    paddingHorizontal: 7,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  superBadgePillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#B45309',
-  },
-  userEmail: {
-    fontSize: 11.5,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  rolePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  rolePillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  userInfoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 12,
-  },
-  infoItem: {
-    flex: 1,
-    minWidth: 140,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: C.line,
   },
   infoLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#64748B',
-    marginTop: 2,
-    textTransform: 'uppercase',
+    width: 92,
+    paddingTop: 2,
   },
-  infoValue: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1E293B',
-    marginTop: 1,
-  },
-  infoValueHighlight: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#064E3B',
-    marginTop: 1,
-  },
-  infoSub: {
-    fontSize: 10.5,
-    color: '#94A3B8',
-  },
-  waQuickBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: '#25D366',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    marginTop: 6,
-    alignSelf: 'flex-start',
-  },
-  waQuickText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  professionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#F1F5F9',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  professionText: {
-    fontSize: 11.5,
-    color: '#475569',
-  },
-  cardActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 8,
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  actionBtnEdit: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#FDF1EB',
-  },
-  actionBtnEditText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#EF8354',
-  },
-  actionBtnRole: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#EFF6FF',
-  },
-  actionBtnRoleText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0284C7',
-  },
-  actionBtnReset: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#FEF3C7',
-  },
-  actionBtnResetText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#D97706',
-  },
-  actionBtnDelete: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#FEF2F2',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  roleModalCard: {
-    width: '100%',
-    maxWidth: 460,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  userFormModal: {
-    width: '100%',
-    maxWidth: 520,
-    maxHeight: '90%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 12,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  modalSub: {
-    fontSize: 12,
-    color: '#64748B',
-    marginVertical: 12,
-  },
-  roleOptionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 8,
-    backgroundColor: '#FFFFFF',
-  },
-  roleOptionCardSelected: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#059669',
-  },
-  roleOptionIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roleOptionTitle: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  roleOptionDesc: {
-    fontSize: 10.5,
-    color: '#64748B',
-    marginTop: 2,
-    lineHeight: 14,
-  },
-  formScroll: {
-    marginVertical: 12,
-    maxHeight: 460,
-  },
-  fieldGroup: {
-    marginBottom: 12,
-  },
-  fieldLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#334155',
-    marginBottom: 6,
-  },
-  req: {
-    color: '#DC2626',
-  },
-  input: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: 13,
-    color: '#0F172A',
-  },
-  inputDisabled: {
-    backgroundColor: '#F1F5F9',
-    color: '#94A3B8',
-  },
-  hintText: {
-    fontSize: 10.5,
-    color: '#64748B',
-    marginTop: 3,
-  },
-  chipsWrap: {
+  actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: SP.s,
   },
-  roleSelectChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SP.s,
+    padding: SP.m,
+    borderRadius: R.inner,
+    backgroundColor: C.dangerBg,
+  },
+  confirmBox: {
+    gap: SP.s,
+    padding: SP.l,
+    borderRadius: R.inner,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#F8FAFC',
+    borderColor: C.line,
+    backgroundColor: C.sunken,
   },
-  roleSelectChipText: {
-    fontSize: 11,
-    color: '#475569',
-    fontWeight: '600',
+  confirmDanger: {
+    borderColor: C.dangerFg,
+    backgroundColor: C.dangerBg,
   },
-  blockChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+  roleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SP.m,
+    padding: SP.m,
+    borderRadius: R.inner,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#F8FAFC',
+    borderColor: C.line,
+    minHeight: 56,
   },
-  blockChipActive: {
-    backgroundColor: '#EF8354',
-    borderColor: '#EF8354',
-  },
-  blockChipText: {
-    fontSize: 11,
-    color: '#475569',
-    fontWeight: '600',
-  },
-  blockChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+  roleOptionActive: {
+    borderColor: C.g700,
+    backgroundColor: C.g50,
   },
   twoCols: {
     flexDirection: 'row',
+    gap: SP.m,
   },
-  liveAddressPreview: {
+  col: {
+    flex: 1,
+    minWidth: 0,
+  },
+  notice: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FDF1EB',
+    gap: SP.s,
+    padding: SP.m,
+    borderRadius: R.inner,
+    backgroundColor: C.g50,
     borderWidth: 1,
-    borderColor: '#BFC0C0',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
+    borderColor: C.g100,
   },
-  liveAddressText: {
-    fontSize: 12,
-    color: '#2D3142',
+  noticeDanger: {
+    backgroundColor: C.dangerBg,
+    borderColor: C.dangerBg,
   },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 12,
-  },
-  cancelModalBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  cancelModalBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  saveModalBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#EF8354',
-  },
-  saveModalBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
+  noticeText: {
+    ...TYPE.bodyStrong,
+    color: C.g700,
+    flex: 1,
+  } as TextStyle,
 });

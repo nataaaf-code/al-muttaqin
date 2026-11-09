@@ -1,2033 +1,1086 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Platform,
-  Linking,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Linking, ScrollView, StyleSheet, TextStyle, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useMushola } from '../store/useMusholaStore';
-import { SubOrganization, UserRole } from '../types';
+import { getRolePermissions, RolePermissions, useMushola } from '../store/useMusholaStore';
+import { CashPocket, SubOrganization, TPAClassInfo, TPAStaffMember, UserRole } from '../types';
 import { formatRupiah } from '../utils/formatters';
 import { MUSHOLA_INFO, TPA_CLASSES, TPA_STAFF_MEMBERS, TPA_STRUCTURE_SUMMARY } from '../store/mockData';
-import { THEME } from '../theme/colors';
+import { BP, C, R, SP, TYPE } from '../theme/colors';
+import { Sheet } from '../theme/motion';
+import {
+  Avatar,
+  Badge,
+  BadgeTone,
+  Button,
+  Card,
+  CardHeader,
+  Col,
+  EmptyState,
+  Hatch,
+  IconButton,
+  IconName,
+  IconTile,
+  ListRow,
+  PageHeader,
+  Row,
+  Screen,
+  Segmented,
+  T,
+  useBreakpoint,
+} from '../ui/kit';
 
-interface RoleCardInfo {
+/* ---------- Data statis layar (label & peta, bukan angka) ---------- */
+
+interface RoleInfo {
   role: UserRole;
   title: string;
+  short: string;
   badge: string;
-  badgeColor: string;
-  badgeBg: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IconName;
   description: string;
   permissionsText: string[];
 }
 
-const ALL_ROLES: RoleCardInfo[] = [
+const ALL_ROLES: RoleInfo[] = [
   {
     role: 'SUPER_ADMIN',
-    title: 'Ketua DKM (Super Admin)',
-    badge: 'Akses Master',
-    badgeColor: THEME.coral,
-    badgeBg: THEME.coralSoftBg,
-    icon: 'shield-checkmark',
-    description: 'Akses otoritas tertinggi tanpa batasan ke seluruh pembukuan, pengaturan organisasi, dan tata kelola mushola.',
-    permissionsText: ['Kas Pusat & Sub-Org', 'Agenda & Petugas Jumat', 'Kelola Inventaris', 'Data Sensus Warga', 'Kelola TV Signage'],
+    title: 'Ketua DKM (super admin)',
+    short: 'Ketua DKM',
+    badge: 'Akses penuh',
+    icon: 'shield-checkmark-outline',
+    description:
+      'Akses tertinggi ke seluruh pembukuan, pengaturan organisasi, dan tata kelola mushola.',
+    permissionsText: ['Kas pusat dan sub-organisasi', 'Agenda dan petugas Jumat', 'Kelola inventaris', 'Data sensus warga', 'Kelola TV signage'],
   },
   {
     role: 'BENDAHARA_DKM',
-    title: 'Bendahara Utama DKM',
+    title: 'Bendahara utama DKM',
+    short: 'Bendahara DKM',
     badge: 'Keuangan DKM',
-    badgeColor: THEME.paynesGray,
-    badgeBg: THEME.silverLight,
-    icon: 'wallet',
-    description: 'Bertanggung jawab mencatat penerimaan ZIS/infaq, pengeluaran operasional DKM, pemindahan kas, dan warta keuangan Jumat.',
-    permissionsText: ['Semua Mutasi Kas DKM', 'Pecah Kantong Kas', 'Laporan Rekap ZIS', 'Data Donatur Warga'],
+    icon: 'wallet-outline',
+    description:
+      'Mencatat penerimaan ZIS dan infaq, pengeluaran operasional DKM, pemindahan kas, dan warta keuangan Jumat.',
+    permissionsText: ['Semua mutasi kas DKM', 'Pecah kantong kas', 'Laporan rekap ZIS', 'Data donatur warga'],
   },
   {
     role: 'BENDAHARA_SUB',
-    title: 'Bendahara Sub-Organisasi / TPA',
-    badge: 'Otonom Sub-Org',
-    badgeColor: THEME.coral,
-    badgeBg: THEME.coralSoftBg,
-    icon: 'card',
-    description: 'Mengelola keuangan otonom unitnya sendiri (TPA, RISMA, atau Majelis Taklim). Terisolasi ketat dari kas utama mushola.',
-    permissionsText: ['Kas Khusus Unit Otonom', 'Buat Kegiatan Unit', 'Laporan Transparansi Unit'],
+    title: 'Bendahara sub-organisasi atau TPA',
+    short: 'Bendahara unit',
+    badge: 'Kas unit',
+    icon: 'card-outline',
+    description:
+      'Mengelola keuangan unitnya sendiri (TPA, RISMA, atau Majelis Taklim), terpisah dari kas utama mushola.',
+    permissionsText: ['Kas khusus unit', 'Buat kegiatan unit', 'Laporan transparansi unit'],
   },
   {
     role: 'SEKRETARIS',
-    title: 'Sekretaris & Sie Dakwah',
-    badge: 'Dakwah & Warta',
-    badgeColor: THEME.paynesGray,
-    badgeBg: THEME.silverLight,
-    icon: 'document-text',
-    description: 'Mengatur kalender kajian, petugas khotib & imam sholat Jumat, pengumuman digital TV, dan pendataan sensus warga.',
-    permissionsText: ['Kalender Agenda/Kajian', 'Jadwal Petugas Jumat', 'Update Warta TV Signage', 'Kelola Data Jamaah'],
+    title: 'Sekretaris dan sie dakwah',
+    short: 'Sekretaris',
+    badge: 'Dakwah dan warta',
+    icon: 'document-text-outline',
+    description:
+      'Mengatur kalender kajian, petugas khotib dan imam sholat Jumat, pengumuman TV, dan pendataan sensus warga.',
+    permissionsText: ['Kalender agenda dan kajian', 'Jadwal petugas Jumat', 'Warta TV signage', 'Kelola data jamaah'],
   },
   {
     role: 'PENGURUS_SEKSI',
-    title: 'Seksi Sarpras & Logistik',
-    badge: 'Fasilitas & Aset',
-    badgeColor: THEME.gunmetal,
-    badgeBg: THEME.silverLight,
-    icon: 'cube',
-    description: 'Mengelola pencatatan aset inventaris mushola, pemeliharaan sound system & tenda, serta perizinan peminjaman oleh warga.',
-    permissionsText: ['Tambah Aset Fisik', 'Update Kondisi Barang', 'Kelola Pinjam Pakai'],
+    title: 'Seksi sarpras dan logistik',
+    short: 'Sarpras',
+    badge: 'Fasilitas dan aset',
+    icon: 'cube-outline',
+    description:
+      'Mencatat aset inventaris, merawat sound system dan tenda, serta mengatur peminjaman oleh warga.',
+    permissionsText: ['Tambah aset fisik', 'Ubah kondisi barang', 'Kelola pinjam pakai'],
   },
   {
     role: 'JAMAAH',
-    title: 'Jamaah / Warga Lingkungan',
-    badge: 'Transparansi Publik',
-    badgeColor: THEME.paynesGray,
-    badgeBg: THEME.silverLight,
-    icon: 'people',
-    description: 'Akses transparansi penuh untuk warga lingkungan: memantau saldo kas mushola, jadwal sholat akurat Kemenag, dan infaq QRIS.',
-    permissionsText: ['Lihat Saldo Transparan', 'Jadwal Sholat & Countdown', 'Infaq Tanpa Nominal QRIS', 'Aspirasi / Kotak Saran'],
+    title: 'Jamaah dan warga lingkungan',
+    short: 'Jamaah',
+    badge: 'Transparansi publik',
+    icon: 'people-outline',
+    description:
+      'Memantau saldo kas mushola, jadwal sholat Kemenag, dan infaq QRIS secara terbuka.',
+    permissionsText: ['Lihat saldo kas', 'Jadwal sholat dan hitung mundur', 'Infaq QRIS bebas nominal', 'Aspirasi dan kotak saran'],
   },
 ];
 
+type CapKey = Exclude<keyof RolePermissions, 'isReadOnly' | 'roleTitle' | 'roleDescription' | 'roleBadgeColor' | 'roleIcon'>;
+
+const CAPABILITIES: { key: CapKey; label: string }[] = [
+  { key: 'canAddTransaction', label: 'Catat transaksi kas' },
+  { key: 'canManagePockets', label: 'Kelola kantong kas' },
+  { key: 'canViewFinancialReports', label: 'Lihat laporan keuangan' },
+  { key: 'canAddEvent', label: 'Tambah agenda' },
+  { key: 'canEditFridaySchedule', label: 'Ubah petugas Jumat' },
+  { key: 'canManageInventory', label: 'Kelola inventaris' },
+  { key: 'canManageJamaah', label: 'Kelola data jamaah' },
+  { key: 'canEditSignage', label: 'Ubah tampilan TV' },
+  { key: 'canManageSubOrgs', label: 'Kelola organisasi' },
+];
+
+const CATEGORY_LABEL: Record<SubOrganization['category'], string> = {
+  DKM: 'Pengurus utama',
+  REMAJA: 'Remaja',
+  MAJELIS_TAKLIM: 'Majelis taklim',
+  PANITIA_AD_HOC: 'Panitia ad hoc',
+  TPA: 'Badan otonom',
+};
+
+const CATEGORY_ICON: Record<SubOrganization['category'], IconName> = {
+  DKM: 'business-outline',
+  REMAJA: 'people-outline',
+  MAJELIS_TAKLIM: 'book-outline',
+  PANITIA_AD_HOC: 'flag-outline',
+  TPA: 'school-outline',
+};
+
+const STAFF_LABEL: Record<TPAStaffMember['roleCategory'], string> = {
+  PEMBINA: 'Pembina',
+  KEPALA_TPA: 'Kepala TPA',
+  SEKRETARIS: 'Sekretaris',
+  BENDAHARA: 'Bendahara',
+  KURIKULUM: 'Kurikulum',
+  PENGAJAR: 'Pengajar',
+};
+
+const STAFF_TONE: Record<TPAStaffMember['roleCategory'], BadgeTone> = {
+  PEMBINA: 'neutral',
+  KEPALA_TPA: 'success',
+  SEKRETARIS: 'neutral',
+  BENDAHARA: 'neutral',
+  KURIKULUM: 'neutral',
+  PENGAJAR: 'neutral',
+};
+
+const TIERS: { title: string; cats: TPAStaffMember['roleCategory'][] }[] = [
+  { title: 'Dewan pembina DKM', cats: ['PEMBINA'] },
+  { title: 'Kepala TPA', cats: ['KEPALA_TPA'] },
+  { title: 'Administrasi dan keuangan', cats: ['SEKRETARIS', 'BENDAHARA'] },
+  { title: 'Kurikulum dan mutu', cats: ['KURIKULUM'] },
+  { title: 'Guru dan wali kelas', cats: ['PENGAJAR'] },
+];
+
+const POCKET_LABEL: Record<CashPocket['category'], string> = {
+  OPERASIONAL: 'Operasional',
+  SOSIAL_YATIM: 'Sosial dan yatim',
+  PEMBANGUNAN: 'Pembangunan',
+  KEGIATAN: 'Kegiatan',
+  ZAKAT: 'Zakat',
+  TPA_SPP: 'SPP santri',
+  TPA_MODUL: 'Modul belajar',
+  TPA_HONOR: 'Honor guru',
+  TPA_KEGIATAN: 'Kegiatan TPA',
+};
+
+/** Kategori/kantong dibedakan dengan nada hijau + label (DESIGN.md bagian 2), bukan warna data mentah. */
+const GREEN_TONES = [C.g900, C.g700, C.g500, C.g300, C.g100] as const;
+
+type TpaTab = 'STRUKTUR' | 'GURU' | 'KELAS' | 'KEUANGAN';
+
+const TPA_TABS: { key: TpaTab; label: string }[] = [
+  { key: 'STRUKTUR', label: 'Struktur' },
+  { key: 'GURU', label: 'Dewan guru' },
+  { key: 'KELAS', label: 'Kelas' },
+  { key: 'KEUANGAN', label: 'Kas mandiri' },
+];
+
+type SheetState =
+  | { kind: 'person'; person: TPAStaffMember }
+  | { kind: 'class'; cls: TPAClassInfo }
+  | { kind: 'role'; info: RoleInfo };
+
+/* ---------- Util ---------- */
+
+function toWaNumber(phone: string) {
+  let n = String(phone).replace(/\D/g, '');
+  if (n.startsWith('0')) n = '62' + n.slice(1);
+  if (!n.startsWith('62')) n = '62' + n;
+  return n;
+}
+
+/** 6285799001122 -> 0857-9900-1122 */
+function formatPhone(phone: string) {
+  const local = '0' + toWaNumber(phone).slice(2);
+  return [local.slice(0, 4), local.slice(4, 8), local.slice(8)].filter(Boolean).join('-');
+}
+
+const SORTED_STAFF = [...TPA_STAFF_MEMBERS].sort((a, b) => a.orderIndex - b.orderIndex);
+
+/* ---------- Layar ---------- */
+
 export function OrganizationScreen() {
   const { subOrgs, pockets, currentRole, setCurrentRole, getTPABalance } = useMushola();
-  const [selectedOrg, setSelectedOrg] = useState<SubOrganization>(subOrgs[0]);
-  const [tpaSubTab, setTpaSubTab] = useState<'STRUKTUR' | 'GURU' | 'KELAS' | 'KEUANGAN'>('STRUKTUR');
+  const { isPhone, isDesktop } = useBreakpoint();
 
-  // Cari kantong kas milik organisasi ini
-  const orgPockets = pockets.filter((p) => p.subOrgId === selectedOrg.id);
-  const orgTotalBalance = orgPockets.reduce((sum, p) => sum + p.balance, 0);
+  const [selectedId, setSelectedId] = useState<string>(subOrgs[0]?.id ?? '');
+  const [tpaTab, setTpaTab] = useState<TpaTab>('STRUKTUR');
+  const [sheet, setSheet] = useState<SheetState | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [waError, setWaError] = useState('');
 
-  const isTPASelected = selectedOrg.id === 'org-tpa' || selectedOrg.category === 'TPA';
+  const selectedOrg = subOrgs.find((o) => o.id === selectedId) ?? subOrgs[0];
+  const orgPockets = useMemo(
+    () => (selectedOrg ? pockets.filter((p) => p.subOrgId === selectedOrg.id) : []),
+    [pockets, selectedOrg]
+  );
+  const orgTotal = orgPockets.reduce((sum, p) => sum + p.balance, 0);
+  const isTPA = !!selectedOrg && (selectedOrg.id === 'org-tpa' || selectedOrg.category === 'TPA');
 
   const openWhatsApp = (phone: string, name: string) => {
-    let cleanPhone = String(phone).replace(/\D/g, '');
-    if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.slice(1);
-    if (!cleanPhone.startsWith('62')) cleanPhone = '62' + cleanPhone;
-    const url = `https://wa.me/${cleanPhone}?text=Assalamu%27alaikum%20${encodeURIComponent(name)}`;
-    if (Platform.OS === 'web') window.open(url, '_blank');
-    else Linking.openURL(url);
+    const url = `https://wa.me/${toWaNumber(phone)}?text=${encodeURIComponent(`Assalamu'alaikum ${name}`)}`;
+    Linking.openURL(url)
+      .then(() => setWaError(''))
+      .catch(() => setWaError(`WhatsApp tidak bisa dibuka. Hubungi ${name} langsung di ${formatPhone(phone)}.`));
   };
 
+  const openSheet = (s: SheetState) => {
+    setSheet(s);
+    setSheetOpen(true);
+  };
+  const closeSheet = () => setSheetOpen(false);
+
+  const mainFlex = 3;
+  const sideFlex = isDesktop ? 1 : 2;
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Intro Header */}
-      <View style={styles.headerBox}>
-        <View style={styles.headerBadgeRow}>
-          <View style={styles.orgBadgePill}>
-            <Ionicons name="git-network-outline" size={14} color={THEME.coral} />
-            <Text style={styles.orgBadgePillText}>Tata Kelola Musholla & Otonom</Text>
-          </View>
+    <Screen>
+      <PageHeader
+        title="Organisasi"
+        subtitle="Struktur DKM dan badan otonom: TPA, RISMA, Majelis Taklim, dan panitia."
+      />
+
+      {waError ? (
+        <View style={st.notice} accessibilityLiveRegion="polite">
+          <Ionicons name="alert-circle-outline" size={18} color={C.dangerFg} aria-hidden />
+          <T v="small" color={C.dangerFg} style={{ flex: 1 }}>
+            {waError}
+          </T>
         </View>
-        <Text style={styles.headerTitle}>Struktur Organisasi & Badan Otonom</Text>
-        <Text style={styles.headerSubtitle}>
-          Pengelolaan berjenjang DKM Takmir Utama, Badan Otonom TPA Nurul Ilmi, Remaja Islam (RISMA), Majelis Taklim Khadijah, dan Panitia Ad-Hoc.
-        </Text>
-      </View>
+      ) : null}
 
-      {/* Sub-Org Selector Cards */}
-      <Text style={styles.sectionHeading}>Pilih Entitas Organisasi:</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.orgSelectorRow}>
-        {subOrgs.map((org) => {
-          const isSelected = org.id === selectedOrg.id;
-          const isTpa = org.id === 'org-tpa';
-          return (
-            <TouchableOpacity
-              key={org.id}
-              style={[
-                styles.orgPillTab,
-                isSelected && styles.orgPillTabActive,
-                isTpa && !isSelected && styles.orgPillTabTpa,
-              ]}
-              onPress={() => setSelectedOrg(org)}
-              activeOpacity={0.8}
-            >
-              <View
-                style={[
-                  styles.orgDotCircle,
-                  { backgroundColor: isSelected ? THEME.white : isTpa ? THEME.coral : org.color },
-                ]}
-              >
-                <Ionicons
-                  name={isTpa ? 'school' : org.category === 'DKM' ? 'business' : 'people'}
-                  size={12}
-                  color={isSelected ? (isTpa ? THEME.coral : THEME.gunmetal) : THEME.white}
-                />
-              </View>
-              <View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text
-                    style={[
-                      styles.orgPillName,
-                      isSelected && styles.orgPillNameActive,
-                    ]}
-                  >
-                    {org.shortName}
-                  </Text>
-                  {isTpa && (
-                    <View style={[styles.tpaBadgeMicro, isSelected && { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-                      <Text style={[styles.tpaBadgeMicroText, isSelected && { color: THEME.white }]}>
-                        Otonom
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <Text
-                  style={[
-                    styles.orgPillCategory,
-                    isSelected && styles.orgPillCategoryActive,
-                  ]}
-                >
-                  {org.category.replace('_', ' ')}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* ============================================================== */}
-      {/* JIKA TPA DIPILIH: TAMPILKAN STRUKTUR ORGANISASI TPA LENGKAP      */}
-      {/* ============================================================== */}
-      {isTPASelected ? (
-        <View style={styles.tpaMainContainer}>
-          {/* TPA Fluid Hero Banner Card */}
-          <View style={styles.tpaHeroSurface}>
-            <View style={styles.tpaHeroTopRow}>
-              <View style={styles.tpaEmblemCircle}>
-                <Ionicons name="book" size={26} color={THEME.white} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.tpaOtonomBadge}>
-                  <Ionicons name="sparkles" size={10} color={THEME.coral} />
-                  <Text style={styles.tpaOtonomBadgeText}>BADAN OTONOM MANDIRI</Text>
-                </View>
-                <Text style={styles.tpaHeroTitle}>TPA / TPQ Nurul Ilmi</Text>
-                <Text style={styles.tpaHeroLocation}>
-                  Musholla Al-Muttaqin • Perumahan Mutiara Puri Harmoni Blok H
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.tpaHeroDescription}>
-              Lembaga pembinaan Al-Qur'an terpadu santri lingkungan sekitar. Dikelola secara mandiri dengan kurikulum berjenjang dari Pra-TK (Iqro) hingga Tahfidz Juz 30, dewan asatidz mandiri, serta pembukuan kas otonom terpisah.
-            </Text>
-
-            {/* Seamless Unified Metric Ribbon (No Boxy Borders) */}
-            <View style={styles.tpaMetricRibbon}>
-              <View style={styles.metricRibbonItem}>
-                <Text style={styles.metricRibbonNum}>{TPA_STRUCTURE_SUMMARY.totalSantri}</Text>
-                <Text style={styles.metricRibbonLabel}>Santri Aktif</Text>
-                <Text style={styles.metricRibbonSub}>24 Putra • 18 Putri</Text>
-              </View>
-
-              <View style={styles.metricRibbonDivider} />
-
-              <View style={styles.metricRibbonItem}>
-                <Text style={styles.metricRibbonNum}>{TPA_STRUCTURE_SUMMARY.activeClasses}</Text>
-                <Text style={styles.metricRibbonLabel}>Jenjang Kelas</Text>
-                <Text style={styles.metricRibbonSub}>Iqro 1-6 s.d Tahfidz</Text>
-              </View>
-
-              <View style={styles.metricRibbonDivider} />
-
-              <View style={styles.metricRibbonItem}>
-                <Text style={styles.metricRibbonNum}>{TPA_STAFF_MEMBERS.length}</Text>
-                <Text style={styles.metricRibbonLabel}>Dewan Guru</Text>
-                <Text style={styles.metricRibbonSub}>Asatidz & Ustadzah</Text>
-              </View>
-
-              <View style={styles.metricRibbonDivider} />
-
-              <View style={styles.metricRibbonItem}>
-                <Text style={[styles.metricRibbonNum, { color: THEME.coral }]}>
-                  {formatRupiah(getTPABalance())}
-                </Text>
-                <Text style={styles.metricRibbonLabel}>Kas Otonom</Text>
-                <Text style={styles.metricRibbonSub}>4 Kantong Mandiri</Text>
-              </View>
-            </View>
-
-            {/* Fluid Capsule Segmented Tabs */}
-            <View style={styles.tpaCapsuleNav}>
-              <TouchableOpacity
-                style={[styles.tpaCapsuleItem, tpaSubTab === 'STRUKTUR' && styles.tpaCapsuleItemActive]}
-                onPress={() => setTpaSubTab('STRUKTUR')}
-              >
-                <Ionicons
-                  name="git-branch-outline"
-                  size={14}
-                  color={tpaSubTab === 'STRUKTUR' ? THEME.white : THEME.silver}
-                />
-                <Text
-                  style={[
-                    styles.tpaCapsuleText,
-                    tpaSubTab === 'STRUKTUR' && styles.tpaCapsuleTextActive,
-                  ]}
-                >
-                  Bagan Struktur
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.tpaCapsuleItem, tpaSubTab === 'GURU' && styles.tpaCapsuleItemActive]}
-                onPress={() => setTpaSubTab('GURU')}
-              >
-                <Ionicons
-                  name="school-outline"
-                  size={14}
-                  color={tpaSubTab === 'GURU' ? THEME.white : THEME.silver}
-                />
-                <Text
-                  style={[
-                    styles.tpaCapsuleText,
-                    tpaSubTab === 'GURU' && styles.tpaCapsuleTextActive,
-                  ]}
-                >
-                  Dewan Guru
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.tpaCapsuleItem, tpaSubTab === 'KELAS' && styles.tpaCapsuleItemActive]}
-                onPress={() => setTpaSubTab('KELAS')}
-              >
-                <Ionicons
-                  name="layers-outline"
-                  size={14}
-                  color={tpaSubTab === 'KELAS' ? THEME.white : THEME.silver}
-                />
-                <Text
-                  style={[
-                    styles.tpaCapsuleText,
-                    tpaSubTab === 'KELAS' && styles.tpaCapsuleTextActive,
-                  ]}
-                >
-                  Kurikulum
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.tpaCapsuleItem, tpaSubTab === 'KEUANGAN' && styles.tpaCapsuleItemActive]}
-                onPress={() => setTpaSubTab('KEUANGAN')}
-              >
-                <Ionicons
-                  name="wallet-outline"
-                  size={14}
-                  color={tpaSubTab === 'KEUANGAN' ? THEME.white : THEME.silver}
-                />
-                <Text
-                  style={[
-                    styles.tpaCapsuleText,
-                    tpaSubTab === 'KEUANGAN' && styles.tpaCapsuleTextActive,
-                  ]}
-                >
-                  Kas Mandiri
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* TAB 1: BAGAN HIRARKI STRUKTUR ORGANISASI TPA (SEAMLESS FLOW) */}
-          {tpaSubTab === 'STRUKTUR' && (
-            <View style={styles.tpaFlowCanvas}>
-              <View style={styles.flowCanvasHeader}>
-                <Ionicons name="git-network" size={20} color={THEME.coral} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.flowCanvasTitle}>Bagan Alur Kepengurusan TPA</Text>
-                  <Text style={styles.flowCanvasSubtitle}>
-                    Hubungan koordinatif berjenjang dari pembina DKM hingga wali kelas:
-                  </Text>
-                </View>
-              </View>
-
-              {/* LEVEL 1: DEWAN PEMBINA */}
-              <View style={styles.flowTierWrap}>
-                <View style={styles.flowTierHeader}>
-                  <View style={[styles.flowTierDot, { backgroundColor: THEME.paynesGray }]} />
-                  <Text style={styles.flowTierTitle}>TINGKAT 1 • DEWAN PEMBINA DKM</Text>
-                </View>
-                <View style={styles.duoPillRow}>
-                  <View style={styles.duoPillCard}>
-                    <View style={styles.duoPillIcon}>
-                      <Ionicons name="shield-checkmark" size={16} color={THEME.coral} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.duoPillName}>Ustadz Astriyo</Text>
-                      <Text style={styles.duoPillRole}>Pembina Syariah & Agama</Text>
-                      <Text style={styles.duoPillMeta}>0857-7790-0383</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.duoPillCard}>
-                    <View style={styles.duoPillIcon}>
-                      <Ionicons name="shield-checkmark" size={16} color={THEME.coral} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.duoPillName}>Ustadz Dicky</Text>
-                      <Text style={styles.duoPillRole}>Pembina Lembaga / Ketua DKM</Text>
-                      <Text style={styles.duoPillMeta}>0817-4958-342</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* Connecting Flow Line */}
-              <View style={styles.connectingRail}>
-                <View style={styles.railLine} />
-                <View style={styles.railNode} />
-                <View style={styles.railLine} />
-              </View>
-
-              {/* LEVEL 2: KEPALA TPA (HERO FEATURE CARD) */}
-              <View style={styles.flowTierWrap}>
-                <View style={styles.flowTierHeader}>
-                  <View style={[styles.flowTierDot, { backgroundColor: THEME.coral }]} />
-                  <Text style={styles.flowTierTitle}>TINGKAT 2 • DIREKTUR / KEPALA SEKOLAH</Text>
-                </View>
-                <View style={styles.headmasterHeroSurface}>
-                  <View style={styles.headmasterLeft}>
-                    <View style={styles.headmasterAvatarRing}>
-                      <Ionicons name="person" size={26} color={THEME.white} />
-                    </View>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.headmasterRoleTag}>
-                      <Text style={styles.headmasterRoleTagText}>PIMPINAN AKADEMIK & TAHFIDZ</Text>
-                    </View>
-                    <Text style={styles.headmasterName}>Ustadzah Maryam, S.Pd.I</Text>
-                    <Text style={styles.headmasterBio}>
-                      Alumnus Tarbiyah PAI, pemegang sanad tahsin Tilawati & penanggung jawab operasional harian TPA.
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.headmasterWaPill}
-                      onPress={() => openWhatsApp('6285799001122', 'Ustadzah Maryam')}
-                    >
-                      <Ionicons name="logo-whatsapp" size={13} color={THEME.white} />
-                      <Text style={styles.headmasterWaPillText}>WhatsApp Kepala TPA (0857-9900-1122)</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-
-              {/* Connecting Flow Line */}
-              <View style={styles.connectingRail}>
-                <View style={styles.railLine} />
-                <View style={styles.railNode} />
-                <View style={styles.railLine} />
-              </View>
-
-              {/* LEVEL 3: TATA USAHA & BENDAHARA (DUO HARMONY) */}
-              <View style={styles.flowTierWrap}>
-                <View style={styles.flowTierHeader}>
-                  <View style={[styles.flowTierDot, { backgroundColor: THEME.paynesGray }]} />
-                  <Text style={styles.flowTierTitle}>TINGKAT 3 • ADMINISTRASI & KEUANGAN MANDIRI</Text>
-                </View>
-                <View style={styles.duoPillRow}>
-                  <View style={styles.adminSeamlessCard}>
-                    <View style={styles.adminIconCircle}>
-                      <Ionicons name="document-text" size={18} color={THEME.coral} />
-                    </View>
-                    <Text style={styles.adminCardName}>Ustadzah Siti Aisyah, S.Pd</Text>
-                    <Text style={styles.adminCardRole}>Sekretaris & Tata Usaha</Text>
-                    <Text style={styles.adminCardDesc}>Pendaftaran, presensi, & raport santri</Text>
-                    <TouchableOpacity
-                      style={styles.adminWaBtn}
-                      onPress={() => openWhatsApp('6281299887766', 'Ustadzah Siti Aisyah')}
-                    >
-                      <Ionicons name="logo-whatsapp" size={11} color={THEME.white} />
-                      <Text style={styles.adminWaBtnText}>WA Tata Usaha</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.adminSeamlessCard}>
-                    <View style={styles.adminIconCircle}>
-                      <Ionicons name="wallet" size={18} color={THEME.coral} />
-                    </View>
-                    <Text style={styles.adminCardName}>Ustadzah Fitri Handayani, S.E</Text>
-                    <Text style={styles.adminCardRole}>Bendahara Kas Otonom</Text>
-                    <Text style={styles.adminCardDesc}>Kas SPP, honor guru, & buku modul</Text>
-                    <TouchableOpacity
-                      style={styles.adminWaBtn}
-                      onPress={() => openWhatsApp('6281311223344', 'Ustadzah Fitri Handayani')}
-                    >
-                      <Ionicons name="logo-whatsapp" size={11} color={THEME.white} />
-                      <Text style={styles.adminWaBtnText}>WA Bendahara</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-
-              {/* Connecting Flow Line */}
-              <View style={styles.connectingRail}>
-                <View style={styles.railLine} />
-                <View style={styles.railNode} />
-                <View style={styles.railLine} />
-              </View>
-
-              {/* LEVEL 4: KURIKULUM & TAHSIN */}
-              <View style={styles.flowTierWrap}>
-                <View style={styles.flowTierHeader}>
-                  <View style={[styles.flowTierDot, { backgroundColor: THEME.gunmetal }]} />
-                  <Text style={styles.flowTierTitle}>TINGKAT 4 • KOORDINATOR KURIKULUM & MUTU</Text>
-                </View>
-                <View style={styles.curriculumBannerCard}>
-                  <View style={styles.curriculumIconCircle}>
-                    <Ionicons name="ribbon" size={20} color={THEME.coral} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.curriculumLeaderName}>Ustadz Hafiz Al-Faruq, S.Ag</Text>
-                    <Text style={styles.curriculumLeaderRole}>Penjamin Mutu Tahsin & Tartil Al-Qur'an</Text>
-                    <Text style={styles.curriculumLeaderDesc}>
-                      Hafizh 30 Juz, penguji kenaikan jilid Iqro, bimbingan makharijul huruf & tartil santri.
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Connecting Flow Line */}
-              <View style={styles.connectingRail}>
-                <View style={styles.railLine} />
-                <View style={styles.railNode} />
-                <View style={styles.railLine} />
-              </View>
-
-              {/* LEVEL 5: DEWAN ASATIDZ / WALI KELAS */}
-              <View style={styles.flowTierWrap}>
-                <View style={styles.flowTierHeader}>
-                  <View style={[styles.flowTierDot, { backgroundColor: THEME.coral }]} />
-                  <Text style={styles.flowTierTitle}>TINGKAT 5 • DEWAN GURU / WALI KELAS BIMBINGAN</Text>
-                </View>
-                <View style={styles.teachersStreamCanvas}>
-                  {TPA_STAFF_MEMBERS.filter((s) => s.roleCategory === 'PENGAJAR').map((teacher, index) => (
-                    <View key={teacher.id} style={styles.teacherStreamItem}>
-                      <View style={styles.teacherAvatarDot}>
-                        <Ionicons name="school" size={13} color={THEME.white} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.teacherStreamName}>{teacher.name}</Text>
-                        <Text style={styles.teacherStreamClass}>{teacher.assignedClass}</Text>
-                        <Text style={styles.teacherStreamBio}>{teacher.bio}</Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.teacherWaMiniBtn}
-                        onPress={() => openWhatsApp(teacher.phone, teacher.name)}
-                      >
-                        <Ionicons name="logo-whatsapp" size={12} color="#25D366" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* TAB 2: DAFTAR ASATIDZ / PENGURUS TPA (UNIFIED SHOWCASE) */}
-          {tpaSubTab === 'GURU' && (
-            <View style={styles.tpaStaffSection}>
-              <Text style={styles.tpaSubSectionTitle}>Direktori Dewan Asatidz & Tenaga Pendidik:</Text>
-              <View style={styles.staffStreamCanvas}>
-                {TPA_STAFF_MEMBERS.map((staff, idx) => (
-                  <View
-                    key={staff.id}
-                    style={[
-                      styles.staffStreamRow,
-                      idx === TPA_STAFF_MEMBERS.length - 1 && { borderBottomWidth: 0 },
-                    ]}
-                  >
-                    <View style={styles.staffAvatarGlow}>
-                      <Ionicons
-                        name={staff.roleCategory === 'PENGAJAR' ? 'school' : 'person'}
-                        size={18}
-                        color={THEME.coral}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.staffNameHeadingRow}>
-                        <Text style={styles.staffNameText}>{staff.name}</Text>
-                        <View style={styles.staffCategoryChip}>
-                          <Text style={styles.staffCategoryChipText}>{staff.roleCategory}</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.staffRoleSubtitle}>{staff.role}</Text>
-                      {staff.assignedClass && (
-                        <View style={styles.assignedClassChip}>
-                          <Ionicons name="book-outline" size={11} color={THEME.coral} />
-                          <Text style={styles.assignedClassChipText}>{staff.assignedClass}</Text>
-                        </View>
-                      )}
-                      {staff.bio && <Text style={styles.staffBioDescription}>{staff.bio}</Text>}
-                    </View>
-                    <TouchableOpacity
-                      style={styles.staffChatCircle}
-                      onPress={() => openWhatsApp(staff.phone, staff.name)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="logo-whatsapp" size={16} color={THEME.white} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* TAB 3: DAFTAR KELAS & KURIKULUM (CURRICULAR STEPPER) */}
-          {tpaSubTab === 'KELAS' && (
-            <View style={styles.tpaClassSection}>
-              <Text style={styles.tpaSubSectionTitle}>Jenjang Kurikulum & Pembagian Kelas:</Text>
-              <View style={styles.curriculumStepperWrap}>
-                {TPA_CLASSES.map((cls, idx) => (
-                  <View key={cls.id} style={styles.stepperItemCard}>
-                    {/* Stepper Level Header */}
-                    <View style={styles.stepperHeaderRow}>
-                      <View style={styles.stepperBadgeOrb}>
-                        <Text style={styles.stepperBadgeOrbText}>0{idx + 1}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.stepperTitle}>{cls.name}</Text>
-                        <Text style={styles.stepperLevelText}>{cls.level}</Text>
-                      </View>
-                      <View style={styles.stepperStudentTag}>
-                        <Ionicons name="people" size={12} color={THEME.coral} />
-                        <Text style={styles.stepperStudentTagText}>{cls.studentCount} Santri</Text>
-                      </View>
-                    </View>
-
-                    {/* Stepper Quick Meta Rail */}
-                    <View style={styles.stepperMetaRail}>
-                      <View style={styles.stepperMetaItem}>
-                        <Ionicons name="person-outline" size={13} color={THEME.paynesGray} />
-                        <Text style={styles.stepperMetaText}>{cls.teacherName}</Text>
-                      </View>
-                      <View style={styles.stepperMetaItem}>
-                        <Ionicons name="time-outline" size={13} color={THEME.paynesGray} />
-                        <Text style={styles.stepperMetaText}>{cls.schedule}</Text>
-                      </View>
-                      <View style={styles.stepperMetaItem}>
-                        <Ionicons name="location-outline" size={13} color={THEME.paynesGray} />
-                        <Text style={styles.stepperMetaText}>{cls.room}</Text>
-                      </View>
-                    </View>
-
-                    {/* Stepper Competency Highlight */}
-                    <View style={styles.stepperCompetencyBox}>
-                      <Ionicons name="bulb" size={15} color={THEME.coral} />
-                      <View style={{ flex: 1, marginLeft: 8 }}>
-                        <Text style={styles.stepperCompetencyLabel}>Target Capaian Santri:</Text>
-                        <Text style={styles.stepperCompetencyDesc}>{cls.curriculum}</Text>
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* TAB 4: RINGKASAN KAS OTONOM TPA (SEAMLESS LEDGER) */}
-          {tpaSubTab === 'KEUANGAN' && (
-            <View style={styles.tpaFinanceSection}>
-              <View style={styles.tpaFinanceHeroCard}>
-                <View style={styles.tpaFinanceHeroTop}>
-                  <View style={styles.tpaFinanceIconOrb}>
-                    <Ionicons name="wallet" size={20} color={THEME.white} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.tpaFinanceHeroLabel}>TOTAL SALDO KAS OTONOM TPA</Text>
-                    <Text style={styles.tpaFinanceHeroAmount}>{formatRupiah(getTPABalance())}</Text>
-                  </View>
-                </View>
-                <Text style={styles.tpaFinanceHeroSub}>
-                  Dikelola mandiri oleh Bendahara TPA (Ustadzah Fitri Handayani) • Terpisah dari kas DKM
-                </Text>
-              </View>
-
-              <Text style={styles.tpaPocketListHeading}>4 Kantong Kas Otonom TPA:</Text>
-              <View style={styles.pocketsSeamlessCanvas}>
-                {orgPockets.map((p, pIdx) => (
-                  <View
-                    key={p.id}
-                    style={[
-                      styles.pocketStreamRow,
-                      pIdx === orgPockets.length - 1 && { borderBottomWidth: 0 },
-                    ]}
-                  >
-                    <View style={styles.pocketStreamIconCircle}>
-                      <Ionicons name="cash-outline" size={18} color={THEME.coral} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.pocketStreamName}>{p.name}</Text>
-                      <Text style={styles.pocketStreamDesc}>{p.description}</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
-                      <Text style={styles.pocketStreamBalance}>{formatRupiah(p.balance)}</Text>
-                      <View style={styles.pocketCategoryMiniTag}>
-                        <Text style={styles.pocketCategoryMiniText}>{p.category}</Text>
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* Fluid Call-to-Action Pendaftaran Santri */}
-          <View style={styles.ctaFluidSurface}>
-            <View style={styles.ctaFluidTopRow}>
-              <View style={styles.ctaIconOrb}>
-                <Ionicons name="school" size={20} color={THEME.coral} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.ctaFluidTitle}>Penerimaan Santri Baru TPA Nurul Ilmi</Text>
-                <Text style={styles.ctaFluidSubtitle}>Usia 4 s.d. 14 tahun • Bimbingan makharijul huruf & tahsin</Text>
-              </View>
-            </View>
-            <Text style={styles.ctaFluidDesc}>
-              Infaq pendaftaran santri baru Rp 50.000 (termasuk Buku Prestasi & Raport). Iuran SPP pendidikan mandiri Rp 35.000 / bulan.
-            </Text>
-            <TouchableOpacity
-              style={styles.ctaFluidActionBtn}
-              onPress={() => openWhatsApp('6281299887766', 'Ustadzah Siti Aisyah - Pendaftaran Santri TPA')}
-            >
-              <Ionicons name="logo-whatsapp" size={16} color={THEME.white} />
-              <Text style={styles.ctaFluidActionText}>Daftar Santri Baru via WhatsApp Tata Usaha</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+      {!selectedOrg ? (
+        <Card>
+          <EmptyState
+            icon="git-network-outline"
+            title="Belum ada data organisasi"
+            text="Daftar unit belum termuat dari server. Periksa koneksi lalu buka ulang halaman ini."
+          />
+        </Card>
       ) : (
-        /* ============================================================== */
-        /* JIKA SUB-ORG LAIN (DKM / RISMA / TAKLIM / QURBAN) DIPILIH      */
-        /* ============================================================== */
-        <View>
-          {/* Detail Organisasi Terpilih (Seamless Card) */}
-          <View style={styles.orgHeroDetailCard}>
-            <View style={styles.orgHeroDetailTop}>
-              <View style={[styles.orgLeadingAccentBar, { backgroundColor: selectedOrg.color }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.orgHeroDetailTitle}>{selectedOrg.name}</Text>
-                <Text style={styles.orgHeroDetailDesc}>{selectedOrg.description}</Text>
-              </View>
-            </View>
+        <>
+          <Segmented
+            label="Pilih organisasi"
+            value={selectedOrg.id}
+            onChange={setSelectedId}
+            options={subOrgs.map((o) => ({ key: o.id, label: o.shortName }))}
+          />
 
-            {/* Seamless Metric Strip */}
-            <View style={styles.orgSeamlessMetaStrip}>
-              <View style={styles.orgSeamlessMetaItem}>
-                <Text style={styles.orgMetaItemLabel}>Ketua / PJ</Text>
-                <Text style={styles.orgMetaItemValue} numberOfLines={1}>{selectedOrg.leaderName}</Text>
-              </View>
-              <View style={styles.orgMetaItemDivider} />
-              <View style={styles.orgSeamlessMetaItem}>
-                <Text style={styles.orgMetaItemLabel}>Anggota Aktif</Text>
-                <Text style={styles.orgMetaItemValue}>{selectedOrg.memberCount} Orang</Text>
-              </View>
-              <View style={styles.orgMetaItemDivider} />
-              <View style={styles.orgSeamlessMetaItem}>
-                <Text style={styles.orgMetaItemLabel}>Dana Terkelola</Text>
-                <Text style={[styles.orgMetaItemValue, { color: THEME.coral }]}>
-                  {formatRupiah(orgTotalBalance)}
-                </Text>
-              </View>
-            </View>
+          <View key={selectedOrg.id} style={{ gap: isPhone ? SP.m : SP.l }}>
+            <OrgHero
+              org={selectedOrg}
+              isTPA={isTPA}
+              isPhone={isPhone}
+              orgTotal={isTPA ? getTPABalance() : orgTotal}
+              pocketCount={orgPockets.length}
+              onContact={() => openWhatsApp(selectedOrg.contactPhone, selectedOrg.leaderName)}
+            />
 
-            {/* Kantong Kas Terkait */}
-            {orgPockets.length > 0 && (
-              <View style={styles.orgPocketsSubList}>
-                <Text style={styles.orgPocketsSubTitle}>Kantong Kas Unit Ini:</Text>
-                {orgPockets.map((p) => (
-                  <View key={p.id} style={styles.orgPocketRowItem}>
-                    <Ionicons name="cash-outline" size={15} color={THEME.coral} />
-                    <Text style={styles.orgPocketRowName}>{p.name}</Text>
-                    <Text style={styles.orgPocketRowBalance}>{formatRupiah(p.balance)}</Text>
-                  </View>
-                ))}
-              </View>
+            {isTPA ? (
+              <>
+                <Segmented label="Bagian TPA" value={tpaTab} onChange={setTpaTab} options={TPA_TABS} />
+                <Row>
+                  <Col flex={mainFlex}>
+                    {tpaTab === 'STRUKTUR' && <TpaStructure onOpen={(p) => openSheet({ kind: 'person', person: p })} />}
+                    {tpaTab === 'GURU' && <TpaStaff onOpen={(p) => openSheet({ kind: 'person', person: p })} />}
+                    {tpaTab === 'KELAS' && <TpaClasses onOpen={(c) => openSheet({ kind: 'class', cls: c })} />}
+                    {tpaTab === 'KEUANGAN' && (
+                      <PocketsCard
+                        title="Kantong kas otonom TPA"
+                        subtitle={`Dikelola bendahara TPA (${TPA_STRUCTURE_SUMMARY.treasurer}), terpisah dari kas DKM`}
+                        pockets={orgPockets}
+                        total={getTPABalance()}
+                      />
+                    )}
+                  </Col>
+                  <Col flex={sideFlex}>
+                    <EnrollCard onEnroll={openWhatsApp} />
+                    <TpaContactsCard onWa={openWhatsApp} />
+                  </Col>
+                </Row>
+              </>
+            ) : (
+              <Row>
+                <Col flex={mainFlex}>
+                  <PocketsCard
+                    title={`Kantong kas ${selectedOrg.shortName}`}
+                    subtitle="Pembagian dana unit ini per kantong"
+                    pockets={orgPockets}
+                    total={orgTotal}
+                  />
+                </Col>
+                <Col flex={sideFlex}>
+                  <DkmContactsCard onWa={openWhatsApp} />
+                </Col>
+              </Row>
             )}
           </View>
-
-          {/* DKM Key Contact Persons (Seamless Phonebook Canvas) */}
-          <View style={styles.contactCanvasCard}>
-            <View style={styles.contactCanvasHeader}>
-              <Ionicons name="people" size={18} color={THEME.coral} />
-              <Text style={styles.contactCanvasTitle}>Kontak Layanan Pengurus DKM</Text>
-            </View>
-            <Text style={styles.contactCanvasDesc}>
-              Perwakilan pengurus untuk izin mushola, konsultasi keagamaan, atau pendaftaran:
-            </Text>
-            <View style={styles.contactsStreamWrap}>
-              {MUSHOLA_INFO.contacts.map((c, idx) => (
-                <View
-                  key={idx}
-                  style={[
-                    styles.contactStreamRow,
-                    idx === MUSHOLA_INFO.contacts.length - 1 && { borderBottomWidth: 0 },
-                  ]}
-                >
-                  <View style={styles.contactAvatarOrb}>
-                    <Ionicons name="person" size={15} color={THEME.coral} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.contactPersonName}>{c.name}</Text>
-                    <Text style={styles.contactPersonMeta}>{c.role} • {c.formattedPhone}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.contactWaPill}
-                    onPress={() => openWhatsApp(c.phone, c.name)}
-                  >
-                    <Ionicons name="logo-whatsapp" size={13} color={THEME.white} />
-                    <Text style={styles.contactWaPillText}>WhatsApp</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
+        </>
       )}
 
-      {/* Role-Based Access Control Info (Interactive Switcher) */}
-      <View style={styles.rbacCard}>
-        <View style={styles.rbacHeader}>
-          <Ionicons name="shield-checkmark" size={20} color={THEME.coral} />
-          <View style={{ flex: 1, marginLeft: 8 }}>
-            <Text style={styles.rbacTitle}>Matriks Hak Akses (RBAC)</Text>
-            <Text style={styles.rbacDesc}>
-              Sentuh kartu peran untuk beralih perspektif dan merasakan alur kerja divisi pengurus:
-            </Text>
-          </View>
-        </View>
+      <Row stackBelow={BP.desktop}>
+        <Col flex={3}>
+          <MatrixCard currentRole={currentRole} isPhone={isPhone} />
+        </Col>
+        <Col flex={isDesktop ? 1.3 : 1}>
+          <RolesCard currentRole={currentRole} onOpen={(info) => openSheet({ kind: 'role', info })} />
+        </Col>
+      </Row>
 
-        <View style={styles.rolesGrid}>
-          {ALL_ROLES.map((r) => {
-            const isActive = currentRole === r.role;
-            return (
-              <TouchableOpacity
-                key={r.role}
-                style={[
-                  styles.roleCardInteractive,
-                  isActive && styles.roleCardActive,
-                ]}
-                onPress={() => setCurrentRole(r.role)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.roleCardTop}>
-                  <View style={styles.roleTitleGroup}>
-                    <View style={[styles.roleIconCircle, { backgroundColor: r.badgeBg }]}>
-                      <Ionicons name={r.icon} size={16} color={r.badgeColor} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.roleCardTitle}>{r.title}</Text>
-                      <View style={[styles.badgePill, { backgroundColor: r.badgeBg }]}>
-                        <Text style={[styles.badgePillText, { color: r.badgeColor }]}>{r.badge}</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {isActive && (
-                    <View style={styles.activeCheckBadge}>
-                      <Ionicons name="checkmark-circle" size={13} color={THEME.coral} />
-                      <Text style={styles.activeCheckText}>Aktif</Text>
-                    </View>
-                  )}
-                </View>
-
-                <Text style={styles.roleDescText}>{r.description}</Text>
-
-                <View style={styles.permsWrap}>
-                  {r.permissionsText.map((p, idx) => (
-                    <View key={idx} style={styles.permChip}>
-                      <Ionicons name="checkmark" size={11} color={THEME.coral} />
-                      <Text style={styles.permChipText}>{p}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                <View style={styles.roleCardFooter}>
-                  <Text style={[styles.roleActionHint, isActive && styles.roleActionHintActive]}>
-                    {isActive ? '● Sedang Digunakan Saat Ini' : 'Ketuk untuk Beralih ke Peran Ini →'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-    </ScrollView>
+      <Sheet
+        visible={sheetOpen}
+        onClose={closeSheet}
+        title={
+          sheet?.kind === 'person'
+            ? sheet.person.name
+            : sheet?.kind === 'class'
+            ? sheet.cls.name
+            : sheet?.kind === 'role'
+            ? sheet.info.title
+            : ''
+        }
+        subtitle={
+          sheet?.kind === 'person'
+            ? sheet.person.role
+            : sheet?.kind === 'class'
+            ? sheet.cls.level
+            : sheet?.kind === 'role'
+            ? sheet.info.badge
+            : undefined
+        }
+      >
+        {sheet?.kind === 'person' && (
+          <PersonDetail
+            person={sheet.person}
+            onWa={() => openWhatsApp(sheet.person.phone, sheet.person.name)}
+          />
+        )}
+        {sheet?.kind === 'class' && <ClassDetail cls={sheet.cls} onWa={openWhatsApp} />}
+        {sheet?.kind === 'role' && (
+          <RoleDetail
+            info={sheet.info}
+            active={currentRole === sheet.info.role}
+            onUse={() => {
+              setCurrentRole(sheet.info.role);
+              closeSheet();
+            }}
+          />
+        )}
+      </Sheet>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: THEME.background,
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  headerBox: {
-    backgroundColor: THEME.white,
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-  },
-  headerBadgeRow: {
-    marginBottom: 6,
-  },
-  orgBadgePill: {
+/* ---------- Hero ---------- */
+
+function OrgHero({
+  org,
+  isTPA,
+  isPhone,
+  orgTotal,
+  pocketCount,
+  onContact,
+}: {
+  org: SubOrganization;
+  isTPA: boolean;
+  isPhone: boolean;
+  orgTotal: number;
+  pocketCount: number;
+  onContact: () => void;
+}) {
+  const metrics: { label: string; value: string; note?: string }[] = isTPA
+    ? [
+        {
+          label: 'Santri aktif',
+          value: String(TPA_STRUCTURE_SUMMARY.totalSantri),
+          note: `${TPA_STRUCTURE_SUMMARY.santriPutra} putra, ${TPA_STRUCTURE_SUMMARY.santriPutri} putri`,
+        },
+        { label: 'Kelas', value: String(TPA_STRUCTURE_SUMMARY.activeClasses), note: 'Iqro sampai tahfidz' },
+        { label: 'Pengurus dan guru', value: String(TPA_STAFF_MEMBERS.length) },
+        { label: 'Kas otonom', value: formatRupiah(orgTotal), note: `${pocketCount} kantong` },
+      ]
+    : [
+        { label: 'Ketua atau PJ', value: org.leaderName },
+        { label: 'Anggota aktif', value: `${org.memberCount} orang` },
+        { label: 'Dana terkelola', value: formatRupiah(orgTotal), note: `${pocketCount} kantong kas` },
+      ];
+
+  return (
+    <Card tone="hero">
+      <View style={st.heroTop}>
+        <View style={st.heroIcon}>
+          <Ionicons name={CATEGORY_ICON[org.category]} size={22} color={C.onDark} aria-hidden />
+        </View>
+        <View style={{ flex: 1, minWidth: 200 }}>
+          <T v="smallStrong" color={C.onDarkMuted}>
+            {CATEGORY_LABEL[org.category]}
+          </T>
+          <T v="h2" color={C.onDark} style={{ marginTop: 2 }}>
+            {org.name}
+          </T>
+        </View>
+        <Button
+          variant="onDark"
+          icon="logo-whatsapp"
+          label={isPhone ? 'Hubungi ketua' : `Hubungi ${org.leaderName}`}
+          accessibilityLabel={`Kirim WhatsApp ke ${org.leaderName}, ${org.contactPhone}`}
+          onPress={onContact}
+          compact
+        />
+      </View>
+
+      <T color={C.onDarkMuted} style={st.heroDesc}>
+        {org.description}
+      </T>
+
+      <View style={st.metricRow}>
+        {metrics.map((m) => (
+          <View key={m.label} style={[st.metric, isPhone ? st.metricHalf : st.metricFlex]}>
+            <T v="small" color={C.onDarkMuted}>
+              {m.label}
+            </T>
+            <T v="h2" color={C.onDark} style={st.metricValue} numberOfLines={2}>
+              {m.value}
+            </T>
+            {m.note ? (
+              <T v="small" color={C.onDarkMuted}>
+                {m.note}
+              </T>
+            ) : null}
+          </View>
+        ))}
+      </View>
+    </Card>
+  );
+}
+
+/* ---------- TPA ---------- */
+
+function PersonRow({ person, onOpen, last }: { person: TPAStaffMember; onOpen: (p: TPAStaffMember) => void; last?: boolean }) {
+  const sub = person.assignedClass ? `${person.role}, ${person.assignedClass}` : person.role;
+  return (
+    <ListRow
+      leading={<Avatar name={person.name} dark={person.roleCategory === 'KEPALA_TPA'} />}
+      title={person.name}
+      subtitle={sub}
+      trailing={<Badge label={STAFF_LABEL[person.roleCategory]} tone={STAFF_TONE[person.roleCategory]} />}
+      onPress={() => onOpen(person)}
+      accessibilityLabel={`Lihat profil ${person.name}, ${person.role}`}
+      last={last}
+    />
+  );
+}
+
+function TpaStructure({ onOpen }: { onOpen: (p: TPAStaffMember) => void }) {
+  const tiers = TIERS.map((t) => ({ ...t, people: SORTED_STAFF.filter((p) => t.cats.includes(p.roleCategory)) })).filter(
+    (t) => t.people.length > 0
+  );
+  return (
+    <Card delay={60}>
+      <CardHeader title="Bagan kepengurusan TPA" subtitle="Berjenjang dari pembina DKM sampai wali kelas" />
+      {tiers.length === 0 ? (
+        <EmptyState
+          icon="git-network-outline"
+          title="Struktur TPA belum diisi"
+          text="Belum ada pengurus TPA yang tercatat. Kepala TPA dapat mengirim daftar pengurus ke sekretaris DKM untuk dimasukkan."
+        />
+      ) : (
+        <View>
+          {tiers.map((t, i) => (
+            <View key={t.title}>
+              <View style={st.tierHead}>
+                <NumTile n={i + 1} />
+                <T v="h3" style={{ flex: 1 }}>
+                  {t.title}
+                </T>
+                <T v="small" color={C.inkMuted}>
+                  {t.people.length} orang
+                </T>
+              </View>
+              <View style={[st.tierBody, i === tiers.length - 1 && st.tierBodyLast]}>
+                {t.people.map((p, j) => (
+                  <PersonRow key={p.id} person={p} onOpen={onOpen} last={j === t.people.length - 1} />
+                ))}
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </Card>
+  );
+}
+
+function TpaStaff({ onOpen }: { onOpen: (p: TPAStaffMember) => void }) {
+  return (
+    <Card delay={60}>
+      <CardHeader title="Dewan guru dan pengurus" subtitle={`${SORTED_STAFF.length} orang, ketuk nama untuk profil dan kontak`} />
+      {SORTED_STAFF.length === 0 ? (
+        <EmptyState
+          icon="school-outline"
+          title="Belum ada guru tercatat"
+          text="Data asatidz TPA masih kosong. Tata usaha TPA dapat mengirim daftar guru ke sekretaris DKM."
+        />
+      ) : (
+        SORTED_STAFF.map((p, i) => <PersonRow key={p.id} person={p} onOpen={onOpen} last={i === SORTED_STAFF.length - 1} />)
+      )}
+    </Card>
+  );
+}
+
+function TpaClasses({ onOpen }: { onOpen: (c: TPAClassInfo) => void }) {
+  const total = TPA_CLASSES.reduce((s, c) => s + c.studentCount, 0);
+  return (
+    <Card delay={60}>
+      <CardHeader title="Kelas dan kurikulum" subtitle={`${TPA_CLASSES.length} kelas, ${total} santri terbagi`} />
+      {TPA_CLASSES.length === 0 ? (
+        <EmptyState
+          icon="layers-outline"
+          title="Belum ada kelas"
+          text="Pembagian kelas TPA belum dicatat. Koordinator kurikulum dapat menyusunnya bersama kepala TPA."
+        />
+      ) : (
+        TPA_CLASSES.map((c, i) => (
+          <ListRow
+            key={c.id}
+            leading={<NumTile n={i + 1} size={40} />}
+            title={c.name}
+            subtitle={`${c.teacherName}, ${c.schedule}`}
+            trailing={<Badge label={`${c.studentCount} santri`} tone="success" />}
+            onPress={() => onOpen(c)}
+            accessibilityLabel={`Lihat rincian ${c.name}`}
+            last={i === TPA_CLASSES.length - 1}
+          />
+        ))
+      )}
+    </Card>
+  );
+}
+
+function EnrollCard({ onEnroll }: { onEnroll: (phone: string, name: string) => void }) {
+  const secretary = SORTED_STAFF.find((s) => s.roleCategory === 'SEKRETARIS');
+  return (
+    <Card delay={100}>
+      <CardHeader title="Penerimaan santri baru" subtitle="TPA Nurul Ilmi" />
+      <View style={{ gap: SP.m }}>
+        <InfoLine icon="cash-outline" label="SPP bulanan" value={`${formatRupiah(TPA_STRUCTURE_SUMMARY.sppNominalPerSantri)} per santri`} />
+        <InfoLine
+          icon="person-outline"
+          label="Pendaftaran lewat"
+          value={secretary ? `${secretary.name}, tata usaha` : 'Tata usaha TPA'}
+        />
+        {secretary ? (
+          <Button
+            icon="logo-whatsapp"
+            label="Daftar lewat WhatsApp"
+            accessibilityLabel={`Daftar santri baru lewat WhatsApp ${secretary.name}`}
+            onPress={() => onEnroll(secretary.phone, `${secretary.name}, saya ingin mendaftarkan santri baru TPA`)}
+          />
+        ) : (
+          <T v="small" color={C.inkMuted}>
+            Kontak tata usaha belum tercatat. Tanyakan pendaftaran ke pengurus DKM.
+          </T>
+        )}
+      </View>
+    </Card>
+  );
+}
+
+function ContactRow({
+  name,
+  meta,
+  phone,
+  onWa,
+  last,
+}: {
+  name: string;
+  meta: string;
+  phone: string;
+  onWa: (phone: string, name: string) => void;
+  last?: boolean;
+}) {
+  return (
+    <ListRow
+      leading={<Avatar name={name} />}
+      title={name}
+      subtitle={`${meta}, ${formatPhone(phone)}`}
+      trailing={<IconButton icon="logo-whatsapp" label={`Kirim WhatsApp ke ${name}`} onPress={() => onWa(phone, name)} />}
+      last={last}
+    />
+  );
+}
+
+function TpaContactsCard({ onWa }: { onWa: (phone: string, name: string) => void }) {
+  const leads = SORTED_STAFF.filter((s) => ['KEPALA_TPA', 'SEKRETARIS', 'BENDAHARA'].includes(s.roleCategory));
+  return (
+    <Card delay={140}>
+      <CardHeader title="Kontak pengurus TPA" subtitle="Kepala, tata usaha, dan bendahara" />
+      {leads.length === 0 ? (
+        <EmptyState
+          icon="call-outline"
+          title="Belum ada kontak"
+          text="Kontak pengurus TPA belum tercatat. Sementara itu hubungi pengurus DKM."
+        />
+      ) : (
+        leads.map((p, i) => (
+          <ContactRow key={p.id} name={p.name} meta={STAFF_LABEL[p.roleCategory]} phone={p.phone} onWa={onWa} last={i === leads.length - 1} />
+        ))
+      )}
+    </Card>
+  );
+}
+
+function DkmContactsCard({ onWa }: { onWa: (phone: string, name: string) => void }) {
+  const contacts = MUSHOLA_INFO.contacts;
+  return (
+    <Card delay={100}>
+      <CardHeader title="Kontak pengurus DKM" subtitle="Izin pemakaian mushola, konsultasi, dan pendaftaran" />
+      {contacts.length === 0 ? (
+        <EmptyState
+          icon="call-outline"
+          title="Belum ada kontak"
+          text="Kontak pengurus DKM belum tercatat. Sekretaris DKM dapat menambahkannya di pengaturan mushola."
+        />
+      ) : (
+        contacts.map((c, i) => (
+          <ContactRow key={c.phone} name={c.name} meta={c.role} phone={c.phone} onWa={onWa} last={i === contacts.length - 1} />
+        ))
+      )}
+    </Card>
+  );
+}
+
+/* ---------- Kas ---------- */
+
+function PocketsCard({
+  title,
+  subtitle,
+  pockets,
+  total,
+}: {
+  title: string;
+  subtitle: string;
+  pockets: CashPocket[];
+  total: number;
+}) {
+  return (
+    <Card delay={60}>
+      <CardHeader
+        title={title}
+        subtitle={subtitle}
+        action={
+          pockets.length > 0 ? (
+            <T v="h3" style={TYPE.num as TextStyle}>
+              {formatRupiah(total)}
+            </T>
+          ) : undefined
+        }
+      />
+      {pockets.length === 0 ? (
+        <EmptyState
+          icon="wallet-outline"
+          title="Belum ada kantong kas"
+          text="Unit ini belum punya kantong kas sendiri, jadi dananya masih tercatat di kas DKM. Bendahara DKM dapat membuat kantong unit di halaman Keuangan."
+        />
+      ) : (
+        <>
+          <Allocation pockets={pockets} total={total} />
+          <View style={{ marginTop: SP.m }}>
+            {pockets.map((p, i) => (
+              <ListRow
+                key={p.id}
+                leading={<Swatch color={GREEN_TONES[i % GREEN_TONES.length]} />}
+                title={p.name}
+                subtitle={p.description}
+                trailing={
+                  <View style={st.pocketTrail}>
+                    <T v="bodyStrong" style={TYPE.num as TextStyle}>
+                      {formatRupiah(p.balance)}
+                    </T>
+                    <Badge label={POCKET_LABEL[p.category] ?? p.category} />
+                  </View>
+                }
+                last={i === pockets.length - 1}
+              />
+            ))}
+          </View>
+        </>
+      )}
+    </Card>
+  );
+}
+
+/** Batang pil bertumpuk: porsi tiap kantong dari total saldo. Total nol = arsir. */
+function Allocation({ pockets, total }: { pockets: CashPocket[]; total: number }) {
+  if (total <= 0) {
+    return (
+      <View style={{ gap: SP.s }}>
+        <Hatch style={st.allocBar} />
+        <T v="small" color={C.inkMuted}>
+          Arsir berarti semua kantong masih bersaldo nol.
+        </T>
+      </View>
+    );
+  }
+  const parts = pockets.map((p, i) => ({ p, color: GREEN_TONES[i % GREEN_TONES.length], pct: Math.round((p.balance / total) * 100) }));
+  const summary = parts.map((x) => `${x.p.name} ${x.pct} persen`).join(', ');
+  return (
+    <View style={{ gap: SP.m }}>
+      <T v="small" color={C.inkMuted}>
+        Porsi saldo per kantong
+      </T>
+      <View style={st.allocBar} accessibilityRole="image" accessibilityLabel={`Porsi saldo: ${summary}`}>
+        {parts
+          .filter((x) => x.p.balance > 0)
+          .map((x) => (
+            <View key={x.p.id} style={{ flex: x.p.balance, backgroundColor: x.color }} />
+          ))}
+      </View>
+      <View style={st.legend}>
+        {parts.map((x) => (
+          <View key={x.p.id} style={st.legendItem}>
+            <View style={[st.legendDot, { backgroundColor: x.color }]} />
+            <T v="small" color={C.inkMuted}>
+              {x.p.name} {x.pct}%
+            </T>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/* ---------- Hak akses ---------- */
+
+function RolesCard({ currentRole, onOpen }: { currentRole: UserRole; onOpen: (r: RoleInfo) => void }) {
+  const active = getRolePermissions(currentRole);
+  return (
+    <Card delay={160}>
+      <CardHeader title="Peran pengurus" subtitle={`Peran aktif: ${active.roleTitle}`} />
+      {ALL_ROLES.map((r, i) => {
+        const isActive = currentRole === r.role;
+        const perms = getRolePermissions(r.role);
+        const count = CAPABILITIES.filter((c) => perms[c.key]).length;
+        return (
+          <ListRow
+            key={r.role}
+            leading={<IconTile icon={r.icon} tone={isActive ? 'dark' : 'green'} />}
+            title={r.title}
+            subtitle={`${r.badge}, ${count} dari ${CAPABILITIES.length} izin`}
+            trailing={
+              isActive ? (
+                <Badge label="Aktif" tone="success" />
+              ) : (
+                <Ionicons name="chevron-forward" size={18} color={C.inkFaint} aria-hidden />
+              )
+            }
+            onPress={() => onOpen(r)}
+            accessibilityLabel={`${r.title}${isActive ? ', peran aktif' : ''}. Lihat rincian peran`}
+            last={i === ALL_ROLES.length - 1}
+          />
+        );
+      })}
+    </Card>
+  );
+}
+
+function MatrixCard({ currentRole, isPhone }: { currentRole: UserRole; isPhone: boolean }) {
+  const initial = ALL_ROLES.some((r) => r.role === currentRole) ? currentRole : ALL_ROLES[0].role;
+  const [phoneRole, setPhoneRole] = useState<UserRole>(initial);
+  const perms = useMemo(() => Object.fromEntries(ALL_ROLES.map((r) => [r.role, getRolePermissions(r.role)])), []);
+
+  return (
+    <Card delay={120}>
+      <CardHeader title="Matriks hak akses" subtitle="Izin tiap peran di aplikasi, sesuai aturan yang berlaku sekarang" />
+      {isPhone ? (
+        <View style={{ gap: SP.m }}>
+          <Segmented
+            label="Pilih peran"
+            value={phoneRole}
+            onChange={setPhoneRole}
+            options={ALL_ROLES.map((r) => ({ key: r.role, label: r.short }))}
+          />
+          <View>
+            {CAPABILITIES.map((c, i) => {
+              const ok = perms[phoneRole][c.key];
+              return (
+                <ListRow
+                  key={c.key}
+                  leading={
+                    <Ionicons
+                      name={ok ? 'checkmark-circle' : 'remove-circle-outline'}
+                      size={22}
+                      color={ok ? C.g700 : C.inkFaint}
+                      aria-hidden
+                    />
+                  }
+                  title={c.label}
+                  trailing={<Badge label={ok ? 'Boleh' : 'Tidak'} tone={ok ? 'success' : 'neutral'} />}
+                  last={i === CAPABILITIES.length - 1}
+                />
+              );
+            })}
+          </View>
+        </View>
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={{ flexGrow: 1 }}>
+          <View style={st.table} accessibilityRole="summary">
+            <View style={[st.tr, st.trHead]}>
+              <View style={st.thFirst}>
+                <T v="smallStrong" color={C.inkMuted}>
+                  Izin
+                </T>
+              </View>
+              {ALL_ROLES.map((r) => {
+                const active = r.role === currentRole;
+                return (
+                  <View key={r.role} style={[st.th, active && st.colActive]}>
+                    <T v="smallStrong" color={active ? C.g700 : C.ink} style={st.center}>
+                      {r.short}
+                    </T>
+                    {active ? <Badge label="Aktif" tone="success" /> : null}
+                  </View>
+                );
+              })}
+            </View>
+            {CAPABILITIES.map((c, i) => (
+              <View key={c.key} style={[st.tr, i < CAPABILITIES.length - 1 && st.trLine]}>
+                <View style={st.thFirst}>
+                  <T>{c.label}</T>
+                </View>
+                {ALL_ROLES.map((r) => {
+                  const ok = perms[r.role][c.key];
+                  return (
+                    <View
+                      key={r.role}
+                      style={[st.td, r.role === currentRole && st.colActive]}
+                      accessible
+                      accessibilityLabel={`${r.short}, ${c.label}: ${ok ? 'boleh' : 'tidak'}`}
+                    >
+                      <Ionicons
+                        name={ok ? 'checkmark-circle' : 'remove-outline'}
+                        size={20}
+                        color={ok ? C.g700 : C.inkFaint}
+                        aria-hidden
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      )}
+      <View style={st.matrixLegend}>
+        <Ionicons name="checkmark-circle" size={16} color={C.g700} aria-hidden />
+        <T v="small" color={C.inkMuted}>
+          Boleh
+        </T>
+        <Ionicons name="remove-outline" size={16} color={C.inkFaint} aria-hidden style={{ marginLeft: SP.m }} />
+        <T v="small" color={C.inkMuted}>
+          Tidak
+        </T>
+      </View>
+    </Card>
+  );
+}
+
+/* ---------- Isi sheet ---------- */
+
+function PersonDetail({ person, onWa }: { person: TPAStaffMember; onWa: () => void }) {
+  return (
+    <View style={st.sheetBody}>
+      <View style={st.personHead}>
+        <Avatar name={person.name} size={56} dark={person.roleCategory === 'KEPALA_TPA'} />
+        <Badge label={STAFF_LABEL[person.roleCategory]} tone={STAFF_TONE[person.roleCategory]} />
+      </View>
+      {person.bio ? <T color={C.inkMuted}>{person.bio}</T> : null}
+      <View style={{ gap: SP.m }}>
+        {person.assignedClass ? <InfoLine icon="book-outline" label="Kelas" value={person.assignedClass} /> : null}
+        <InfoLine icon="call-outline" label="Nomor WhatsApp" value={formatPhone(person.phone)} />
+      </View>
+      <Button icon="logo-whatsapp" label="Kirim pesan WhatsApp" accessibilityLabel={`Kirim pesan WhatsApp ke ${person.name}`} onPress={onWa} />
+    </View>
+  );
+}
+
+function ClassDetail({ cls, onWa }: { cls: TPAClassInfo; onWa: (phone: string, name: string) => void }) {
+  const teacher = TPA_STAFF_MEMBERS.find((s) => s.name === cls.teacherName);
+  return (
+    <View style={st.sheetBody}>
+      <View style={{ gap: SP.m }}>
+        <InfoLine icon="person-outline" label="Wali kelas" value={cls.teacherName} />
+        <InfoLine icon="time-outline" label="Jadwal" value={cls.schedule} />
+        <InfoLine icon="location-outline" label="Ruang" value={cls.room} />
+        <InfoLine icon="people-outline" label="Jumlah santri" value={`${cls.studentCount} santri`} />
+      </View>
+      <View style={st.target}>
+        <T v="label">Target capaian santri</T>
+        <T color={C.inkMuted}>{cls.curriculum}</T>
+      </View>
+      {teacher ? (
+        <Button
+          icon="logo-whatsapp"
+          label="Hubungi wali kelas"
+          accessibilityLabel={`Kirim WhatsApp ke ${teacher.name}`}
+          onPress={() => onWa(teacher.phone, teacher.name)}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+function RoleDetail({ info, active, onUse }: { info: RoleInfo; active: boolean; onUse: () => void }) {
+  const perms = getRolePermissions(info.role);
+  return (
+    <View style={st.sheetBody}>
+      <T color={C.inkMuted}>{info.description}</T>
+      <View>
+        <T v="label" style={{ marginBottom: SP.xs }}>
+          Yang bisa dikerjakan
+        </T>
+        {info.permissionsText.map((p, i) => (
+          <ListRow
+            key={p}
+            leading={<Ionicons name="checkmark-circle" size={20} color={C.g700} aria-hidden />}
+            title={p}
+            last={i === info.permissionsText.length - 1}
+          />
+        ))}
+      </View>
+      <T v="small" color={C.inkMuted}>
+        {CAPABILITIES.filter((c) => perms[c.key]).length} dari {CAPABILITIES.length} izin di matriks hak akses.
+      </T>
+      {active ? (
+        <Badge label="Peran ini sedang aktif" tone="success" />
+      ) : (
+        <Button icon="swap-horizontal-outline" label="Gunakan peran ini" onPress={onUse} />
+      )}
+    </View>
+  );
+}
+
+/* ---------- Komponen kecil lokal ---------- */
+
+function InfoLine({ icon, label, value }: { icon: IconName; label: string; value: string }) {
+  return (
+    <View style={st.info}>
+      <IconTile icon={icon} size={36} tone="neutral" />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <T v="small" color={C.inkMuted}>
+          {label}
+        </T>
+        <T v="bodyStrong">{value}</T>
+      </View>
+    </View>
+  );
+}
+
+/** Kotak nomor urut (jenjang/tingkat). Kit hanya punya IconTile berikon. */
+function NumTile({ n, size = 28 }: { n: number; size?: number }) {
+  return (
+    <View style={[st.numTile, { width: size, height: size }]} accessibilityElementsHidden importantForAccessibility="no">
+      <T v="smallStrong" color={C.g800} style={TYPE.num as TextStyle}>
+        {n}
+      </T>
+    </View>
+  );
+}
+
+function Swatch({ color }: { color: string }) {
+  return (
+    <View style={st.swatchWrap} accessibilityElementsHidden importantForAccessibility="no">
+      <View style={[st.swatch, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
+/* ---------- Gaya ---------- */
+
+const COL_W = 104;
+const FIRST_W = 200;
+
+const st = StyleSheet.create({
+  notice: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: THEME.coralSoftBg,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  orgBadgePillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.coral,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: THEME.gunmetal,
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: THEME.paynesGray,
-    lineHeight: 18,
-  },
-  sectionHeading: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-    marginBottom: 10,
-  },
-  orgSelectorRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
+    gap: SP.s,
+    padding: SP.m,
+    borderRadius: R.inner,
+    backgroundColor: C.dangerBg,
   },
 
-  // ORGANIC CAPSULE SELECTOR TABS
-  orgPillTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 24,
-    backgroundColor: THEME.white,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-    marginRight: 10,
-  },
-  orgPillTabActive: {
-    backgroundColor: THEME.gunmetal,
-    borderColor: THEME.gunmetal,
-    shadowColor: THEME.gunmetal,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  orgPillTabTpa: {
-    borderColor: 'rgba(239, 131, 84, 0.4)',
-  },
-  orgDotCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  orgPillName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-  },
-  orgPillNameActive: {
-    color: THEME.white,
-  },
-  tpaBadgeMicro: {
-    backgroundColor: THEME.coralSoftBg,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  tpaBadgeMicroText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: THEME.coral,
-  },
-  orgPillCategory: {
-    fontSize: 10,
-    color: THEME.paynesGray,
-    textTransform: 'uppercase',
-    marginTop: 1,
-  },
-  orgPillCategoryActive: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-
-  // TPA SEAMLESS HERO SURFACE & METRICS
-  tpaMainContainer: {
-    marginBottom: 20,
-  },
-  tpaHeroSurface: {
-    backgroundColor: THEME.gunmetal,
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 16,
-    shadowColor: THEME.gunmetal,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  tpaHeroTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  tpaEmblemCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: THEME.coral,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tpaOtonomBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(239, 131, 84, 0.22)',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  tpaOtonomBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: THEME.coral,
-    letterSpacing: 0.5,
-  },
-  tpaHeroTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: THEME.white,
-  },
-  tpaHeroLocation: {
-    fontSize: 11,
-    color: THEME.silver,
-    marginTop: 1,
-  },
-  tpaHeroDescription: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.85)',
-    lineHeight: 18,
-    marginBottom: 14,
-  },
-  tpaMetricRibbon: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  metricRibbonItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metricRibbonNum: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: THEME.white,
-  },
-  metricRibbonLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: THEME.silver,
-    marginTop: 2,
-  },
-  metricRibbonSub: {
-    fontSize: 9,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginTop: 1,
-  },
-  metricRibbonDivider: {
-    width: 1,
-    height: 26,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  tpaCapsuleNav: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    padding: 4,
-    borderRadius: 20,
-    gap: 4,
-  },
-  tpaCapsuleItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 8,
-    borderRadius: 16,
-  },
-  tpaCapsuleItemActive: {
-    backgroundColor: THEME.coral,
-  },
-  tpaCapsuleText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: THEME.silver,
-  },
-  tpaCapsuleTextActive: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.white,
-  },
-
-  // FLOW & HIERARCHY CANVAS (TAB 1: STRUKTUR)
-  tpaFlowCanvas: {
-    backgroundColor: THEME.white,
-    borderRadius: 22,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-  },
-  flowCanvasHeader: {
-    marginBottom: 14,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderColor: THEME.silverLine,
-  },
-  flowCanvasTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: THEME.gunmetal,
-  },
-  flowCanvasSubtitle: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    marginTop: 2,
-  },
-  flowTierWrap: {
-    marginBottom: 12,
-  },
-  flowTierHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  flowTierDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: THEME.coral,
-  },
-  flowTierTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: THEME.paynesGray,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  headmasterHeroSurface: {
-    backgroundColor: THEME.gunmetal,
-    borderRadius: 16,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headmasterLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  headmasterAvatarRing: {
+  heroTop: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: SP.m },
+  heroIcon: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: THEME.coral,
+    borderRadius: R.inner,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
-  headmasterRoleTag: {
-    backgroundColor: 'rgba(239, 131, 84, 0.2)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginBottom: 2,
-  },
-  headmasterRoleTagText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: THEME.coral,
-  },
-  headmasterName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: THEME.white,
-  },
-  headmasterBio: {
-    fontSize: 11,
-    color: THEME.silver,
-    marginTop: 2,
-  },
-  headmasterWaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#25D366',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginLeft: 8,
-  },
-  headmasterWaPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.white,
-  },
-  connectingRail: {
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  railLine: {
-    width: 2,
-    height: 14,
-    backgroundColor: THEME.silverLine,
-  },
-  railNode: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: THEME.coral,
-    marginVertical: 2,
-  },
-  duoPillRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  duoPillCard: {
-    flex: 1,
-    backgroundColor: THEME.silverLight,
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: THEME.silverLine,
-  },
-  duoPillIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: THEME.coralSoftBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  duoPillRole: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: THEME.coral,
-    textTransform: 'uppercase',
-  },
-  duoPillName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-    marginTop: 2,
-  },
-  duoPillMeta: {
-    fontSize: 10,
-    color: THEME.paynesGray,
-    marginTop: 2,
-  },
-  adminSeamlessCard: {
-    backgroundColor: THEME.silverLight,
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: THEME.silverLine,
-  },
-  adminCardRole: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: THEME.coral,
-    textTransform: 'uppercase',
-  },
-  adminCardName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-    marginTop: 2,
-  },
-  adminCardDesc: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    marginTop: 2,
-  },
-  adminIconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: THEME.coralSoftBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  adminWaBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#25D366',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginTop: 8,
-  },
-  adminWaBtnText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: THEME.white,
-  },
-  curriculumBannerCard: {
-    backgroundColor: THEME.coralSoftBg,
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: THEME.coralBorder,
-    marginBottom: 12,
-  },
-  curriculumIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: THEME.coral,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  curriculumLeaderRole: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: THEME.coral,
-    textTransform: 'uppercase',
-  },
-  curriculumLeaderName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-    marginTop: 2,
-  },
-  curriculumLeaderDesc: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    marginTop: 2,
-  },
-  teachersStreamCanvas: {
-    backgroundColor: THEME.silverLight,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: THEME.silverLine,
-  },
-  teacherStreamItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(191, 192, 192, 0.25)',
-  },
-  teacherAvatarDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: THEME.gunmetal,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  teacherStreamName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-  },
-  teacherStreamClass: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: THEME.coral,
-  },
-  teacherStreamBio: {
-    fontSize: 10,
-    color: THEME.paynesGray,
-  },
-  teacherWaMiniBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: 'rgba(37, 211, 102, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // STAFF DIRECTORY (TAB 2: GURU)
-  tpaStaffSection: {
-    marginBottom: 16,
-  },
-  tpaSubSectionTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: THEME.gunmetal,
-    marginBottom: 10,
-  },
-  staffStreamCanvas: {
-    backgroundColor: THEME.white,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-  },
-  staffStreamRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderColor: THEME.silverLine,
-  },
-  staffAvatarGlow: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: THEME.coralSoftBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  staffNameHeadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  staffNameText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-  },
-  staffCategoryChip: {
-    backgroundColor: THEME.silverLight,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  staffCategoryChipText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: THEME.paynesGray,
-  },
-  staffRoleSubtitle: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: THEME.coral,
-    marginTop: 2,
-  },
-  assignedClassChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-    backgroundColor: THEME.coralSoftBg,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginTop: 4,
-  },
-  assignedClassChipText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: THEME.coral,
-  },
-  staffBioDescription: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    lineHeight: 16,
-    marginTop: 4,
-  },
-  staffChatCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#25D366',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginLeft: 6,
-  },
-
-  // CURRICULAR STEPPER (TAB 3: KELAS)
-  tpaClassSection: {
-    marginBottom: 16,
-  },
-  curriculumStepperWrap: {
-    gap: 12,
-  },
-  stepperItemCard: {
-    backgroundColor: THEME.white,
-    borderRadius: 20,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-  },
-  stepperHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
-  stepperBadgeOrb: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: THEME.gunmetal,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperBadgeOrbText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: THEME.white,
-  },
-  stepperTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: THEME.gunmetal,
-  },
-  stepperLevelText: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-  },
-  stepperStudentTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: THEME.coralSoftBg,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  stepperStudentTagText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.coral,
-  },
-  stepperMetaRail: {
+  heroDesc: { marginTop: SP.m, maxWidth: 720 },
+  metricRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    backgroundColor: THEME.silverLight,
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 10,
-  },
-  stepperMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  stepperMetaText: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    fontWeight: '500',
-  },
-  stepperCompetencyBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(239, 131, 84, 0.08)',
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: THEME.coralBorder,
-  },
-  stepperCompetencyLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.coral,
-  },
-  stepperCompetencyDesc: {
-    fontSize: 11,
-    color: THEME.gunmetal,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-
-  // TPA AUTONOMOUS LEDGER (TAB 4: KEUANGAN)
-  tpaFinanceSection: {
-    marginBottom: 16,
-  },
-  tpaFinanceHeroCard: {
-    backgroundColor: THEME.gunmetal,
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 14,
-  },
-  tpaFinanceHeroTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 6,
-  },
-  tpaFinanceIconOrb: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: THEME.coral,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tpaFinanceHeroLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: THEME.silver,
-    letterSpacing: 0.5,
-  },
-  tpaFinanceHeroAmount: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: THEME.coral,
-    marginTop: 2,
-  },
-  tpaFinanceHeroSub: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.75)',
-    lineHeight: 16,
-  },
-  tpaPocketListHeading: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: THEME.gunmetal,
-    marginBottom: 10,
-  },
-  pocketsSeamlessCanvas: {
-    backgroundColor: THEME.white,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-  },
-  pocketStreamRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderColor: THEME.silverLine,
-  },
-  pocketStreamIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: THEME.coralSoftBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  pocketStreamName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-  },
-  pocketStreamDesc: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    marginTop: 2,
-  },
-  pocketStreamBalance: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: THEME.coral,
-  },
-  pocketCategoryMiniTag: {
-    backgroundColor: THEME.silverLight,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-    marginTop: 2,
-  },
-  pocketCategoryMiniText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: THEME.paynesGray,
-    textTransform: 'uppercase',
-  },
-
-  // CTA FLUID SURFACE
-  ctaFluidSurface: {
-    backgroundColor: THEME.white,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: THEME.coralBorder,
-    marginTop: 8,
-  },
-  ctaFluidTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 8,
-  },
-  ctaIconOrb: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: THEME.coralSoftBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaFluidTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: THEME.gunmetal,
-  },
-  ctaFluidSubtitle: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-  },
-  ctaFluidDesc: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    lineHeight: 17,
-    marginBottom: 12,
-  },
-  ctaFluidActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#25D366',
-    paddingVertical: 11,
-    borderRadius: 14,
-  },
-  ctaFluidActionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: THEME.white,
-  },
-
-  // NON-TPA VIEW & CONTACT CANVAS
-  orgHeroDetailCard: {
-    backgroundColor: THEME.white,
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-  },
-  orgHeroDetailTop: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 14,
-  },
-  orgLeadingAccentBar: {
-    width: 4,
-    borderRadius: 2,
-  },
-  orgHeroDetailTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: THEME.gunmetal,
-    marginBottom: 4,
-  },
-  orgHeroDetailDesc: {
-    fontSize: 12,
-    color: THEME.paynesGray,
-    lineHeight: 18,
-  },
-  orgSeamlessMetaStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: THEME.silverLight,
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 14,
-  },
-  orgSeamlessMetaItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  orgMetaItemLabel: {
-    fontSize: 10,
-    color: THEME.paynesGray,
-  },
-  orgMetaItemValue: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-    marginTop: 2,
-  },
-  orgMetaItemDivider: {
-    width: 1,
-    height: 22,
-    backgroundColor: THEME.silverLine,
-  },
-  orgPocketsSubList: {
-    backgroundColor: THEME.coralSoftBg,
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: THEME.coralBorder,
-  },
-  orgPocketsSubTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-    marginBottom: 6,
-  },
-  orgPocketRowItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 3,
-  },
-  orgPocketRowName: {
-    flex: 1,
-    marginLeft: 6,
-    fontSize: 12,
-    color: THEME.gunmetal,
-    fontWeight: '500',
-  },
-  orgPocketRowBalance: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: THEME.coral,
-  },
-  contactCanvasCard: {
-    backgroundColor: THEME.white,
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-    marginBottom: 16,
-  },
-  contactCanvasHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  contactCanvasTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: THEME.gunmetal,
-  },
-  contactCanvasDesc: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    lineHeight: 16,
-    marginBottom: 10,
-  },
-  contactsStreamWrap: {
-    backgroundColor: THEME.silverLight,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: THEME.silverLine,
-  },
-  contactStreamRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(191, 192, 192, 0.25)',
-  },
-  contactAvatarOrb: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: THEME.coralSoftBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  contactPersonName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-  },
-  contactPersonMeta: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    marginTop: 1,
-  },
-  contactWaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#25D366',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  contactWaPillText: {
-    color: THEME.white,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-
-  // ROLE-BASED ACCESS CONTROL (RBAC)
-  rbacCard: {
-    backgroundColor: THEME.white,
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-    marginBottom: 16,
-  },
-  rbacHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 14,
-  },
-  rbacTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: THEME.gunmetal,
-    marginBottom: 4,
-  },
-  rbacDesc: {
-    fontSize: 12,
-    color: THEME.paynesGray,
-    lineHeight: 18,
-  },
-  rolesGrid: {
-    gap: 12,
-  },
-  roleCardInteractive: {
-    backgroundColor: THEME.silverLight,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: THEME.silverBorder,
-  },
-  roleCardActive: {
-    backgroundColor: THEME.white,
-    borderColor: THEME.coral,
-    shadowColor: THEME.coral,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  roleCardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  roleTitleGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  roleIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roleCardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: THEME.gunmetal,
-  },
-  badgePill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginTop: 2,
-  },
-  badgePillText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  activeCheckBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: THEME.coralSoftBg,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: THEME.coralBorder,
-  },
-  activeCheckText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.coral,
-  },
-  roleDescText: {
-    fontSize: 12,
-    color: THEME.paynesGray,
-    lineHeight: 18,
-    marginBottom: 10,
-  },
-  permsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 10,
-  },
-  permChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: THEME.white,
-    borderWidth: 1,
-    borderColor: THEME.silverBorder,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  permChipText: {
-    fontSize: 11,
-    color: THEME.gunmetal,
-    fontWeight: '500',
-  },
-  roleCardFooter: {
+    marginTop: SP.xl,
+    paddingTop: SP.l,
     borderTopWidth: 1,
-    borderColor: THEME.silverLine,
-    paddingTop: 8,
-    marginTop: 2,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+    rowGap: SP.l,
   },
-  roleActionHint: {
-    fontSize: 11,
-    color: THEME.paynesGray,
-    fontWeight: '600',
+  metric: { paddingRight: SP.m, gap: 2 },
+  metricHalf: { width: '50%' },
+  metricFlex: { flex: 1, minWidth: 140 },
+  metricValue: { ...TYPE.num, marginVertical: 2 } as TextStyle,
+
+  tierHead: { flexDirection: 'row', alignItems: 'center', gap: SP.m, paddingTop: SP.s },
+  tierBody: {
+    marginLeft: 13,
+    paddingLeft: SP.l + 2,
+    borderLeftWidth: 2,
+    borderLeftColor: C.line,
+    marginBottom: SP.s,
   },
-  roleActionHintActive: {
-    color: THEME.coral,
-    fontWeight: '700',
+  tierBodyLast: { borderLeftColor: 'transparent', marginBottom: 0 },
+  numTile: { borderRadius: R.chip, backgroundColor: C.g100, alignItems: 'center', justifyContent: 'center' },
+
+  pocketTrail: { alignItems: 'flex-end', gap: SP.xs, maxWidth: 160 },
+  swatchWrap: { width: 40, height: 40, borderRadius: R.inner - 2, backgroundColor: C.sunken, alignItems: 'center', justifyContent: 'center' },
+  swatch: { width: 14, height: 14, borderRadius: 7 },
+  allocBar: {
+    height: 14,
+    borderRadius: R.pill,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    gap: 2,
+    backgroundColor: C.sunken,
   },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', columnGap: SP.l, rowGap: SP.xs },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+
+  table: { minWidth: FIRST_W + COL_W * ALL_ROLES.length, flexGrow: 1 },
+  tr: { flexDirection: 'row', alignItems: 'stretch' },
+  trHead: { borderBottomWidth: 1, borderBottomColor: C.line },
+  trLine: { borderBottomWidth: 1, borderBottomColor: C.line },
+  thFirst: { width: FIRST_W, flexGrow: 1, minHeight: 48, justifyContent: 'center', paddingRight: SP.m },
+  th: { width: COL_W, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: SP.xs, paddingHorizontal: SP.xs, paddingVertical: SP.s },
+  td: { width: COL_W, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  colActive: { backgroundColor: C.g50 },
+  center: { textAlign: 'center' },
+  matrixLegend: { flexDirection: 'row', alignItems: 'center', gap: SP.xs, marginTop: SP.l },
+
+  sheetBody: { gap: SP.l, paddingBottom: SP.s },
+  personHead: { flexDirection: 'row', alignItems: 'center', gap: SP.m },
+  info: { flexDirection: 'row', alignItems: 'center', gap: SP.m },
+  target: { gap: SP.xs, padding: SP.l, borderRadius: R.inner, backgroundColor: C.sunken },
 });

@@ -1,936 +1,552 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Platform,
-  Alert,
-  Linking,
-  Image,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { Animated, Platform, Share, StyleSheet, Text, View } from 'react-native';
+import Svg, { Defs, Line, Path, Pattern } from 'react-native-svg';
 import { useMushola } from '../store/useMusholaStore';
-import { formatDateIndo, getEstimatedHijriDate } from '../utils/formatters';
-import { getDailyPrayerTimes } from '../services/prayerService';
-import { PrayerTimeline } from '../components/PrayerTimeline';
-import { FinancialVisualizer } from '../components/FinancialVisualizer';
+import { formatDateIndo, formatRupiah, getEstimatedHijriDate } from '../utils/formatters';
+import { POPULAR_CITIES } from '../services/prayerService';
 import { DonationQRISModal } from '../components/DonationQRISModal';
 import { MUSHOLA_INFO } from '../store/mockData';
+import { EventItem } from '../types';
+import { C, R, SP, TYPE } from '../theme/colors';
+import { EASE_OUT, NATIVE, Press, Sheet, dur } from '../theme/motion';
+import {
+  ArrowButton,
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Col,
+  EmptyState,
+  Hatch,
+  IconButton,
+  IconName,
+  IconTile,
+  ListRow,
+  PageHeader,
+  Row,
+  Screen,
+  Stat,
+  useBreakpoint,
+} from '../ui/kit';
 
 interface DashboardProps {
   onNavigateTab: (tab: string) => void;
 }
 
+const DAY = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const MONTH_LONG = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+const CATEGORY: Record<EventItem['category'], { label: string; icon: IconName }> = {
+  KAJIAN_AKBAR: { label: 'Kajian akbar', icon: 'mic-outline' },
+  KAJIAN_RUTIN: { label: 'Kajian rutin', icon: 'book-outline' },
+  SHOLAT_JUMAT: { label: 'Sholat Jumat', icon: 'people-outline' },
+  TPA: { label: 'TPA', icon: 'school-outline' },
+  KERJA_BAKTI: { label: 'Kerja bakti', icon: 'hammer-outline' },
+  PHBI: { label: 'PHBI', icon: 'calendar-outline' },
+};
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const isoDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const shortRp = (n: number) =>
+  n >= 1e6 ? `Rp ${(n / 1e6).toFixed(1).replace('.', ',').replace(',0', '')} jt` : n >= 1e3 ? `Rp ${Math.round(n / 1e3)} rb` : `Rp ${n}`;
+
 export function DashboardScreen({ onNavigateTab }: DashboardProps) {
   const {
     prayerData,
     pockets,
+    transactions,
     events,
+    inventories,
+    jamaahList,
     fridaySchedule,
     setIsSignageMode,
-    isLoggedIn,
     currentUser,
-    openLoginModal,
+    isLoggedIn,
+    selectedCityId,
+    setSelectedCityId,
+    isPrayerLoading,
+    refreshPrayerSchedule,
   } = useMushola();
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [qrisModalVisible, setQrisModalVisible] = useState(false);
-  const [selectedPocketForDonation, setSelectedPocketForDonation] = useState('pocket-operasional');
-  const [bookmarkedEvents, setBookmarkedEvents] = useState<Record<string, boolean>>({});
+  const { isPhone, isDesktop } = useBreakpoint();
+  const [qrisVisible, setQrisVisible] = useState(false);
+  const [cityOpen, setCityOpen] = useState(false);
+  const [shareNote, setShareNote] = useState('');
+  const today = new Date();
+  const todayIso = isoDay(today);
 
+  /* ---------- Angka ringkasan (semua dari store) ---------- */
+  const totalBalance = pockets.reduce((s, p) => s + p.balance, 0);
+
+  const incomes = transactions.filter((t) => t.type === 'INCOME');
+  const lastIncomeDate = incomes.reduce((m, t) => (t.date > m ? t.date : m), '');
+  const lastMonthKey = lastIncomeDate.slice(0, 7);
+  const monthIncome = incomes.filter((t) => t.date.startsWith(lastMonthKey)).reduce((s, t) => s + t.amount, 0);
+
+  const sortedEvents = [...events].sort((a, b) => a.date.localeCompare(b.date));
+  const upcoming = sortedEvents.filter((e) => e.date >= todayIso);
+  const mustahik = jamaahList.filter((j) => j.economicStatus !== 'MAMPU').length;
+  const needFix = inventories.filter((i) => i.condition !== 'BAIK').length;
+
+  /* ---------- Grafik pemasukan 7 hari terakhir yang tercatat ---------- */
+  const chart = (() => {
+    if (!lastIncomeDate) return null;
+    const end = new Date(`${lastIncomeDate}T00:00:00`);
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(end);
+      d.setDate(end.getDate() - (6 - i));
+      const key = isoDay(d);
+      return { key, label: DAY[d.getDay()], total: incomes.filter((t) => t.date === key).reduce((s, t) => s + t.amount, 0) };
+    });
+    const max = Math.max(...days.map((d) => d.total));
+    return { days, max, end };
+  })();
+
+  const grow = useState(() => new Animated.Value(0))[0];
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    Animated.timing(grow, { toValue: 1, duration: dur(700), delay: dur(200), easing: EASE_OUT, useNativeDriver: false }).start();
+  }, [grow]);
 
-  const totalBalance = pockets.reduce((sum, p) => sum + p.balance, 0);
+  /* ---------- Bagikan jadwal Jumat ---------- */
+  const noteOpacity = useState(() => new Animated.Value(0))[0];
+  useEffect(() => {
+    if (!shareNote) return;
+    noteOpacity.setValue(1);
+    Animated.timing(noteOpacity, { toValue: 0, duration: dur(400), delay: 2200, useNativeDriver: NATIVE }).start(() => setShareNote(''));
+  }, [shareNote, noteOpacity]);
 
-  const handleOpenQRIS = (pocketId?: string) => {
-    if (pocketId) setSelectedPocketForDonation(pocketId);
-    setQrisModalVisible(true);
-  };
-
-  const handleToggleBookmark = (id: string) => {
-    setBookmarkedEvents((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-  };
-
-  const handleShareFridaySchedule = () => {
-    const text = `*Jadwal Sholat Jumat - ${MUSHOLA_INFO.name}*\nAlamat: ${MUSHOLA_INFO.address}\nTanggal: ${fridaySchedule.date}\nTema: "${fridaySchedule.theme}"\n\n• Khotib: ${fridaySchedule.khotib}\n• Imam: ${fridaySchedule.imam}\n• Muadzin: ${fridaySchedule.muadzin}\n• Bilal: ${fridaySchedule.bilal}\n\nKontak DKM: Ustadz Astriyo (0857-7790-0383) / Ustadz Dicky (0817-4958-342)\nMari hadir lebih awal, sholat tahiyyatul masjid dan dengarkan khutbah dengan khusyuk.`;
-    if (Platform.OS === 'web' && navigator?.clipboard) {
-      navigator.clipboard.writeText(text);
-      notify('Tersalin', 'Jadwal petugas sholat Jumat siap dibagikan ke WhatsApp grup warga!');
-    } else {
-      notify('Jadwal Petugas Jumat', text);
+  const shareFriday = async () => {
+    const f = fridaySchedule;
+    const text =
+      `Jadwal Sholat Jumat, ${MUSHOLA_INFO.name}\n${f.date}\nTema: "${f.theme}"\n\n` +
+      `Khotib: ${f.khotib}\nImam: ${f.imam}\nMuadzin: ${f.muadzin}\nBilal: ${f.bilal}\n\n${MUSHOLA_INFO.address}`;
+    try {
+      if (Platform.OS === 'web' && navigator?.clipboard) {
+        await navigator.clipboard.writeText(text);
+        setShareNote('Teks jadwal tersalin. Tempel di grup WhatsApp warga.');
+      } else {
+        await Share.share({ message: text });
+      }
+    } catch {
+      setShareNote('Gagal menyalin. Izinkan akses clipboard lalu coba lagi.');
     }
   };
 
-  const notify = (title: string, msg: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}: ${msg}`);
-    } else {
-      Alert.alert(title, msg);
-    }
-  };
+  const next = prayerData.nextPrayer;
+  const nextName = next.name.replace(' (Besok)', '');
+  const isTomorrow = next.name.includes('Besok');
+
+  /* ---------- Kartu ---------- */
+  const statCards = [
+    <Stat
+      key="kas"
+      hero
+      compact
+      delay={0}
+      label="Total kas"
+      value={formatRupiah(totalBalance)}
+      note={
+        lastMonthKey
+          ? `Pemasukan ${MONTH_LONG[Number(lastMonthKey.slice(5)) - 1]}: ${formatRupiah(monthIncome)}`
+          : `${pockets.length} kantong kas`
+      }
+      onOpen={() => onNavigateTab('finance')}
+    />,
+    <Stat
+      key="agenda"
+      compact={!isDesktop}
+      delay={50}
+      label="Agenda mendatang"
+      value={String(upcoming.length)}
+      note={upcoming.length ? `Terdekat ${formatShort(upcoming[0].date)}` : 'Belum ada agenda setelah hari ini'}
+      onOpen={() => onNavigateTab('events')}
+    />,
+    <Stat
+      key="warga"
+      compact={!isDesktop}
+      delay={100}
+      label="Keluarga terdata"
+      value={String(jamaahList.length)}
+      note={`${mustahik} mustahik atau yatim/dhuafa`}
+      onOpen={() => onNavigateTab('jamaah')}
+    />,
+    <Stat
+      key="aset"
+      compact={!isDesktop}
+      delay={150}
+      label="Aset perlu perbaikan"
+      value={String(needFix)}
+      note={`Dari ${inventories.length} barang inventaris`}
+      onOpen={() => onNavigateTab('inventory')}
+    />,
+  ];
+
+  const chartCard = (
+    <Card key="chart" delay={200} style={{ flex: 1 }}>
+      <CardHeader
+        title="Pemasukan kas"
+        subtitle={chart ? `Per hari, 7 hari sampai ${formatShort(isoDay(chart.end))} (transaksi terakhir)` : undefined}
+        action={<ArrowButton label="Buka buku kas" onPress={() => onNavigateTab('finance')} />}
+      />
+      {!chart ? (
+        <EmptyState icon="bar-chart-outline" title="Belum ada pemasukan" text="Grafik muncul setelah bendahara mencatat pemasukan di menu Keuangan." />
+      ) : (
+        <>
+          <View style={st.chart} accessibilityLabel={`Pemasukan tertinggi ${formatRupiah(chart.max)}`}>
+            {chart.days.map((d) => {
+              const h = chart.max ? Math.max(0.22, d.total / chart.max) : 0;
+              const isMax = d.total === chart.max && d.total > 0;
+              return (
+                <View key={d.key} style={st.barCol}>
+                  {isMax ? (
+                    <View style={st.tip}>
+                      <Text style={st.tipText}>{shortRp(d.total)}</Text>
+                    </View>
+                  ) : null}
+                  {d.total > 0 ? (
+                    <Animated.View
+                      style={[
+                        st.bar,
+                        { backgroundColor: isMax ? C.g900 : d.total >= chart.max * 0.5 ? C.g500 : C.g300 },
+                        { height: grow.interpolate({ inputRange: [0, 1], outputRange: [0, 150 * h] }) },
+                      ]}
+                    />
+                  ) : (
+                    <Hatch style={[st.bar, { height: 150 * 0.62 }]} />
+                  )}
+                  <Text style={st.barLabel}>{d.label}</Text>
+                </View>
+              );
+            })}
+          </View>
+          <View style={st.legend}>
+            <Hatch style={st.legendHatch} radius={3} />
+            <Text style={st.legendText}>Arsir: tidak ada pemasukan tercatat hari itu</Text>
+          </View>
+        </>
+      )}
+    </Card>
+  );
+
+  const scheduleCard = (
+    <Card key="schedule" delay={250} style={{ flex: 1 }}>
+      <CardHeader title="Jadwal sholat" subtitle={prayerData.isLiveKemenag ? 'Data Kemenag RI via myquran.com' : 'Offline: jadwal cadangan'} />
+      <Text style={st.nextKicker}>{isTomorrow ? 'Berikutnya, besok' : 'Berikutnya'}</Text>
+      <Text style={st.nextName}>{nextName}</Text>
+      <Text style={st.nextTime}>pukul {next.time} WIB · {prayerData.cityName}</Text>
+      <View style={st.times}>
+        {prayerData.schedules.map((p) => {
+          const active = p.name === nextName;
+          return (
+            <View key={p.name} style={[st.timeCell, active && st.timeCellActive]}>
+              <Text style={[st.timeName, active && { color: C.onDark }]}>{p.name}</Text>
+              <Text style={[st.timeVal, active && { color: C.onDark }]}>{p.time}</Text>
+            </View>
+          );
+        })}
+      </View>
+      <Button label="Tampilkan di TV" icon="tv-outline" onPress={() => setIsSignageMode(true)} style={{ marginTop: SP.l }} />
+    </Card>
+  );
+
+  const officers: [string, string][] = [
+    ['Khotib', fridaySchedule.khotib],
+    ['Imam', fridaySchedule.imam],
+    ['Muadzin', fridaySchedule.muadzin],
+    ['Bilal', fridaySchedule.bilal],
+  ];
+  const fridayCard = (
+    <Card key="friday" delay={300} style={{ flex: 1 }}>
+      <CardHeader
+        title="Petugas Jumat"
+        subtitle={fridaySchedule.date}
+        action={<Button compact variant="outline" icon="share-outline" label="Bagikan" onPress={shareFriday} />}
+      />
+      <Text style={st.theme}>Tema: “{fridaySchedule.theme}”</Text>
+      {officers.map(([role, name], i) => (
+        <ListRow key={role} last={i === officers.length - 1} leading={<Avatar name={name} />} title={name} subtitle={`Bertugas sebagai ${role.toLowerCase()}`} trailing={<Badge label={role} tone="success" />} />
+      ))}
+      {shareNote ? (
+        <Animated.Text style={[st.note, { opacity: noteOpacity }]} accessibilityLiveRegion="polite">
+          {shareNote}
+        </Animated.Text>
+      ) : null}
+    </Card>
+  );
+
+  const gaugeCard = (
+    <Card key="gauge" delay={350} style={{ flex: 1 }}>
+      <CardHeader title="Kondisi sarpras" action={<ArrowButton label="Buka inventaris" onPress={() => onNavigateTab('inventory')} />} />
+      {inventories.length === 0 ? (
+        <EmptyState icon="cube-outline" title="Inventaris kosong" text="Seksi sarpras bisa mendata barang di menu Sarpras." />
+      ) : (
+        <Gauge
+          good={inventories.filter((i) => i.condition === 'BAIK').length}
+          minor={inventories.filter((i) => i.condition === 'RUSAK_RINGAN').length}
+          replace={inventories.filter((i) => i.condition === 'PERLU_DIGANTI').length}
+        />
+      )}
+    </Card>
+  );
+
+  const agendaList = [...upcoming, ...sortedEvents.filter((e) => e.date < todayIso).reverse()].slice(0, 5);
+  const agendaCard = (
+    <Card key="agenda" delay={250} style={isDesktop ? { flex: 1 } : undefined}>
+      <CardHeader title="Agenda" action={<Button compact variant="outline" icon="add" label="Tambah" onPress={() => onNavigateTab('events')} />} />
+      {agendaList.length === 0 ? (
+        <EmptyState icon="calendar-outline" title="Belum ada agenda" text="Pengurus bisa menambahkan kajian atau kegiatan di menu Kegiatan." />
+      ) : (
+        agendaList.map((ev, i) => {
+          const done = ev.date < todayIso;
+          const cat = CATEGORY[ev.category] ?? { label: ev.category, icon: 'calendar-outline' as IconName };
+          return (
+            <ListRow
+              key={ev.id}
+              last={i === agendaList.length - 1}
+              leading={<IconTile icon={cat.icon} tone={done ? 'neutral' : 'green'} />}
+              title={ev.title}
+              subtitle={`${formatShort(ev.date)} · ${ev.timeStart} WIB`}
+              trailing={done ? <Badge label="Selesai" /> : null}
+            />
+          );
+        })
+      )}
+    </Card>
+  );
+
+  const countdownCard = (
+    <Card key="countdown" delay={400} style={st.dark}>
+      <Text style={st.darkTitle}>Hitung mundur</Text>
+      <Text style={st.darkSub}>Menuju {nextName}{isTomorrow ? ' besok' : ''}, {next.time} WIB</Text>
+      <Text style={st.countdown} accessibilityLabel={`${next.hours} jam ${next.minutes} menit lagi`}>
+        {pad(next.hours)}:{pad(next.minutes)}:{pad(next.seconds)}
+      </Text>
+      <View style={st.darkActions}>
+        <IconButton onDark filled icon="refresh" label="Muat ulang jadwal sholat" onPress={refreshPrayerSchedule} disabled={isPrayerLoading} />
+        <IconButton onDark icon="location-outline" label={`Wilayah ${prayerData.cityName}. Ganti wilayah`} onPress={() => setCityOpen(true)} />
+      </View>
+    </Card>
+  );
+
+  const name = isLoggedIn && currentUser?.name ? `, ${currentUser.name.split(' ')[0]}` : '';
 
   return (
-    <View style={styles.rootWrapper}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {/* Islamic Arch Hero Framing */}
-        <View style={styles.archHeroContainer}>
-          {/* Mihrab Arch Curve Decoration */}
-          <View style={styles.mihrabArchTop} />
+    <View style={{ flex: 1 }}>
+      <Screen>
+        <PageHeader
+          title="Ringkasan"
+          subtitle={`Assalamu'alaikum${name}. ${formatDateIndo(today.toISOString())} · ${getEstimatedHijriDate(today)}`}
+          actions={
+            <>
+              <Button label="Infaq QRIS" icon="qr-code-outline" onPress={() => setQrisVisible(true)} />
+              {!isPhone && <Button variant="outline" label="Mode TV" icon="tv-outline" onPress={() => setIsSignageMode(true)} />}
+            </>
+          }
+        />
 
-          <View style={styles.heroContent}>
-            <View style={styles.heroTopRow}>
-              <View style={styles.heroIdentityWrap}>
-                <View style={styles.heroLogoCircle}>
-                  <Image
-                    source={require('../../assets/logo.png')}
-                    style={styles.heroLogoImg}
-                    resizeMode="contain"
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.bismillahArabic}>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</Text>
-                  <Text style={styles.musholaTitle}>{MUSHOLA_INFO.name}</Text>
-                  <Text style={styles.locationSubtitle} numberOfLines={2}>
-                    {MUSHOLA_INFO.shortAddress}
-                  </Text>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.heroInfaqPill}
-                onPress={() => handleOpenQRIS('pocket-operasional')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="sparkles" size={14} color="#FBBF24" />
-                <Text style={styles.heroInfaqText}>Kotak Infaq Digital</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.heroDateRow}>
-              <View style={styles.datePill}>
-                <Ionicons name="calendar-outline" size={12} color="#D1FAE5" />
-                <Text style={styles.datePillText}>
-                  {formatDateIndo(currentTime.toISOString())}
-                </Text>
-              </View>
-
-              <View style={[styles.datePill, styles.hijriDatePill]}>
-                <Ionicons name="moon-outline" size={12} color="#FDE68A" />
-                <Text style={styles.hijriDateText}>{getEstimatedHijriDate(currentTime)}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Guest Onboarding Banner / Welcome Logged In User */}
-        {!isLoggedIn ? (
-          <View style={styles.guestBannerCard}>
-            <View style={styles.guestBannerLeft}>
-              <View style={styles.guestBannerIcon}>
-                <Ionicons name="sparkles" size={18} color="#EF8354" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.guestBannerTitle}>Assalamu'alaikum, Jamaah!</Text>
-                <Text style={styles.guestBannerDesc}>
-                  Masuk dengan akun Google untuk akses pendataan warga, pembukuan kas lengkap, dan agenda kepengurusan DKM.
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.guestBannerBtn}
-              onPress={openLoginModal}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="logo-google" size={14} color="#FFFFFF" />
-              <Text style={styles.guestBannerBtnText}>Masuk Google</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Kartu ringkasan */}
+        {isDesktop ? (
+          <Row>{statCards}</Row>
         ) : (
-          <View style={styles.welcomeUserBar}>
-            <Ionicons name="checkmark-circle" size={16} color="#EF8354" />
-            <Text style={styles.welcomeUserText}>
-              Ahlan wa Sahlan, <Text style={{ fontWeight: '700' }}>{currentUser?.name || 'Warga'}</Text>{' '}
-              {currentUser?.blokRumah ? `(${currentUser.blokRumah} No. ${currentUser?.noRumah || '-'})` : ''}
-            </Text>
+          <View style={{ gap: isPhone ? SP.m : SP.l }}>
+            {statCards[0]}
+            <View style={{ flexDirection: 'row', gap: isPhone ? SP.m : SP.l }}>
+              {statCards[1]}
+              {statCards[2]}
+              {!isPhone && statCards[3]}
+            </View>
+            {isPhone && statCards[3]}
           </View>
         )}
 
-        {/* Interactive Prayer Times Celestial Rail */}
-        <PrayerTimeline
-          schedules={prayerData.schedules}
-          nextPrayer={prayerData.nextPrayer}
-          onOpenSignage={() => setIsSignageMode(true)}
-        />
-
-        {/* Interactive Financial Visualizer with Proportional Meter & Target Progress */}
-        <FinancialVisualizer
-          pockets={pockets}
-          totalBalance={totalBalance}
-          onOpenQRIS={handleOpenQRIS}
-          onSelectPocket={() => onNavigateTab('finance')}
-        />
-
-        {/* Interactive Friday Officer Schedule with 1-Click WhatsApp Share */}
-        <View style={styles.fridayInteractiveCard}>
-          <View style={styles.fridayTopRow}>
-            <View style={styles.fridayTag}>
-              <Ionicons name="star" size={13} color="#D97706" />
-              <Text style={styles.fridayTagText}>PETUGAS JUMAT PEKAN INI</Text>
-            </View>
-            <TouchableOpacity style={styles.shareBtn} onPress={handleShareFridaySchedule}>
-              <Ionicons name="share-social-outline" size={14} color="#047857" />
-              <Text style={styles.shareBtnText}>Bagikan Jadwal</Text>
-            </TouchableOpacity>
+        {isDesktop ? (
+          <Row>
+            <Col flex={3}>
+              <Row>
+                <Col flex={2}>{chartCard}</Col>
+                <Col flex={1}>{scheduleCard}</Col>
+              </Row>
+              <Row>
+                <Col flex={2}>{fridayCard}</Col>
+                <Col flex={1}>{gaugeCard}</Col>
+              </Row>
+            </Col>
+            <Col flex={1}>
+              {agendaCard}
+              {countdownCard}
+            </Col>
+          </Row>
+        ) : isPhone ? (
+          <View style={{ gap: SP.m }}>
+            {countdownCard}
+            {scheduleCard}
+            {fridayCard}
+            {agendaCard}
+            {chartCard}
+            {gaugeCard}
           </View>
+        ) : (
+          <Row>
+            <Col>
+              {countdownCard}
+              {scheduleCard}
+              {agendaCard}
+            </Col>
+            <Col>
+              {chartCard}
+              {fridayCard}
+              {gaugeCard}
+            </Col>
+          </Row>
+        )}
+      </Screen>
 
-          <Text style={styles.fridayThemeTitle}>"{fridaySchedule.theme}"</Text>
-          <Text style={styles.fridayDateLabel}>{fridaySchedule.date}</Text>
+      <DonationQRISModal visible={qrisVisible} onClose={() => setQrisVisible(false)} defaultPocketId="pocket-operasional" />
 
-          {/* Officer Circular Avatar Badges */}
-          <View style={styles.officerCluster}>
-            <View style={styles.officerBadge}>
-              <View style={[styles.officerAvatar, { backgroundColor: '#ECFDF5' }]}>
-                <Ionicons name="mic" size={15} color="#4F5D75" />
+      <Sheet visible={cityOpen} onClose={() => setCityOpen(false)} title="Wilayah jadwal sholat" subtitle="Jadwal mengikuti data Kemenag untuk wilayah yang dipilih.">
+        {POPULAR_CITIES.map((c, i) => {
+          const selected = c.id === selectedCityId;
+          return (
+            <Press
+              key={c.id}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected }}
+              style={[st.cityRow, selected && st.cityRowOn, i === POPULAR_CITIES.length - 1 && { marginBottom: 0 }]}
+              hoverStyle={selected ? undefined : { backgroundColor: C.sunken }}
+              onPress={() => {
+                setSelectedCityId(c.id);
+                setCityOpen(false);
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[st.cityName, selected && { color: C.g700 }]}>{c.name}</Text>
+                <Text style={st.cityProv}>{c.province}</Text>
               </View>
-              <View>
-                <Text style={styles.officerRole}>Khotib</Text>
-                <Text style={styles.officerName}>{fridaySchedule.khotib}</Text>
-              </View>
-            </View>
-
-            <View style={styles.officerBadge}>
-              <View style={[styles.officerAvatar, { backgroundColor: '#ECEEF2' }]}>
-                <Ionicons name="man" size={15} color="#4F5D75" />
-              </View>
-              <View>
-                <Text style={styles.officerRole}>Imam</Text>
-                <Text style={styles.officerName}>{fridaySchedule.imam}</Text>
-              </View>
-            </View>
-
-            <View style={styles.officerBadge}>
-              <View style={[styles.officerAvatar, { backgroundColor: '#FDF1EB' }]}>
-                <Ionicons name="volume-high" size={15} color="#EF8354" />
-              </View>
-              <View>
-                <Text style={styles.officerRole}>Muadzin</Text>
-                <Text style={styles.officerName}>{fridaySchedule.muadzin}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Agenda Kajian & Kegiatan Interaktif */}
-        <View style={styles.sectionHeaderRow}>
-          <View>
-            <Text style={styles.sectionHeading}>Agenda Kajian Mendatang</Text>
-            <Text style={styles.sectionSub}>Bina ilmu, ukhuwah & silaturahmi warga</Text>
-          </View>
-          <TouchableOpacity onPress={() => onNavigateTab('events')}>
-            <Text style={styles.viewMoreLink}>Lihat Semua →</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.eventGrid}>
-          {events.slice(0, 3).map((event) => {
-            const isBookmarked = bookmarkedEvents[event.id] ?? false;
-            return (
-              <View key={event.id} style={styles.interactiveEventCard}>
-                <View style={styles.eventCardHeader}>
-                  <View style={styles.eventBadgeCategory}>
-                    <Text style={styles.eventBadgeCategoryText}>
-                      {event.category.replace('_', ' ')}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.bookmarkBtn}
-                    onPress={() => handleToggleBookmark(event.id)}
-                  >
-                    <Ionicons
-                      name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
-                      size={18}
-                      color={isBookmarked ? '#EF8354' : '#BFC0C0'}
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={styles.eventCardTitle}>{event.title}</Text>
-
-                {event.speakerOrOfficer ? (
-                  <View style={styles.eventSpeakerRow}>
-                    <Ionicons name="person-outline" size={13} color="#4F5D75" />
-                    <Text style={styles.eventSpeakerText}>{event.speakerOrOfficer}</Text>
-                  </View>
-                ) : null}
-
-                <View style={styles.eventCardFooter}>
-                  <View style={styles.eventTimeChip}>
-                    <Ionicons name="time-outline" size={12} color="#4F5D75" />
-                    <Text style={styles.eventTimeText}>{event.timeStart} WIB</Text>
-                  </View>
-
-                  <View style={styles.eventLocationChip}>
-                    <Ionicons name="location-outline" size={12} color="#4F5D75" />
-                    <Text style={styles.eventLocationText} numberOfLines={1}>
-                      {event.location}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Mushola Address & DKM Contact Card */}
-        <View style={styles.musholaProfileCard}>
-          <View style={styles.musholaProfileHeader}>
-            <View style={styles.profileIconWrap}>
-              <Ionicons name="location" size={20} color="#EF8354" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.profileCardTitle}>{MUSHOLA_INFO.name}</Text>
-              <Text style={styles.profileCardAddress}>{MUSHOLA_INFO.address}</Text>
-            </View>
-          </View>
-
-          <View style={styles.contactDivider} />
-
-          <Text style={styles.contactSectionLabel}>Kontak Layanan DKM & Konfirmasi Infaq:</Text>
-          <View style={styles.contactStreamCanvas}>
-            {MUSHOLA_INFO.contacts.map((c, idx) => (
-              <View
-                key={idx}
-                style={[
-                  styles.contactStreamRow,
-                  idx === MUSHOLA_INFO.contacts.length - 1 && { borderBottomWidth: 0 },
-                ]}
-              >
-                <View style={styles.contactAvatar}>
-                  <Ionicons name="person" size={15} color="#EF8354" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.contactPersonName}>{c.name}</Text>
-                  <Text style={styles.contactPersonPhone}>{c.role} • {c.formattedPhone}</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.chatWaBtn}
-                  onPress={() => {
-                    const message = encodeURIComponent(
-                      `Assalamu'alaikum ${c.name},\nSaya jamaah Musholla Al Muttaqin ingin bertanya / konfirmasi.`
-                    );
-                    const url = `https://wa.me/${c.phone}?text=${message}`;
-                    if (Platform.OS === 'web') {
-                      window.open(url, '_blank');
-                    } else {
-                      Linking.openURL(url);
-                    }
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
-                  <Text style={styles.chatWaBtnText}>WhatsApp</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Floating Interactive Quick-Action Dock */}
-      <View style={styles.floatingDock}>
-        <TouchableOpacity
-          style={styles.dockItem}
-          onPress={() => handleOpenQRIS('pocket-operasional')}
-        >
-          <View style={[styles.dockIconCircle, { backgroundColor: '#047857' }]}>
-            <Ionicons name="qr-code" size={16} color="#FFFFFF" />
-          </View>
-          <Text style={styles.dockLabel}>Infaq Cepat</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.dockItem} onPress={() => onNavigateTab('finance')}>
-          <View style={[styles.dockIconCircle, { backgroundColor: '#0284C7' }]}>
-            <Ionicons name="receipt-outline" size={16} color="#FFFFFF" />
-          </View>
-          <Text style={styles.dockLabel}>Buku Kas</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.dockItem} onPress={() => onNavigateTab('events')}>
-          <View style={[styles.dockIconCircle, { backgroundColor: '#D97706' }]}>
-            <Ionicons name="calendar-outline" size={16} color="#FFFFFF" />
-          </View>
-          <Text style={styles.dockLabel}>Agenda</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.dockItem} onPress={() => setIsSignageMode(true)}>
-          <View style={[styles.dockIconCircle, { backgroundColor: '#065F46' }]}>
-            <Ionicons name="tv-outline" size={16} color="#FFFFFF" />
-          </View>
-          <Text style={styles.dockLabel}>Smart TV</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* QRIS Donation Modal */}
-      <DonationQRISModal
-        visible={qrisModalVisible}
-        onClose={() => setQrisModalVisible(false)}
-        defaultPocketId={selectedPocketForDonation}
-      />
+              {selected ? <Badge label="Dipilih" tone="success" /> : null}
+            </Press>
+          );
+        })}
+      </Sheet>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  rootWrapper: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    position: 'relative',
-  },
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 90, // Leave space for floating dock
-  },
-  archHeroContainer: {
-    backgroundColor: '#2D3142',
-    borderRadius: 24,
-    overflow: 'hidden',
-    position: 'relative',
-    marginBottom: 16,
-    shadowColor: '#2D3142',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  mihrabArchTop: {
-    position: 'absolute',
-    top: -50,
-    right: -30,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-  },
-  heroContent: {
-    padding: 20,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  heroIdentityWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    minWidth: 260,
-    gap: 14,
-  },
-  heroLogoCircle: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-    overflow: 'hidden',
-  },
-  heroLogoImg: {
-    width: 56,
-    height: 56,
-  },
-  bismillahArabic: {
-    color: '#EF8354',
-    fontSize: 14,
-    fontFamily: Platform.select({ web: 'serif', default: 'normal' }),
-    marginBottom: 2,
-  },
-  musholaTitle: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: 0.3,
-  },
-  locationSubtitle: {
-    color: '#BFC0C0',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  heroInfaqPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EF8354',
-    borderRadius: 20,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-  },
-  heroInfaqText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  heroDateRow: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  datePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-  },
-  datePillText: {
-    color: '#D1FAE5',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  hijriDatePill: {
-    backgroundColor: 'rgba(217, 119, 6, 0.3)',
-  },
-  hijriDateText: {
-    color: '#FDE68A',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  fridayInteractiveCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(191, 192, 192, 0.4)',
-    shadowColor: '#2D3142',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  fridayTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  fridayTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  fridayTagText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#EF8354',
-    letterSpacing: 0.5,
-  },
-  shareBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FDF1EB',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-  },
-  shareBtnText: {
-    fontSize: 11,
-    color: '#EF8354',
-    fontWeight: '700',
-  },
-  fridayThemeTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#2D3142',
-    marginBottom: 2,
-    lineHeight: 22,
-  },
-  fridayDateLabel: {
-    fontSize: 12,
-    color: '#4F5D75',
-    marginBottom: 10,
-  },
-  officerCluster: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 12,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(191, 192, 192, 0.25)',
-  },
-  officerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-    minWidth: 130,
-  },
-  officerAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(239, 131, 84, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  officerRole: {
-    fontSize: 10,
-    color: '#4F5D75',
-    textTransform: 'uppercase',
-    fontWeight: '600',
-  },
-  officerName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2D3142',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 12,
-  },
-  sectionHeading: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#2D3142',
-  },
-  sectionSub: {
-    fontSize: 12,
-    color: '#4F5D75',
-  },
-  viewMoreLink: {
-    fontSize: 13,
-    color: '#EF8354',
-    fontWeight: '700',
-  },
-  eventGrid: {
-    gap: 12,
-  },
-  interactiveEventCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#EF8354',
-    borderTopWidth: 1,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(191, 192, 192, 0.25)',
-    shadowColor: '#2D3142',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  eventCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  eventBadgeCategory: {
-    backgroundColor: '#FDF1EB',
-    borderRadius: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-  },
-  eventBadgeCategoryText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#EF8354',
-  },
-  bookmarkBtn: {
-    padding: 4,
-  },
-  eventCardTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#2D3142',
-    marginBottom: 4,
-  },
-  eventSpeakerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginBottom: 8,
-  },
-  eventSpeakerText: {
-    fontSize: 12,
-    color: '#047857',
-    fontWeight: '600',
-  },
-  eventCardFooter: {
-    flexDirection: 'row',
-    gap: 10,
-    borderTopWidth: 1,
-    borderColor: '#F8FAFC',
-    paddingTop: 8,
-  },
-  eventTimeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  eventTimeText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  eventLocationChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flex: 1,
-  },
-  eventLocationText: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  floatingDock: {
-    position: 'absolute',
-    bottom: 14,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 24,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  dockItem: {
-    alignItems: 'center',
-    gap: 3,
-  },
-  dockIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dockLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  musholaProfileCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  musholaProfileHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  profileIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#FDF1EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  profileCardTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#2D3142',
-    marginBottom: 4,
-  },
-  profileCardAddress: {
-    fontSize: 12,
-    color: '#4F5D75',
-    lineHeight: 18,
-  },
-  contactDivider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: 14,
-  },
-  contactSectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2D3142',
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  contactStreamCanvas: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(191, 192, 192, 0.25)',
-  },
-  contactStreamRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(191, 192, 192, 0.2)',
-  },
-  contactItemBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#BFC0C0',
-  },
-  contactAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#FDF1EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  contactPersonName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2D3142',
-  },
-  contactPersonPhone: {
-    fontSize: 12,
-    color: '#4F5D75',
-    fontWeight: '500',
-  },
-  chatWaBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#25D366',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  chatWaBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  guestBannerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#BFC0C0',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 12,
-    shadowColor: '#2D3142',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  guestBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    minWidth: 240,
-    gap: 12,
-  },
-  guestBannerIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FDF1EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guestBannerTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#2D3142',
-  },
-  guestBannerDesc: {
-    fontSize: 11,
-    color: '#4F5D75',
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  guestBannerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EF8354',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 10,
-  },
-  guestBannerBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  welcomeUserBar: {
-    backgroundColor: '#FDF1EB',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#BFC0C0',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  welcomeUserText: {
-    fontSize: 12,
-    color: '#064E3B',
-  },
+function formatShort(iso: string) {
+  const d = new Date(`${iso}T00:00:00`);
+  return isNaN(d.getTime()) ? iso : `${DAY[d.getDay()]}, ${d.getDate()} ${MONTH[d.getMonth()]}`;
+}
+
+/** Gauge setengah lingkaran: baik / rusak ringan / perlu diganti (arsir). */
+function Gauge({ good, minor, replace }: { good: number; minor: number; replace: number }) {
+  const total = good + minor + replace || 1;
+  const [t, setT] = useState(0);
+  const anim = useState(() => new Animated.Value(0))[0];
+  useEffect(() => {
+    const id = anim.addListener(({ value }) => setT(value));
+    Animated.timing(anim, { toValue: 1, duration: dur(800), delay: dur(300), easing: EASE_OUT, useNativeDriver: false }).start();
+    return () => anim.removeListener(id);
+  }, [anim]);
+
+  const RAD = 90;
+  const LEN = Math.PI * RAD;
+  const arc = `M 20 110 A ${RAD} ${RAD} 0 0 1 200 110`;
+  const parts = [
+    { n: good, stroke: C.g500 },
+    { n: minor, stroke: C.g900 },
+    { n: replace, stroke: 'url(#gaugeHatch)' },
+  ];
+  let start = 0;
+  const pct = Math.round((good / total) * 100);
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View accessibilityLabel={`${pct} persen barang dalam kondisi baik`}>
+        <Svg width={220} height={124} viewBox="0 0 220 124">
+          <Defs>
+            <Pattern id="gaugeHatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+              <Line x1="0" y1="0" x2="0" y2="8" stroke={C.hatchLine} strokeWidth="2.5" />
+            </Pattern>
+          </Defs>
+          <Path d={arc} stroke={C.sunken} strokeWidth={30} fill="none" />
+          {parts.map((p, i) => {
+            const frac = (p.n / total) * t;
+            const el = (
+              <Path
+                key={i}
+                d={arc}
+                stroke={p.stroke}
+                strokeWidth={30}
+                fill="none"
+                strokeDasharray={`${Math.max(0, LEN * frac - 2)} ${LEN}`}
+                strokeDashoffset={-LEN * start}
+              />
+            );
+            start += frac;
+            return el;
+          })}
+        </Svg>
+        <View style={st.gaugeCenter} pointerEvents="none">
+          <Text style={st.gaugePct}>{pct}%</Text>
+          <Text style={st.gaugeLabel}>dalam kondisi baik</Text>
+        </View>
+      </View>
+      <View style={st.gaugeLegend}>
+        <Legend color={C.g500} label={`Baik (${good})`} />
+        <Legend color={C.g900} label={`Rusak ringan (${minor})`} />
+        <Legend hatch label={`Perlu diganti (${replace})`} />
+      </View>
+    </View>
+  );
+}
+
+function Legend({ color, hatch, label }: { color?: string; hatch?: boolean; label: string }) {
+  return (
+    <View style={st.legendItem}>
+      {hatch ? <Hatch style={st.legendDot} radius={6} /> : <View style={[st.legendDot, { backgroundColor: color }]} />}
+      <Text style={st.legendText}>{label}</Text>
+    </View>
+  );
+}
+
+const st = StyleSheet.create({
+  chart: { height: 196, flexDirection: 'row', alignItems: 'flex-end', gap: SP.s },
+  barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 6, height: '100%' },
+  bar: { width: '100%', maxWidth: 52, borderRadius: R.pill },
+  barLabel: { ...TYPE.small, color: C.inkMuted },
+  tip: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: C.line, backgroundColor: C.card },
+  tipText: { ...TYPE.smallStrong, fontSize: 11, color: C.ink },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: SP.s, marginTop: SP.m },
+  legendHatch: { width: 14, height: 14 },
+  legendText: { ...TYPE.small, color: C.inkMuted },
+
+  nextKicker: { ...TYPE.small, color: C.inkMuted },
+  nextName: { ...TYPE.h1, color: C.g800, marginTop: 2 },
+  nextTime: { ...TYPE.body, color: C.inkMuted },
+  times: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: SP.l },
+  timeCell: { flexGrow: 1, flexBasis: 72, paddingVertical: 8, paddingHorizontal: 10, borderRadius: R.inner - 4, backgroundColor: C.sunken },
+  timeCellActive: { backgroundColor: C.g700 },
+  timeName: { ...TYPE.small, color: C.inkMuted },
+  timeVal: { ...TYPE.num, fontSize: 15, color: C.ink },
+
+  theme: { ...TYPE.body, color: C.inkMuted, marginTop: -SP.s, marginBottom: SP.xs },
+  note: { ...TYPE.small, color: C.g700, marginTop: SP.s },
+
+  dark: { backgroundColor: C.g900, borderColor: C.g900 },
+  darkTitle: { ...TYPE.h2, color: C.onDark },
+  darkSub: { ...TYPE.small, color: C.onDarkMuted, marginTop: 2 },
+  countdown: { ...TYPE.display, color: C.onDark, textAlign: 'center', marginVertical: SP.l },
+  darkActions: { flexDirection: 'row', justifyContent: 'center', gap: SP.m },
+
+  gaugeCenter: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' },
+  gaugePct: { ...TYPE.display, fontSize: 38, lineHeight: 42, color: C.ink },
+  gaugeLabel: { ...TYPE.small, color: C.inkMuted },
+  gaugeLegend: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: SP.m, marginTop: SP.l },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 12, height: 12, borderRadius: 6 },
+
+  cityRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', paddingHorizontal: SP.m, borderRadius: R.inner, marginBottom: 2 },
+  cityRowOn: { backgroundColor: C.g50 },
+  cityName: { ...TYPE.bodyStrong, color: C.ink },
+  cityProv: { ...TYPE.small, color: C.inkMuted },
 });

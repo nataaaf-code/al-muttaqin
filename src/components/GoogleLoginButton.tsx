@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Platform, ActivityIndicator, TextStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { C, R, SP, TYPE } from '../theme/colors';
+import { Press } from '../theme/motion';
 
 const GOOGLE_CLIENT_ID = '619642670845-e7tvthu3ro4aip2fcdm80788486sc3vq.apps.googleusercontent.com';
 
@@ -89,13 +91,13 @@ export function GoogleLoginButton({ onSuccess, onError, loading = false }: Googl
   return (
     <View style={styles.container}>
       {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="small" color="#0D3723" />
+        <View style={styles.loadingWrap} accessibilityLiveRegion="polite">
+          <ActivityIndicator size="small" color={C.g700} />
           <Text style={styles.loadingText}>Memverifikasi akun Google...</Text>
         </View>
       ) : (
         <>
-          {/* Kontainer untuk Tombol Resmi Google Identity Services */}
+          {/* Kontainer untuk tombol resmi Google Identity Services */}
           {Platform.OS === 'web' && (
             <div
               ref={buttonDivRef}
@@ -108,14 +110,16 @@ export function GoogleLoginButton({ onSuccess, onError, loading = false }: Googl
             />
           )}
 
-          {/* Tampilkan tombol custom hanya jika tombol resmi GIS belum siap */}
+          {/* Tombol cadangan hanya tampil jika tombol resmi GIS belum siap */}
           {!gsiRendered && (
-            <TouchableOpacity
+            <Press
               style={styles.customBtn}
+              hoverStyle={styles.customBtnHover}
               onPress={handleManualPopup}
-              activeOpacity={0.85}
+              accessibilityLabel="Lanjutkan dengan Google"
             >
-              <Svg width="22" height="22" viewBox="0 0 24 24">
+              {/* Logo Google memakai warna merek Google (pengecualian yang diizinkan DESIGN.md) */}
+              <Svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
                 <Path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                   fill="#4285F4"
@@ -134,7 +138,7 @@ export function GoogleLoginButton({ onSuccess, onError, loading = false }: Googl
                 />
               </Svg>
               <Text style={styles.customBtnText}>Lanjutkan dengan Google</Text>
-            </TouchableOpacity>
+            </Press>
           )}
         </>
       )}
@@ -146,43 +150,37 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     alignItems: 'center',
-    marginVertical: 10,
   },
   loadingWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
+    gap: SP.m,
+    minHeight: 44,
   },
   loadingText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#0D3723',
-  },
+    ...TYPE.bodyStrong,
+    color: C.ink,
+  } as TextStyle,
   customBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    gap: 12,
+    backgroundColor: C.card,
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: R.pill,
+    minHeight: 44,
+    paddingHorizontal: SP.xl,
+    gap: SP.m,
     width: '100%',
     maxWidth: 320,
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    marginTop: SP.s,
+  },
+  customBtnHover: {
+    backgroundColor: C.sunken,
   },
   customBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1E293B',
-    letterSpacing: 0.2,
-  },
+    ...TYPE.bodyStrong,
+    color: C.ink,
+  } as TextStyle,
 });

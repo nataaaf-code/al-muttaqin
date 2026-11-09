@@ -1,44 +1,82 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
+  Animated,
   Modal,
-  TextInput,
-  TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
-  Alert,
-  Platform,
+  StyleSheet,
+  Text,
+  TextStyle,
+  View,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMushola } from '../store/useMusholaStore';
+import { C, R, SP, TYPE } from '../theme/colors';
+import { springTo } from '../theme/motion';
+import { Button, Field, Segmented, T } from '../ui/kit';
 
+// Blok perumahan Mutiara Puri Harmoni
+const AVAILABLE_BLOCKS = ['Blok H', 'Blok A', 'Blok B', 'Blok C', 'Blok D', 'Blok E', 'Blok F', 'Blok G'];
+
+// Pilihan keahlian/profesi untuk data sosial DKM
+const JOB_OPTIONS = [
+  'Pendidikan / Guru / Ustadz',
+  'Teknologi & Media Informasi',
+  'Kesehatan / Medis',
+  'Wiraswasta / Perdagangan',
+  'Teknik / Sipil & Bangunan',
+  'Karyawan Swasta',
+  'PNS / ASN / BUMN',
+  'Ibu Rumah Tangga',
+  'Lainnya',
+];
+
+const FAMILY_OPTIONS = ['1', '2', '3', '4', '5', '6+'];
+
+type FieldKey = 'fullName' | 'phone' | 'noRumah';
+
+/** Normalisasi nomor HP ke format 62xxx (sama seperti versi sebelumnya). */
+function normalizePhone(input: string) {
+  let clean = input.replace(/\D/g, '');
+  if (clean.startsWith('0')) {
+    clean = '62' + clean.slice(1);
+  } else if (clean.length > 0 && !clean.startsWith('62')) {
+    clean = '62' + clean;
+  }
+  return clean;
+}
+
+/**
+ * Formulir wajib untuk pengguna baru. Mereplikasi perilaku `Sheet` (scrim, radius kartu, naik dengan spring,
+ * di tengah pada layar lebar) tanpa tombol tutup, karena data diri wajib dilengkapi sebelum memakai aplikasi.
+ */
 export function OnboardingModal() {
-  const { currentUser, isOnboardingModalVisible, submitOnboarding } = useMushola();
+  const { currentUser, isOnboardingModalVisible, submitOnboarding, logout } = useMushola();
+  const { width } = useWindowDimensions();
+  const wide = width >= 640;
 
   // Form states
   const [fullName, setFullName] = useState(currentUser?.name || '');
-  const [phone, setPhone] = useState(currentUser?.phone || '');
+  const [phoneInput, setPhoneInput] = useState(currentUser?.phone || '');
   const [blokRumah, setBlokRumah] = useState(currentUser?.blokRumah || 'Blok H');
   const [nomorBlok, setNomorBlok] = useState(currentUser?.nomorBlok || '7');
   const [noRumah, setNoRumah] = useState(currentUser?.noRumah || '');
   const [rtRw, setRtRw] = useState(currentUser?.rtRw || '05/07');
-  const [statusWarga, setStatusWarga] = useState<'Tetap' | 'Kontrak'>(
-    (currentUser?.statusWarga as any) || 'Tetap'
-  );
+  const [statusWarga, setStatusWarga] = useState<'Tetap' | 'Kontrak'>((currentUser?.statusWarga as any) || 'Tetap');
   const [jumlahKeluarga, setJumlahKeluarga] = useState(
     currentUser?.jumlahKeluarga ? String(currentUser.jumlahKeluarga) : '4'
   );
-  const [pekerjaan, setPekerjaan] = useState(currentUser?.pekerjaan || 'Wiraswasta / Karyawan');
+  const [pekerjaan, setPekerjaan] = useState(currentUser?.pekerjaan || '');
   const [catatan, setCatatan] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Sync saat data currentUser tersedia
-  React.useEffect(() => {
+  // Sinkron saat data currentUser tersedia
+  useEffect(() => {
     if (currentUser) {
       if (currentUser.name && !fullName) setFullName(currentUser.name);
-      if (currentUser.phone && !phone) setPhone(currentUser.phone);
+      if (currentUser.phone && !phoneInput) setPhoneInput(currentUser.phone);
       if (currentUser.blokRumah) setBlokRumah(currentUser.blokRumah);
       if (currentUser.nomorBlok) setNomorBlok(currentUser.nomorBlok);
       if (currentUser.noRumah) setNoRumah(currentUser.noRumah);
@@ -47,48 +85,31 @@ export function OnboardingModal() {
       if (currentUser.jumlahKeluarga) setJumlahKeluarga(String(currentUser.jumlahKeluarga));
       if (currentUser.pekerjaan) setPekerjaan(currentUser.pekerjaan);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
-  // Blok perumahan Mutiara Puri Harmoni
-  const availableBlocks = ['Blok H', 'Blok A', 'Blok B', 'Blok C', 'Blok D', 'Blok E', 'Blok F', 'Blok G'];
-
-  // Pilihan keahlian/profesi untuk data sosial DKM
-  const jobOptions = [
-    'Pendidikan / Guru / Ustadz',
-    'Teknologi & Media Informasi',
-    'Kesehatan / Medis',
-    'Wiraswasta / Perdagangan',
-    'Teknik / Sipil & Bangunan',
-    'Karyawan Swasta',
-    'PNS / ASN / BUMN',
-    'Ibu Rumah Tangga',
-    'Lainnya',
-  ];
-
-  // Helper auto-format nomor handphone ke 62xxx
-  const handlePhoneChange = (input: string) => {
-    let clean = input.replace(/\D/g, '');
-    if (clean.startsWith('0')) {
-      clean = '62' + clean.slice(1);
-    } else if (clean.length > 0 && !clean.startsWith('62')) {
-      clean = '62' + clean;
+  // Animasi masuk panel (sama dengan Sheet): spring naik, scrim memudar.
+  const [v] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (isOnboardingModalVisible) {
+      v.setValue(0);
+      springTo(v, 1).start();
     }
-    setPhone(clean);
-  };
+  }, [isOnboardingModalVisible, v]);
+
+  const phone = normalizePhone(phoneInput);
+  const familyValue = FAMILY_OPTIONS.includes(jumlahKeluarga) ? jumlahKeluarga : Number(jumlahKeluarga) >= 6 ? '6+' : '4';
+
+  const clearError = (k: FieldKey) => setErrors((e) => (e[k] ? { ...e, [k]: undefined } : e));
 
   const handleSubmit = async () => {
-    if (!fullName.trim()) {
-      alertMsg('Nama lengkap wajib diisi');
-      return;
-    }
-    if (!phone.trim() || phone.length < 8) {
-      alertMsg('Nomor handphone tidak valid (minimal 8 digit)');
-      return;
-    }
-    if (!noRumah.trim()) {
-      alertMsg('Nomor rumah wajib diisi');
-      return;
-    }
+    const next: Partial<Record<FieldKey, string>> = {};
+    if (!fullName.trim()) next.fullName = 'Nama lengkap wajib diisi.';
+    if (!phone.trim() || phone.length < 8) next.phone = 'Nomor WhatsApp belum valid. Isi minimal 8 digit, misalnya 0857xxxxxxxx.';
+    if (!noRumah.trim()) next.noRumah = 'Nomor rumah wajib diisi.';
+    setErrors(next);
+    setSubmitError(null);
+    if (Object.keys(next).length) return;
 
     setLoading(true);
     try {
@@ -104,532 +125,273 @@ export function OnboardingModal() {
         pekerjaan: pekerjaan.trim(),
         catatan: catatan.trim(),
       });
-      alertMsg('Alhamdulillah, profil data diri Anda berhasil dilengkapi!');
     } catch (err: any) {
-      alertMsg(err.message || 'Gagal menyimpan data');
+      setSubmitError(err?.message || 'Gagal menyimpan data.');
     } finally {
       setLoading(false);
     }
   };
 
-  const alertMsg = (msg: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(msg);
-    } else {
-      Alert.alert('Informasi', msg);
-    }
-  };
-
   if (!isOnboardingModalVisible) return null;
 
-  return (
-    <Modal visible={isOnboardingModalVisible} transparent animationType="slide">
-      <View style={styles.overlay}>
-        <View style={styles.sheet}>
-          {/* Header Onboarding */}
-          <View style={styles.header}>
-            <View style={styles.badgeTop}>
-              <Ionicons name="sparkles" size={16} color="#EF8354" />
-              <Text style={styles.badgeTopText}>Pendaftaran Jamaah Baru</Text>
-            </View>
-            <Text style={styles.title}>Lengkapi Data Diri Jamaah</Text>
-            <Text style={styles.subTitle}>
-              Selamat datang di Musholla Al-Muttaqin! Mohon lengkapi data kependudukan untuk pendataan warga dan komunikasi DKM.
-            </Text>
+  const translateY = v.interpolate({ inputRange: [0, 1], outputRange: [wide ? 40 : 520, 0] });
+  const hasErrors = Object.values(errors).some(Boolean);
 
-            {currentUser?.email && (
+  return (
+    // Tidak bisa ditutup dengan Escape/back: data diri wajib. Jalan keluar: tombol "Keluar dari akun".
+    <Modal transparent visible animationType="none" onRequestClose={() => {}}>
+      <Animated.View style={[styles.scrim, { opacity: v }]} />
+      <View style={[styles.wrap, wide && styles.wrapWide]} pointerEvents="box-none">
+        <Animated.View
+          accessibilityViewIsModal
+          style={[styles.sheet, wide && styles.sheetWide, { opacity: wide ? v : 1, transform: [{ translateY }] }]}
+        >
+          <View style={styles.head}>
+            <Text style={styles.title} accessibilityRole="header">
+              Lengkapi data diri
+            </Text>
+            <T color={C.inkMuted}>
+              Data ini dipakai DKM untuk pendataan warga dan komunikasi. Kolom bertanda wajib harus diisi.
+            </T>
+            {currentUser?.email ? (
               <View style={styles.emailPill}>
-                <Ionicons name="mail-outline" size={14} color="#4F5D75" />
-                <Text style={styles.emailPillText}>{currentUser.email}</Text>
+                <Ionicons name="mail-outline" size={14} color={C.inkMuted} aria-hidden />
+                <T v="small" color={C.inkMuted} numberOfLines={1}>
+                  Masuk sebagai {currentUser.email}
+                </T>
               </View>
-            )}
+            ) : null}
           </View>
 
-          {/* Form Scrollable */}
-          <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false}>
-            {/* 1. Nama Lengkap */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>
-                Nama Lengkap Sesuai KTP <Text style={styles.req}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.input}
-                value={fullName}
-                onChangeText={setFullName}
-                placeholder="Contoh: Bpk. Ahmad Fauzi"
-                placeholderTextColor="#94A3B8"
+          <ScrollView style={styles.scroll} contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+            <Field
+              label="Nama lengkap sesuai KTP (wajib)"
+              value={fullName}
+              onChangeText={(t) => {
+                setFullName(t);
+                clearError('fullName');
+              }}
+              placeholder="Contoh: Ahmad Fauzi"
+              error={errors.fullName}
+            />
+
+            <Field
+              label="Nomor WhatsApp aktif (wajib)"
+              value={phoneInput}
+              onChangeText={(t) => {
+                setPhoneInput(t);
+                clearError('phone');
+              }}
+              keyboardType="phone-pad"
+              placeholder="0857xxxxxxxx"
+              error={errors.phone}
+              hint={`Disimpan sebagai ${phone || '62...'}`}
+            />
+
+            <View style={styles.group}>
+              <T v="label">Blok rumah (Mutiara Puri Harmoni)</T>
+              <Segmented
+                label="Blok rumah"
+                options={AVAILABLE_BLOCKS.map((b) => ({ key: b, label: b }))}
+                value={blokRumah}
+                onChange={setBlokRumah}
               />
             </View>
 
-            {/* 2. No Handphone WhatsApp (Auto 62xxx) */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>
-                Nomor WhatsApp Aktif (Auto 62xxx) <Text style={styles.req}>*</Text>
-              </Text>
-              <View style={styles.phoneInputRow}>
-                <View style={styles.phonePrefix}>
-                  <Text style={styles.phonePrefixText}>ID +62</Text>
-                </View>
-                <TextInput
-                  style={[styles.input, styles.phoneInput]}
-                  value={phone.startsWith('62') ? phone.slice(2) : phone}
-                  onChangeText={(val) => handlePhoneChange(val ? '62' + val : '')}
-                  keyboardType="phone-pad"
-                  placeholder="857-XXXX-XXXX"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-              <Text style={styles.hint}>Tersimpan di database sebagai: {phone || '62...'}</Text>
-            </View>
-
-            {/* 3. Blok & Nomor Blok Rumah */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>
-                Pilihan Blok Rumah (Mutiara Puri Harmoni) <Text style={styles.req}>*</Text>
-              </Text>
-              <View style={styles.chipsRow}>
-                {availableBlocks.map((b) => {
-                  const isSelected = blokRumah === b;
-                  return (
-                    <TouchableOpacity
-                      key={b}
-                      style={[styles.chip, isSelected && styles.chipActive]}
-                      onPress={() => setBlokRumah(b)}
-                    >
-                      <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>{b}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Nomor Blok & Nomor Rumah */}
-            <View style={styles.twoColsRow}>
-              <View style={[styles.fieldGroup, { flex: 1 }]}>
-                <Text style={styles.label}>
-                  Nomor Blok (Contoh: 7) <Text style={styles.req}>*</Text>
-                </Text>
-                <TextInput
-                  style={styles.input}
-                  value={nomorBlok}
-                  onChangeText={setNomorBlok}
-                  placeholder="Contoh: 7"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-
-              <View style={[styles.fieldGroup, { flex: 1, marginLeft: 12 }]}>
-                <Text style={styles.label}>
-                  Nomor Rumah <Text style={styles.req}>*</Text>
-                </Text>
-                <TextInput
-                  style={styles.input}
-                  value={noRumah}
-                  onChangeText={setNoRumah}
-                  placeholder="Contoh: 31"
-                  placeholderTextColor="#94A3B8"
-                />
-              </View>
-            </View>
-
-            {/* Preview Alamat Terformat */}
-            <View style={styles.addressPreviewBox}>
-              <Ionicons name="location" size={16} color="#EF8354" />
-              <Text style={styles.addressPreviewText}>
-                Format Alamat: <Text style={{ fontWeight: '800', color: '#2D3142' }}>{blokRumah}{nomorBlok ? nomorBlok : ''} No.{noRumah || '...'}</Text>
-              </Text>
-            </View>
-
-            {/* 4. RT / RW */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>RT / RW (Default 05/07)</Text>
-              <TextInput
-                style={styles.input}
-                value={rtRw}
-                onChangeText={setRtRw}
-                placeholder="05/07"
-                placeholderTextColor="#94A3B8"
+            <View style={styles.twoCols}>
+              <Field
+                style={styles.col}
+                label="Nomor blok"
+                value={nomorBlok}
+                onChangeText={setNomorBlok}
+                placeholder="7"
+                hint="Misal H7, isi 7"
+              />
+              <Field
+                style={styles.col}
+                label="Nomor rumah (wajib)"
+                value={noRumah}
+                onChangeText={(t) => {
+                  setNoRumah(t);
+                  clearError('noRumah');
+                }}
+                placeholder="31"
+                error={errors.noRumah}
               />
             </View>
 
-            {/* 5. Status Kependudukan */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Status Kependudukan</Text>
-              <View style={styles.statusToggleRow}>
-                <TouchableOpacity
-                  style={[styles.statusBtn, statusWarga === 'Tetap' && styles.statusBtnActive]}
-                  onPress={() => setStatusWarga('Tetap')}
-                >
-                  <Ionicons
-                    name="home"
-                    size={16}
-                    color={statusWarga === 'Tetap' ? '#EF8354' : '#4F5D75'}
-                  />
-                  <Text
-                    style={[
-                      styles.statusBtnText,
-                      statusWarga === 'Tetap' && styles.statusBtnTextActive,
-                    ]}
-                  >
-                    Warga Tetap
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.statusBtn, statusWarga === 'Kontrak' && styles.statusBtnActive]}
-                  onPress={() => setStatusWarga('Kontrak')}
-                >
-                  <Ionicons
-                    name="business"
-                    size={16}
-                    color={statusWarga === 'Kontrak' ? '#EF8354' : '#4F5D75'}
-                  />
-                  <Text
-                    style={[
-                      styles.statusBtnText,
-                      statusWarga === 'Kontrak' && styles.statusBtnTextActive,
-                    ]}
-                  >
-                    Warga Kontrak
-                  </Text>
-                </TouchableOpacity>
-              </View>
+            <View style={styles.addressBox}>
+              <Ionicons name="location-outline" size={16} color={C.g700} aria-hidden />
+              <T v="small" color={C.inkMuted} style={{ flex: 1 }}>
+                Alamat tercatat:{' '}
+                <T v="smallStrong">
+                  {blokRumah}
+                  {nomorBlok || ''} No.{noRumah || '...'}
+                </T>
+              </T>
             </View>
 
-            {/* 6. Jumlah Anggota Keluarga */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Jumlah Jiwa / Anggota Keluarga di Rumah</Text>
-              <View style={styles.chipsRow}>
-                {['1', '2', '3', '4', '5', '6+'].map((num) => {
-                  const isSel = jumlahKeluarga === num;
-                  return (
-                    <TouchableOpacity
-                      key={num}
-                      style={[styles.chip, isSel && styles.chipActive]}
-                      onPress={() => setJumlahKeluarga(num)}
-                    >
-                      <Text style={[styles.chipText, isSel && styles.chipTextActive]}>{num} Orang</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
+            <Field label="RT / RW" value={rtRw} onChangeText={setRtRw} placeholder="05/07" />
 
-            {/* 7. Profesi / Bidang Keahlian */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Bidang Profesi / Minat Kontribusi</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
-                {jobOptions.map((opt) => {
-                  const isSel = pekerjaan === opt;
-                  return (
-                    <TouchableOpacity
-                      key={opt}
-                      style={[styles.jobChip, isSel && styles.jobChipActive]}
-                      onPress={() => setPekerjaan(opt)}
-                    >
-                      <Text style={[styles.jobChipText, isSel && styles.jobChipTextActive]}>{opt}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {/* 8. Catatan / Usulan untuk Musholla */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Pesan / Usulan untuk Kemakmuran Musholla (Opsional)</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={catatan}
-                onChangeText={setCatatan}
-                placeholder="Tuliskan aspirasi, usulan kajian, atau bantuan untuk musholla..."
-                placeholderTextColor="#94A3B8"
-                multiline
-                numberOfLines={3}
+            <View style={styles.group}>
+              <T v="label">Status kependudukan</T>
+              <Segmented
+                label="Status kependudukan"
+                options={[
+                  { key: 'Tetap', label: 'Warga tetap' },
+                  { key: 'Kontrak', label: 'Warga kontrak' },
+                ]}
+                value={statusWarga}
+                onChange={setStatusWarga}
               />
             </View>
+
+            <View style={styles.group}>
+              <T v="label">Jumlah anggota keluarga di rumah</T>
+              <Segmented
+                label="Jumlah anggota keluarga"
+                options={FAMILY_OPTIONS.map((n) => ({ key: n, label: `${n} orang` }))}
+                value={familyValue}
+                onChange={setJumlahKeluarga}
+              />
+            </View>
+
+            <View style={styles.group}>
+              <T v="label">Bidang profesi atau minat kontribusi</T>
+              <Segmented
+                label="Bidang profesi"
+                options={JOB_OPTIONS.map((o) => ({ key: o, label: o }))}
+                value={pekerjaan}
+                onChange={setPekerjaan}
+              />
+              <T v="small" color={C.inkMuted}>
+                {pekerjaan ? `Dipilih: ${pekerjaan}` : 'Opsional. Geser untuk melihat pilihan lain.'}
+              </T>
+            </View>
+
+            <Field
+              label="Pesan atau usulan untuk musholla (opsional)"
+              value={catatan}
+              onChangeText={setCatatan}
+              placeholder="Usulan kajian, bantuan, atau aspirasi lain"
+              multiline
+            />
           </ScrollView>
 
-          {/* Footer Submit Button */}
           <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.submitBtn}
-              onPress={handleSubmit}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                  <Text style={styles.submitBtnText}>Simpan Data & Masuk ke Dashboard</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {submitError ? (
+              <View style={styles.errorBox} accessibilityLiveRegion="assertive" accessibilityRole="alert">
+                <Ionicons name="alert-circle-outline" size={18} color={C.dangerFg} aria-hidden />
+                <T v="small" color={C.dangerFg} style={{ flex: 1 }}>
+                  {submitError} Periksa koneksi lalu tekan Simpan data diri lagi.
+                </T>
+              </View>
+            ) : hasErrors ? (
+              <T v="small" color={C.dangerFg}>
+                Ada kolom yang perlu diperbaiki. Lihat pesan merah di atas.
+              </T>
+            ) : null}
+            <Button label="Simpan data diri" icon="checkmark-circle-outline" onPress={handleSubmit} loading={loading} />
+            <Button label="Keluar dari akun" variant="ghost" onPress={logout} disabled={loading} />
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  scrim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: C.scrim,
+  },
+  wrap: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  wrapWide: {
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
-    zIndex: 9999,
+    padding: SP.xl,
   },
   sheet: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    width: '100%',
-    maxWidth: 620,
-    maxHeight: '90%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 20,
+    backgroundColor: C.card,
+    borderTopLeftRadius: R.card,
+    borderTopRightRadius: R.card,
+    maxHeight: '92%',
     overflow: 'hidden',
   },
-  header: {
-    backgroundColor: '#F0FDF4',
-    paddingVertical: 20,
-    paddingHorizontal: 24,
+  sheetWide: {
+    width: '100%',
+    maxWidth: 620,
+    borderRadius: R.card,
+  },
+  head: {
+    paddingHorizontal: SP.xl,
+    paddingTop: SP.xl,
+    paddingBottom: SP.l,
+    gap: SP.s,
     borderBottomWidth: 1,
-    borderBottomColor: '#DCFCE7',
-    alignItems: 'center',
-  },
-  badgeTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#DCFCE7',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    gap: 6,
-    marginBottom: 8,
-  },
-  badgeTopText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#EF8354',
-    letterSpacing: 0.3,
+    borderColor: C.line,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#2D3142',
-    textAlign: 'center',
-  },
-  subTitle: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#64748B',
-    textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 18,
-    paddingHorizontal: 16,
-  },
+    ...TYPE.h2,
+    fontSize: 20,
+    color: C.ink,
+  } as TextStyle,
   emailPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 14,
-    paddingVertical: 3,
-    paddingHorizontal: 10,
     gap: 6,
-    marginTop: 10,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    paddingHorizontal: SP.m,
+    paddingVertical: 6,
+    borderRadius: R.pill,
+    backgroundColor: C.sunken,
+    borderWidth: 1,
+    borderColor: C.line,
   },
-  emailPillText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#0D3723',
+  scroll: {
+    flexShrink: 1,
   },
-  scrollBody: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+  form: {
+    padding: SP.xl,
+    gap: SP.l,
   },
-  fieldGroup: {
-    marginBottom: 16,
+  group: {
+    gap: 6,
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 6,
-  },
-  req: {
-    color: '#EF4444',
-  },
-  input: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0F172A',
-  },
-  phoneInputRow: {
+  twoCols: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: SP.m,
   },
-  phonePrefix: {
-    backgroundColor: '#E2E8F0',
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    borderRightWidth: 0,
-  },
-  phonePrefixText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  phoneInput: {
+  col: {
     flex: 1,
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
+    minWidth: 0,
   },
-  hint: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 4,
-  },
-  twoColsRow: {
+  addressBox: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  chipActive: {
-    backgroundColor: '#EF8354',
-    borderColor: '#EF8354',
-  },
-  chipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  chipTextActive: {
-    color: '#FFFFFF',
-  },
-  jobChip: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    marginRight: 8,
-  },
-  jobChipActive: {
-    backgroundColor: '#EF8354',
-    borderColor: '#EF8354',
-  },
-  jobChipText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#475569',
-  },
-  jobChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  statusToggleRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  statusBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-  },
-  statusBtnActive: {
-    backgroundColor: '#FDF1EB',
-    borderColor: '#EF8354',
-  },
-  statusBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  statusBtnTextActive: {
-    color: '#EF8354',
-  },
-  textArea: {
-    height: 72,
-    textAlignVertical: 'top',
-  },
-  addressPreviewBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FDF1EB',
-    borderWidth: 1,
-    borderColor: '#BFC0C0',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-  },
-  addressPreviewText: {
-    fontSize: 12,
-    color: '#2D3142',
+    gap: SP.s,
+    padding: SP.m,
+    borderRadius: R.inner,
+    backgroundColor: C.g50,
   },
   footer: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: SP.xl,
+    paddingTop: SP.m,
+    paddingBottom: SP.xl,
+    gap: SP.s,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: C.line,
   },
-  submitBtn: {
+  errorBox: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EF8354',
-    borderRadius: 14,
-    paddingVertical: 14,
-    gap: 8,
-    shadowColor: '#EF8354',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  submitBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
+    alignItems: 'flex-start',
+    gap: SP.s,
+    padding: SP.m,
+    borderRadius: R.inner,
+    backgroundColor: C.dangerBg,
   },
 });
