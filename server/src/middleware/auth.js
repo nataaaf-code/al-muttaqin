@@ -1,7 +1,11 @@
 import jwt from 'jsonwebtoken';
 import { db } from '../db/database.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'al-muttaqin-secret-key-2026-banten-rajeg-musholla-jwt-auth';
+// Tanpa fallback: secret yang tertulis di repo bisa dipakai siapa pun untuk memalsukan token login.
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET belum diisi. Set di file .env (lihat .env.example).');
+}
 
 export function signToken(user) {
   return jwt.sign(

@@ -3,3 +3,7 @@ node_modules
 .expo
 .vscode
 dist
+data
+server
+*.db
+.env

@@ -45,3 +45,6 @@ data/*.db-shm
 data/*.db-wal
 server/node_modules/
 
+
+# Secret deploy
+.env

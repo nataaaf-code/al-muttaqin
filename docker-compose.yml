@@ -11,9 +11,8 @@ services:
     environment:
       - PORT=4000
       - DB_PATH=/app/data/mushola.db
-      - GOOGLE_CLIENT_ID=619642670845-e7tvthu3ro4aip2fcdm80788486sc3vq.apps.googleusercontent.com
-      - GOOGLE_CLIENT_SECRET=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
-      - JWT_SECRET=al-muttaqin-secret-key-2026-banten-rajeg-musholla-jwt-auth
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?isi GOOGLE_CLIENT_ID di .env}
+      - JWT_SECRET=${JWT_SECRET:?isi JWT_SECRET di .env}
     networks:
       - internal_net
 
