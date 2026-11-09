@@ -48,3 +48,6 @@ server/node_modules/
 
 # Secret deploy
 .env
+
+# Database SQLite berisi data warga: jangan di-commit
+data/*.db
